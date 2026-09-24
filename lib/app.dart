@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'core/routes/app_routes.dart';
 import 'core/theme/app_colors.dart';
-import 'presentation/pages/login_page.dart';
+import 'presentation/pages/auth/login_page.dart';
 
 class PariwisataApp extends StatelessWidget {
   const PariwisataApp({super.key});
@@ -11,6 +12,7 @@ class PariwisataApp extends StatelessWidget {
     return MaterialApp(
       title: 'JemberGo',
       debugShowCheckedModeBanner: false,
+      routes: AppRoutes.routes,
       theme: ThemeData(
         scaffoldBackgroundColor: AppColors.bg,
         colorScheme: ColorScheme.fromSeed(seedColor: AppColors.orange),
