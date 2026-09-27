@@ -20,4 +20,10 @@ class AppColors {
   static const bg = Color(0xFFF4F6F9);
   static const cardBorder = Color(0xFFEDF1F5);
   static const blueDeep = Color(0xFF126080);
+  static const navy = Color(0xFF08233F);
+  static const pageBackground = Color(0xFFF7F9FC);
+  static const secondaryText = Color(0xFF7C8A99);
+  static const lightBlue = Color(0xFFEAF2F8);
+  static const ocean = Color(0xFF2C91C7);
+  static const leaf = Color(0xFF42946B);
 }
