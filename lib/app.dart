@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'core/routes/app_routes.dart';
 import 'core/theme/app_colors.dart';
-import 'presentation/pages/auth/login_page.dart';
+import 'presentation/pages/home/home_page.dart';
 
 class PariwisataApp extends StatelessWidget {
   const PariwisataApp({super.key});
@@ -35,7 +35,7 @@ class PariwisataApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const LoginPage(),
+      home: const HomePage(),
     );
   }
 }
