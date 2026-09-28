@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'core/routes/app_routes.dart';
 import 'core/theme/app_colors.dart';
-import 'presentation/pages/auth/login_page.dart';
+import 'data/models/destination.dart';
+import 'presentation/pages/booking/booking_page.dart';
 
 class PariwisataApp extends StatelessWidget {
   const PariwisataApp({super.key});
@@ -10,32 +10,39 @@ class PariwisataApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'JemberGo',
       debugShowCheckedModeBanner: false,
-      routes: AppRoutes.routes,
+      title: 'JemberGo',
       theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.blueDeep,
+          primary: AppColors.blueDeep,
+          secondary: AppColors.orange,
+          surface: Colors.white,
+        ),
         scaffoldBackgroundColor: AppColors.bg,
-        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.orange),
-        fontFamily: 'Arial',
-        inputDecorationTheme: const InputDecorationTheme(
-          filled: true,
-          fillColor: AppColors.field,
-          contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(14)),
-            borderSide: BorderSide(color: AppColors.border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(14)),
-            borderSide: BorderSide(color: AppColors.border),
-          ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: AppColors.ink,
+          elevation: 0,
+          centerTitle: false,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          labelStyle: const TextStyle(color: AppColors.muted),
+          hintStyle: const TextStyle(color: AppColors.muted),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(14)),
-            borderSide: BorderSide(color: AppColors.blue, width: 2),
+            borderRadius: BorderRadius.circular(11),
+            borderSide: const BorderSide(color: AppColors.blueDeep, width: 1.4),
           ),
         ),
       ),
-      home: const LoginPage(),
+      home: const BookingPage(
+        destination: Destination(
+          id: 'papuma',
+          name: 'Pantai Tanjung Papuma',
+          location: 'Jember, Jawa Timur',
+          ticketPrice: 25000,
+        ),
+      ),
     );
   }
 }

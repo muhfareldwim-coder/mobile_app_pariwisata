@@ -3,11 +3,13 @@ class Payment {
     required this.id,
     required this.bookingId,
     required this.amount,
+    this.method = 'qris',
     this.status = 'pending',
   });
 
   final String id;
   final String bookingId;
   final int amount;
+  final String method;
   final String status;
 }
