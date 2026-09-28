@@ -32,8 +32,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
 	Future<void> _register() async {
 		if (!(_formKey.currentState?.validate() ?? false) || !_agreed) return;
-		await _authService.register(_nameController.text.trim(), _emailController.text.trim(), _passwordController.text);
-		if (mounted) Navigator.pushReplacementNamed(context, AppRoutes.home);
+		final user = await _authService.register(_nameController.text.trim(), _emailController.text.trim(), _passwordController.text);
+		if (mounted) Navigator.pushReplacementNamed(context, AppRoutes.home, arguments: user);
 	}
 
 	@override

@@ -6,5 +6,5 @@ export 'app.dart';
 export 'presentation/pages/home/home_page.dart';
 
 void main() {
-  runApp(const PariwisataApp());    
+  runApp(const PariwisataApp());
 }

@@ -34,7 +34,7 @@ class _LoginPageState extends State<LoginPage> {
 		if (!(_formKey.currentState?.validate() ?? false) || !_agreed) return;
 		final user = await _authService.login(_emailController.text.trim(), _passwordController.text);
 		if (!mounted || user == null) return;
-		Navigator.pushReplacementNamed(context, AppRoutes.home);
+		Navigator.pushReplacementNamed(context, AppRoutes.home, arguments: user);
 	}
 
 	@override

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/routes/app_routes.dart';
 import '../../../data/models/destination.dart';
+import '../../../data/models/user.dart';
 import '../booking/booking_page.dart';
 import '../destination/explorer_page.dart';
 import '../ticket/my_ticket_page.dart';
@@ -11,14 +12,17 @@ class HomePage extends StatelessWidget {
 
 	@override
 	Widget build(BuildContext context) {
+		final routeArguments = ModalRoute.of(context)?.settings.arguments;
+		final user = routeArguments is User ? routeArguments : null;
 		return Scaffold(
-			appBar: AppBar(title: const Text('JemberGo'), actions: [IconButton(onPressed: () => Navigator.pushNamed(context, AppRoutes.login), icon: const Icon(Icons.logout))]),
+			appBar: AppBar(title: const Text('JemberGo'), actions: [IconButton(onPressed: () => Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false), icon: const Icon(Icons.logout))]),
 			body: ListView(padding: const EdgeInsets.all(20), children: [
 				const Text('Sistem Pemesanan Tiket Wisata', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
 				const SizedBox(height: 20),
 				_ActionTile(title: 'Jelajah Destinasi', icon: Icons.explore, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExplorerPage()))),
 				_ActionTile(title: 'Pesan Tiket', icon: Icons.confirmation_number, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BookingPage(destination: Destination(id: 'papuma', name: 'Pantai Papuma', location: 'Jember', ticketPrice: 15000))))),
 				_ActionTile(title: 'Tiket Saya', icon: Icons.qr_code, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyTicketPage()))),
+				_ActionTile(title: 'Profil', icon: Icons.person_outline, onTap: () => Navigator.pushNamed(context, AppRoutes.profile, arguments: user)),
 			]),
 		);
 	}
