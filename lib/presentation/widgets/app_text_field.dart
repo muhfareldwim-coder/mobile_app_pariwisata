@@ -12,6 +12,7 @@ class AppTextField extends StatelessWidget {
     this.keyboardType,
     this.obscureText = false,
     this.suffix,
+    this.prefixIcon,
   });
 
   final String label;
@@ -21,6 +22,7 @@ class AppTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final bool obscureText;
   final Widget? suffix;
+  final IconData? prefixIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +42,31 @@ class AppTextField extends StatelessWidget {
           validator: validator,
           keyboardType: keyboardType,
           obscureText: obscureText,
-          decoration: InputDecoration(hintText: hint, suffixIcon: suffix),
+          decoration: InputDecoration(
+            hintText: hint,
+            prefixIcon: prefixIcon == null
+                ? null
+                : Icon(prefixIcon, color: const Color(0xFF65758B)),
+            suffixIcon: suffix,
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 18,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFDCE3F4)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFDCE3F4)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF1265B8), width: 2),
+            ),
+          ),
         ),
       ],
     );
