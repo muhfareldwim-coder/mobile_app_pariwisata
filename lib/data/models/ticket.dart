@@ -10,6 +10,9 @@ class Ticket {
     required this.leaderEmail,
     required this.leaderPhone,
     required this.memberNames,
+    this.location = 'Jember',
+    this.imageUrl,
+    this.unitPrice = 0,
     this.status = 'valid',
   });
 
@@ -23,7 +26,11 @@ class Ticket {
   final String leaderEmail;
   final String leaderPhone;
   final List<String> memberNames;
+  final String location;
+  final String? imageUrl;
+  final int unitPrice;
   final String status;
 
   int get quantity => adultCount + childCount;
+  int get totalPrice => unitPrice * quantity;
 }

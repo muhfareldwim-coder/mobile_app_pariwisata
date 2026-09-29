@@ -51,6 +51,9 @@ class _PaymentPageState extends State<PaymentPage> {
         leaderEmail: widget.booking.leaderEmail,
         leaderPhone: widget.booking.leaderPhone,
         memberNames: widget.booking.memberNames,
+        location: widget.destination.location,
+        imageUrl: widget.destination.imageUrl,
+        unitPrice: widget.destination.ticketPrice,
       );
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(

@@ -13,9 +13,14 @@ class TicketService {
     required String leaderEmail,
     required String leaderPhone,
     required List<String> memberNames,
+    String location = 'Jember',
+    String? imageUrl,
+    int unitPrice = 0,
   }) async {
+    final ticketCode =
+        'JMB-${DateTime.now().year}-${(tickets.length + 1).toString().padLeft(5, '0')}';
     final ticket = Ticket(
-      id: 'JGO-${tickets.length + 1}'.padLeft(7, '0'),
+      id: ticketCode,
       bookingId: bookingId,
       destinationName: destinationName,
       visitDate: visitDate,
@@ -25,6 +30,9 @@ class TicketService {
       leaderEmail: leaderEmail,
       leaderPhone: leaderPhone,
       memberNames: List.unmodifiable(memberNames),
+      location: location,
+      imageUrl: imageUrl,
+      unitPrice: unitPrice,
     );
     tickets.add(ticket);
     return ticket;
