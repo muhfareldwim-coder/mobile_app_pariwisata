@@ -7,14 +7,11 @@ class AuthShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF9F8FF),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: Container(color: Colors.white, child: form),
-          ),
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Align(alignment: Alignment.topCenter, child: form),
         ),
       ),
     );
