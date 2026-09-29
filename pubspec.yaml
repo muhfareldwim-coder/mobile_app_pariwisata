@@ -58,7 +58,19 @@ flutter:
   uses-material-design: true
 
   assets:
-     - assets/logo_jembergonobackgroud.png
+    - assets/logo_jembergonobackgroud.png
+    - assets/jembergo_home_hero.png
+    - assets/jembergo_home_hero_2.png
+    - assets/jembergo_home_hero_3.png
+    - assets/jembergo_home_hero_4.png
+    - assets/jembergo_home_hero_5.png
+    - assets/jembergo_article_jfc.png
+    - assets/jembergo_article_homestay.png
+    - assets/jembergo_tancak.jpg
+    - assets/jembergo_kali_jompo.jpg
+    - assets/jembergo_papuma.jpg
+    - assets/jembergo_teluk_love.jpg
+    - assets/jembergo_taman_botani.jpg
 
   # To add assets to your application, add an assets section, like this:
   # assets:
