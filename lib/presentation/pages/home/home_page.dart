@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../widgets/bottom_navigation.dart';
+import '../article_detail_page.dart';
 import '../destination/explorer_page.dart';
+import '../map/map_page.dart';
 import '../profile/profile_page.dart';
 import '../ticket/my_ticket_page.dart';
 
@@ -13,7 +16,10 @@ const _bodyText = Color(0xFF132C49);
 const _secondaryText = Color(0xFF8492A5);
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.onTabSelected, this.onCategorySelected});
+
+  final ValueChanged<int>? onTabSelected;
+  final ValueChanged<String>? onCategorySelected;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -65,11 +71,9 @@ class _HomePageState extends State<HomePage> {
           children: [
             _HomeHeader(
               key: const ValueKey('home-header'),
-              onSearchTap: () => _openExplorer(context),
-              onProfileTap: () => _openPage(context, const ProfilePage()),
+              onProfileTap: () => _openTab(context, 4),
               onFavoriteTap: () => _openExplorer(context),
-              onNotificationsTap: () =>
-                  _openPage(context, const MyTicketPage()),
+              onNotificationsTap: () => _openTab(context, 3),
             ),
             Expanded(
               child: ListView(
@@ -91,22 +95,21 @@ class _HomePageState extends State<HomePage> {
                         icon: Icons.terrain_rounded,
                         label: 'Alam',
                         count: '2 Destinasi',
-                        selected: true,
-                        onTap: () => _openExplorer(context),
+                        onTap: () => _openCategory(context, 'ALAM'),
                       ),
                       const SizedBox(width: 9),
                       _CategoryItem(
                         icon: Icons.public_rounded,
                         label: 'Bahari',
                         count: '2 Destinasi',
-                        onTap: () => _openExplorer(context),
+                        onTap: () => _openCategory(context, 'BAHARI'),
                       ),
                       const SizedBox(width: 9),
                       _CategoryItem(
                         icon: Icons.location_city_rounded,
                         label: 'Buatan',
-                        count: '1 Destinasi',
-                        onTap: () => _openExplorer(context),
+                        count: '2 Destinasi',
+                        onTap: () => _openCategory(context, 'BUATAN'),
                       ),
                     ],
                   ),
@@ -151,32 +154,59 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   const SizedBox(height: 12),
-                  _ArticlesSection(onExploreTap: () => _openExplorer(context)),
+                  _ArticlesSection(
+                    onExploreTap: () => _openExplorer(context),
+                    onArticleTap: (article) => _openPage(
+                      context,
+                      ArticleDetailPage(
+                        article: article,
+                        onCategorySelected: (category) =>
+                            _openCategory(context, category),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar: _FloatingBottomNavigation(
-        onTap: (index) {
-          switch (index) {
-            case 1:
-              _openExplorer(context);
-            case 2:
-              _openExplorer(context);
-            case 3:
-              _openPage(context, const MyTicketPage());
-            case 4:
-              _openPage(context, const ProfilePage());
-          }
-        },
-      ),
+      bottomNavigationBar: widget.onTabSelected == null
+          ? AppBottomNavigation(
+              selectedIndex: 0,
+              onSelected: (index) => _openTab(context, index),
+            )
+          : null,
     );
   }
 
-  static void _openExplorer(BuildContext context) {
-    _openPage(context, const ExplorerPage());
+  void _openExplorer(BuildContext context) {
+    _openTab(context, 1);
+  }
+
+  void _openCategory(BuildContext context, String category) {
+    final onCategorySelected = widget.onCategorySelected;
+    if (onCategorySelected != null) {
+      onCategorySelected(category);
+      return;
+    }
+    _openPage(context, ExplorerPage(initialCategory: category));
+  }
+
+  void _openTab(BuildContext context, int index) {
+    final onTabSelected = widget.onTabSelected;
+    if (onTabSelected != null) {
+      onTabSelected(index);
+      return;
+    }
+    final page = switch (index) {
+      1 => const ExplorerPage(),
+      2 => const MapPage(),
+      3 => const MyTicketPage(),
+      4 => const ProfilePage(),
+      _ => null,
+    };
+    if (page != null) _openPage(context, page);
   }
 
   static void _openPage(BuildContext context, Widget page) {
@@ -187,13 +217,11 @@ class _HomePageState extends State<HomePage> {
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
     super.key,
-    required this.onSearchTap,
     required this.onProfileTap,
     required this.onFavoriteTap,
     required this.onNotificationsTap,
   });
 
-  final VoidCallback onSearchTap;
   final VoidCallback onProfileTap;
   final VoidCallback onFavoriteTap;
   final VoidCallback onNotificationsTap;
@@ -273,71 +301,6 @@ class _HomeHeader extends StatelessWidget {
                       Icons.person_rounded,
                       color: _raisedNavy,
                       size: 20,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: Tooltip(
-                  message: 'Cari destinasi',
-                  child: Material(
-                    color: const Color(0xFF193D5F),
-                    borderRadius: BorderRadius.circular(15),
-                    child: InkWell(
-                      onTap: onSearchTap,
-                      borderRadius: BorderRadius.circular(15),
-                      child: Container(
-                        height: 42,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: const Color(0xFF365875)),
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(
-                              Icons.search_rounded,
-                              color: Color(0xFF80BDD7),
-                              size: 18,
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Cari pantai, air terjun, bukit...',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: Color(0xFFC3D0DE),
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Material(
-                color: AppColors.orange,
-                borderRadius: BorderRadius.circular(14),
-                child: InkWell(
-                  onTap: onSearchTap,
-                  borderRadius: BorderRadius.circular(14),
-                  child: const SizedBox(
-                    width: 42,
-                    height: 42,
-                    child: Icon(
-                      Icons.filter_alt_rounded,
-                      color: AppColors.white,
-                      size: 19,
                     ),
                   ),
                 ),
@@ -546,12 +509,40 @@ class _HeroBanner extends StatelessWidget {
 }
 
 class _ArticlesSection extends StatelessWidget {
-  const _ArticlesSection({required this.onExploreTap});
+  const _ArticlesSection({
+    required this.onExploreTap,
+    required this.onArticleTap,
+  });
 
   final VoidCallback onExploreTap;
+  final ValueChanged<NewsArticle> onArticleTap;
 
   @override
   Widget build(BuildContext context) {
+    const jfcArticle = NewsArticle(
+      imageAsset: 'assets/jembergo_article_jfc.png',
+      category: 'Transportasi & Acara',
+      meta: 'Jember Event  •  5 menit baca',
+      title: 'Jadwal & Rute Shuttle Wisata Jember Fashion Carnival (JFC) 2026',
+      summary: 'Pemerintah Kabupaten Jember menyediakan akses transportasi terpadu untuk memudahkan mobilitas.',
+      sections: [
+        'Jember Fashion Carnival kembali menghadirkan rangkaian pertunjukan kostum spektakuler di pusat Kota Jember. Untuk membantu pengunjung menikmati acara dengan nyaman, layanan shuttle wisata disiapkan dari sejumlah titik parkir dan pusat keramaian.',
+        'Datang lebih awal, periksa informasi titik naik shuttle sebelum berangkat, dan ikuti arahan petugas di lapangan. Jadwal operasional dapat berubah mengikuti pengaturan lalu lintas dan agenda resmi acara.',
+        'Sesudah acara, lanjutkan perjalanan dengan menjelajahi destinasi alam, pantai, dan taman wisata di Kabupaten Jember.',
+      ],
+    );
+    const stayArticle = NewsArticle(
+      imageAsset: 'assets/jembergo_article_homestay.png',
+      category: 'Tips & Panduan',
+      meta: 'Panduan Petualang  •  3 menit baca',
+      title: '5 Panduan Booking Homestay & Destinasi Wisata Tanpa Boncos',
+      summary: 'Simak cara memanfaatkan paket liburan awal musim dan spot wisata ramah keluarga di sekitar Kabupaten Jember.',
+      sections: [
+        'Rencanakan perjalanan sebelum memesan penginapan. Tentukan area yang paling dekat dengan tujuan utama agar waktu dan biaya perjalanan tetap terukur.',
+        'Bandingkan fasilitas, aturan pembatalan, serta ulasan terbaru. Untuk liburan keluarga, pastikan akses kendaraan, jam check-in, dan fasilitas anak tersedia.',
+        'Susun itinerary yang realistis. Gabungkan destinasi yang berada di area berdekatan dan sisakan waktu untuk beristirahat.',
+      ],
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 30, 20, 8),
       child: Column(
@@ -565,23 +556,23 @@ class _ArticlesSection extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           _ArticleCard(
-            imageAsset: 'assets/jembergo_article_jfc.png',
-            tag: 'Transportasi & Acara',
-            meta: 'Jember Event  •  5 menit baca',
-            title: 'Jadwal & Rute Shuttle Wisata Jember Fashion Carnival (JFC) 2026',
-            summary: 'Pemerintah Kabupaten Jember menyediakan akses transportasi terpadu untuk memudahkan mobilitas.',
+            imageAsset: jfcArticle.imageAsset,
+            tag: jfcArticle.category,
+            meta: jfcArticle.meta,
+            title: jfcArticle.title,
+            summary: jfcArticle.summary,
             footer: 'Terbit Terkini',
-            onTap: onExploreTap,
+            onTap: () => onArticleTap(jfcArticle),
           ),
           const SizedBox(height: 10),
           _ArticleCard(
-            imageAsset: 'assets/jembergo_article_homestay.png',
-            tag: 'Tips & Panduan',
-            meta: 'Panduan Petualang  •  3 menit baca',
-            title: '5 Panduan Booking Homestay & Destinasi Wisata Tanpa Boncos',
-            summary: 'Simak cara memanfaatkan paket liburan awal musim dan spot wisata ramah keluarga di sekitar Kabupaten Jember.',
+            imageAsset: stayArticle.imageAsset,
+            tag: stayArticle.category,
+            meta: stayArticle.meta,
+            title: stayArticle.title,
+            summary: stayArticle.summary,
             footer: 'Tips Lokal',
-            onTap: onExploreTap,
+            onTap: () => onArticleTap(stayArticle),
           ),
         ],
       ),
@@ -815,21 +806,19 @@ class _CategoryItem extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.count,
-    this.selected = false,
     required this.onTap,
   });
 
   final IconData icon;
   final String label;
   final String count;
-  final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Material(
-        color: selected ? _raisedNavy : AppColors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(15),
         child: InkWell(
           onTap: onTap,
@@ -840,9 +829,7 @@ class _CategoryItem extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(15),
               border: Border.all(
-                color: selected
-                    ? const Color(0xFF4F88B7)
-                    : const Color(0xFFE4EAF1),
+                color: const Color(0xFFE4EAF1),
               ),
               boxShadow: const [
                 BoxShadow(
@@ -859,14 +846,12 @@ class _CategoryItem extends StatelessWidget {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: selected
-                        ? const Color(0xFF315A7E)
-                        : const Color(0xFFF0F5FB),
+                    color: const Color(0xFFF0F5FB),
                     borderRadius: BorderRadius.circular(11),
                   ),
                   child: Icon(
                     icon,
-                    color: selected ? _softGold : _raisedNavy,
+                    color: AppColors.ocean,
                     size: 19,
                   ),
                 ),
@@ -876,8 +861,8 @@ class _CategoryItem extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: selected ? AppColors.white : _bodyText,
+                  style: const TextStyle(
+                    color: _bodyText,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
@@ -887,8 +872,8 @@ class _CategoryItem extends StatelessWidget {
                   count,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: selected ? const Color(0xFFBCD0E3) : _secondaryText,
+                  style: const TextStyle(
+                    color: _secondaryText,
                     fontSize: 8,
                   ),
                 ),
@@ -1141,107 +1126,6 @@ class _NearbyDestinationTile extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FloatingBottomNavigation extends StatelessWidget {
-  const _FloatingBottomNavigation({required this.onTap});
-
-  final ValueChanged<int> onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    const items = [
-      (Icons.home_rounded, 'Beranda'),
-      (Icons.explore_outlined, 'Jelajah'),
-      (Icons.map_outlined, 'Peta'),
-      (Icons.confirmation_number_outlined, 'Tiket'),
-      (Icons.person_outline_rounded, 'Profil'),
-    ];
-
-    return SafeArea(
-      top: false,
-      child: Container(
-        height: 67,
-        padding: const EdgeInsets.fromLTRB(8, 5, 8, 3),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Color(0xFFE5EAF0))),
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x12091F39),
-              blurRadius: 12,
-              offset: Offset(0, -3),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            for (var index = 0; index < items.length; index++)
-              Expanded(
-                child: _FloatingNavigationItem(
-                  icon: items[index].$1,
-                  label: items[index].$2,
-                  selected: index == 0,
-                  onTap: () => onTap(index),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FloatingNavigationItem extends StatelessWidget {
-  const _FloatingNavigationItem({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? AppColors.orange : const Color(0xFF8190A2);
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            Icon(icon, color: color, size: 19),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 9,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-            Container(
-              width: 4,
-              height: 4,
-              decoration: BoxDecoration(
-                color: selected ? AppColors.orange : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ],
         ),
       ),
     );

@@ -1,5 +1,10 @@
 import '../models/payment.dart';
 
 class PaymentService {
-  Future<Payment> createPayment(Payment payment) async => payment;
+  static final List<Payment> payments = [];
+
+  Future<Payment> createPayment(Payment payment) async {
+    payments.add(payment);
+    return payment;
+  }
 }

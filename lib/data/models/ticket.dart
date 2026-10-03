@@ -3,6 +3,7 @@ class Ticket {
     required this.id,
     required this.bookingId,
     required this.destinationName,
+    this.destinationImageUrl,
     required this.visitDate,
     required this.adultCount,
     required this.childCount,
@@ -10,12 +11,15 @@ class Ticket {
     required this.leaderEmail,
     required this.leaderPhone,
     required this.memberNames,
+    this.amountPaid = 0,
+    this.paymentMethod = 'QRIS',
     this.status = 'valid',
   });
 
   final String id;
   final String bookingId;
   final String destinationName;
+  final String? destinationImageUrl;
   final DateTime visitDate;
   final int adultCount;
   final int childCount;
@@ -23,6 +27,8 @@ class Ticket {
   final String leaderEmail;
   final String leaderPhone;
   final List<String> memberNames;
+  final int amountPaid;
+  final String paymentMethod;
   final String status;
 
   int get quantity => adultCount + childCount;

@@ -27,22 +27,18 @@ class CategoryChip extends StatelessWidget {
         onSelected: (_) => onTap(),
         showCheckmark: false,
         backgroundColor: const Color(0xFF163957),
-        selectedColor: Colors.white,
+        selectedColor: AppColors.orange,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        side: BorderSide(color: selected ? Colors.white : Colors.white24),
+        side: BorderSide(color: selected ? AppColors.orange : Colors.white24),
         label: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 15,
-              color: selected ? AppColors.navy : Colors.white,
-            ),
+            Icon(icon, size: 15, color: Colors.white),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                color: selected ? AppColors.navy : Colors.white,
+                color: Colors.white,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -51,10 +47,7 @@ class CategoryChip extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 '$count',
-                style: TextStyle(
-                  color: selected ? AppColors.secondaryText : Colors.white70,
-                  fontSize: 10,
-                ),
+                style: TextStyle(color: Colors.white70, fontSize: 10),
               ),
             ],
           ],

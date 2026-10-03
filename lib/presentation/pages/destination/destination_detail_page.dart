@@ -275,7 +275,7 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
                           vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1674D8),
+                          color: AppColors.ocean,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(

@@ -20,11 +20,7 @@ class DestinationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final categoryColor = switch (destination.category) {
-      'BAHARI' => AppColors.ocean,
-      'BUATAN' => AppColors.orange,
-      _ => AppColors.leaf,
-    };
+    const categoryColor = AppColors.ocean;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),

@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/destination_data.dart';
 import '../../../data/models/destination.dart';
-import '../../widgets/bottom_navigation.dart';
 import '../../widgets/destination/category_chip.dart';
 import '../../widgets/destination/destination_card.dart';
 import 'destination_detail_page.dart';
 
 class ExplorerPage extends StatefulWidget {
-  const ExplorerPage({super.key});
+  const ExplorerPage({super.key, this.initialCategory = 'Semua'});
+
+  final String initialCategory;
 
   @override
   State<ExplorerPage> createState() => _ExplorerPageState();
@@ -18,9 +19,14 @@ class ExplorerPage extends StatefulWidget {
 class _ExplorerPageState extends State<ExplorerPage> {
   final searchController = TextEditingController();
   final favorites = <String>{};
-  String selectedCategory = 'Semua';
+  late String selectedCategory;
   String selectedSort = 'Terpopuler';
-  int selectedTab = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedCategory = widget.initialCategory;
+  }
 
   @override
   void dispose() {
@@ -32,11 +38,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.pageBackground,
-      body: selectedTab == 1 ? _exploreBody() : _otherTabBody(),
-      bottomNavigationBar: AppBottomNavigation(
-        selectedIndex: selectedTab,
-        onSelected: (index) => setState(() => selectedTab = index),
-      ),
+      body: _exploreBody(),
     );
   }
 
@@ -280,12 +282,17 @@ class _ExplorerPageState extends State<ExplorerPage> {
                   height: 46,
                   padding: const EdgeInsets.symmetric(horizontal: 13),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF173957),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(13),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.search, color: Colors.white70, size: 19),
+                      const Icon(
+                        Icons.search,
+                        color: AppColors.blueDeep,
+                        size: 19,
+                      ),
                       const SizedBox(width: 9),
                       Expanded(
                         child: TextField(
@@ -297,7 +304,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                           ),
                           cursorColor: AppColors.orange,
                           decoration: const InputDecoration(
-                            hintText: 'Kabupaten Jember',
+                            hintText: 'Cari nama destinasi atau lokasi',
                             hintStyle: TextStyle(
                               color: AppColors.secondaryText,
                               fontSize: 12,
@@ -321,7 +328,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                           },
                           icon: const Icon(
                             Icons.close,
-                            color: Colors.white70,
+                            color: AppColors.secondaryText,
                             size: 16,
                           ),
                         ),
@@ -399,52 +406,6 @@ class _ExplorerPageState extends State<ExplorerPage> {
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _otherTabBody() {
-    final labels = ['Beranda', 'Eksplor', 'Tiket Saya', 'Profil'];
-    final icons = [
-      Icons.home_outlined,
-      Icons.explore_outlined,
-      Icons.confirmation_number_outlined,
-      Icons.person_outline,
-    ];
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 68,
-            height: 68,
-            decoration: BoxDecoration(
-              color: AppColors.lightBlue,
-              borderRadius: BorderRadius.circular(22),
-            ),
-            child: Icon(icons[selectedTab], color: AppColors.navy, size: 30),
-          ),
-          const SizedBox(height: 13),
-          Text(
-            labels[selectedTab],
-            style: const TextStyle(
-              color: AppColors.navy,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 7),
-          const Text(
-            'Jelajahi destinasi terbaik di Jember',
-            style: TextStyle(color: AppColors.secondaryText, fontSize: 12),
-          ),
-          const SizedBox(height: 18),
-          OutlinedButton.icon(
-            onPressed: () => setState(() => selectedTab = 1),
-            icon: const Icon(Icons.explore_outlined),
-            label: const Text('Mulai eksplor'),
           ),
         ],
       ),

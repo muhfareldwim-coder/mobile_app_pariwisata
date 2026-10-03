@@ -13,10 +13,11 @@ class AppBottomNavigation extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   static const _items = [
-    (Icons.home_outlined, 'Beranda'),
-    (Icons.explore_outlined, 'Eksplor'),
+    (Icons.home_rounded, 'Beranda'),
+    (Icons.explore_outlined, 'Jelajah'),
+    (Icons.map_outlined, 'Peta'),
     (Icons.confirmation_number_outlined, 'Tiket'),
-    (Icons.person_outline, 'Profil'),
+    (Icons.person_outline_rounded, 'Profil'),
   ];
 
   @override

@@ -8,3 +8,4 @@ export 'presentation/pages/home/home_page.dart';
 void main() {
   runApp(const PariwisataApp());    
 }
+    
