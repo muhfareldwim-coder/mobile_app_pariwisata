@@ -34,13 +34,14 @@ class _HomePageState extends State<HomePage> {
       imageAsset: 'assets/jembergo_tancak.jpg',
     ),
     _DestinationPreview(
-      name: 'Kali Jompo',
-      category: 'Alam',
-      location: 'Kecamatan Semboro, Jember',
-      imageAsset: 'assets/jembergo_kali_jompo.jpg',
+      name: 'Pantai Watu Ulo',
+      category: 'Bahari',
+      location: 'Sumberejo, Ambulu, Jember',
+      imageAsset: 'assets/jembergo_papuma.jpg',
+      imageUrl: 'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1200&q=85',
     ),
     _DestinationPreview(
-      name: 'Pantai Papuma',
+      name: 'Pantai Tanjung Papuma',
       category: 'Bahari',
       location: 'Desa Lojejer, Wuluhan, Jember',
       imageAsset: 'assets/jembergo_papuma.jpg',
@@ -52,14 +53,21 @@ class _HomePageState extends State<HomePage> {
       imageAsset: 'assets/jembergo_teluk_love.jpg',
     ),
     _DestinationPreview(
-      name: 'Taman Botani',
+      name: 'Taman Botani Sukorambi',
       category: 'Buatan',
       location: 'Jl. Mujahir, Sukorambi, Jember',
       imageAsset: 'assets/jembergo_taman_botani.jpg',
     ),
+    _DestinationPreview(
+      name: 'Dira Park',
+      category: 'Buatan',
+      location: 'Ambulu, Jember',
+      imageAsset: 'assets/jembergo_taman_botani.jpg',
+      imageUrl: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=1200&q=85',
+    ),
   ];
 
-  static const _popularOrder = [2, 3, 0, 1, 4];
+  static const _popularOrder = [2, 3, 0, 1, 4, 5];
 
   @override
   Widget build(BuildContext context) {
@@ -94,14 +102,14 @@ class _HomePageState extends State<HomePage> {
                       _CategoryItem(
                         icon: Icons.terrain_rounded,
                         label: 'Alam',
-                        count: '2 Destinasi',
+                        count: '1 Destinasi',
                         onTap: () => _openCategory(context, 'ALAM'),
                       ),
                       const SizedBox(width: 9),
                       _CategoryItem(
                         icon: Icons.public_rounded,
                         label: 'Bahari',
-                        count: '2 Destinasi',
+                        count: '3 Destinasi',
                         onTap: () => _openCategory(context, 'BAHARI'),
                       ),
                       const SizedBox(width: 9),
@@ -828,9 +836,7 @@ class _CategoryItem extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(15),
-              border: Border.all(
-                color: const Color(0xFFE4EAF1),
-              ),
+              border: Border.all(color: const Color(0xFFE4EAF1)),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x0A14304B),
@@ -849,11 +855,7 @@ class _CategoryItem extends StatelessWidget {
                     color: const Color(0xFFF0F5FB),
                     borderRadius: BorderRadius.circular(11),
                   ),
-                  child: Icon(
-                    icon,
-                    color: AppColors.ocean,
-                    size: 19,
-                  ),
+                  child: Icon(icon, color: AppColors.ocean, size: 19),
                 ),
                 const SizedBox(height: 5),
                 Text(
@@ -872,10 +874,7 @@ class _CategoryItem extends StatelessWidget {
                   count,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _secondaryText,
-                    fontSize: 8,
-                  ),
+                  style: const TextStyle(color: _secondaryText, fontSize: 8),
                 ),
               ],
             ),
@@ -892,12 +891,30 @@ class _DestinationPreview {
     required this.category,
     required this.location,
     required this.imageAsset,
+    this.imageUrl,
   });
 
   final String name;
   final String category;
   final String location;
   final String imageAsset;
+  final String? imageUrl;
+
+  Image buildImage() {
+    Widget fallback(
+      BuildContext context,
+      Object error,
+      StackTrace? stackTrace,
+    ) => const ColoredBox(
+      color: _raisedNavy,
+      child: Center(
+        child: Icon(Icons.landscape_outlined, color: _softGold, size: 36),
+      ),
+    );
+    return imageUrl == null
+        ? Image.asset(imageAsset, fit: BoxFit.cover, errorBuilder: fallback)
+        : Image.network(imageUrl!, fit: BoxFit.cover, errorBuilder: fallback);
+  }
 }
 
 class _DestinationCard extends StatelessWidget {
@@ -923,17 +940,7 @@ class _DestinationCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.asset(
-                    destination.imageAsset,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const Center(
-                      child: Icon(
-                        Icons.landscape_outlined,
-                        color: _softGold,
-                        size: 36,
-                      ),
-                    ),
-                  ),
+                  destination.buildImage(),
                   Positioned(
                     top: 10,
                     left: 10,
@@ -1074,11 +1081,10 @@ class _NearbyDestinationTile extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: Image.asset(
-                  destination.imageAsset,
+                child: SizedBox(
                   width: 66,
                   height: 66,
-                  fit: BoxFit.cover,
+                  child: destination.buildImage(),
                 ),
               ),
               const SizedBox(width: 10),

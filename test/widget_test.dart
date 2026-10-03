@@ -154,8 +154,8 @@ void main() {
 
     final searchField = tester.widget<TextField>(find.byType(TextField));
     expect(searchField.style?.color, AppColors.navy);
-    expect(searchField.decoration?.hintText, 'Cari nama destinasi atau lokasi');
-    expect(searchField.decoration?.hintStyle?.color, AppColors.secondaryText);
+    expect(searchField.decoration?.hintText, 'Cari lokasi wisata di peta...');
+    expect(searchField.decoration?.hintStyle?.color, const Color(0xFF6B625C));
 
     final header = find.byKey(const ValueKey('exploreHeader'));
     final initialTop = tester.getTopLeft(header).dy;
@@ -180,7 +180,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(ExplorerPage), findsOneWidget);
-    expect(find.text('2 Ditemukan'), findsOneWidget);
+    expect(find.text('3 Ditemukan'), findsOneWidget);
     expect(find.text('Pantai Tanjung Papuma'), findsOneWidget);
   });
 
@@ -216,7 +216,7 @@ void main() {
     await tester.tap(articleBahari);
     await tester.pumpAndSettle();
     expect(find.byType(ExplorerPage), findsOneWidget);
-    expect(find.text('2 Ditemukan'), findsOneWidget);
+    expect(find.text('3 Ditemukan'), findsOneWidget);
   });
 
   testWidgets('booking dibayar QRIS dan menerbitkan QR e-ticket', (
@@ -233,7 +233,7 @@ void main() {
     expect(find.text('6 Ditemukan'), findsOneWidget);
     await tester.tap(find.text('Bahari'));
     await tester.pumpAndSettle();
-    expect(find.text('2 Ditemukan'), findsOneWidget);
+    expect(find.text('3 Ditemukan'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'Papuma');
     await tester.pumpAndSettle();

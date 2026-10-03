@@ -220,9 +220,9 @@ class _ExplorerPageState extends State<ExplorerPage> {
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
         20,
-        MediaQuery.of(context).padding.top + 12,
+        MediaQuery.of(context).padding.top + 16,
         20,
-        19,
+        20,
       ),
       decoration: const BoxDecoration(
         color: AppColors.navy,
@@ -249,24 +249,33 @@ class _ExplorerPageState extends State<ExplorerPage> {
                         ),
                         const SizedBox(width: 7),
                         const Text(
-                          'JELAJAH JEMBER',
+                          'JEMBER, JAWA TIMUR',
                           style: TextStyle(
                             color: Color(0xFFC2D0DD),
-                            fontSize: 9,
-                            letterSpacing: 1.2,
+                            fontSize: 10,
+                            letterSpacing: 0.8,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 7),
+                    const SizedBox(height: 8),
                     const Text(
-                      'Eksplor\nDestinasi',
+                      'Mau ke mana?',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 27,
-                        height: 1.02,
+                        fontSize: 29,
+                        height: 1.1,
                         fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Cari pantai, alam, atau tempat seru lainnya.',
+                      style: TextStyle(
+                        color: Color(0xFFC2D0DD),
+                        fontSize: 11,
+                        height: 1.3,
                       ),
                     ),
                   ],
@@ -274,106 +283,77 @@ class _ExplorerPageState extends State<ExplorerPage> {
               ),
             ],
           ),
-          const SizedBox(height: 17),
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 46,
-                  padding: const EdgeInsets.symmetric(horizontal: 13),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(13),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.search,
-                        color: AppColors.blueDeep,
-                        size: 19,
+          const SizedBox(height: 16),
+          Container(
+            height: 58,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFDCE4F0)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.search, color: AppColors.blueDeep, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: searchController,
+                    onChanged: (_) => setState(() {}),
+                    expands: true,
+                    minLines: null,
+                    maxLines: null,
+                    textAlignVertical: TextAlignVertical.center,
+                    style: const TextStyle(color: AppColors.navy, fontSize: 16),
+                    cursorColor: AppColors.orange,
+                    decoration: const InputDecoration(
+                      hintText: 'Cari lokasi wisata di peta...',
+                      hintStyle: TextStyle(
+                        color: Color(0xFF6B625C),
+                        fontSize: 16,
                       ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: TextField(
-                          controller: searchController,
-                          onChanged: (_) => setState(() {}),
-                          style: const TextStyle(
-                            color: AppColors.navy,
-                            fontSize: 12,
-                          ),
-                          cursorColor: AppColors.orange,
-                          decoration: const InputDecoration(
-                            hintText: 'Cari nama destinasi atau lokasi',
-                            hintStyle: TextStyle(
-                              color: AppColors.secondaryText,
-                              fontSize: 12,
-                            ),
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                        ),
-                      ),
-                      if (searchController.text.isNotEmpty)
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 25,
-                            minHeight: 25,
-                          ),
-                          onPressed: () {
-                            searchController.clear();
-                            setState(() {});
-                          },
-                          icon: const Icon(
-                            Icons.close,
-                            color: AppColors.secondaryText,
-                            size: 16,
-                          ),
-                        ),
-                    ],
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 9),
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  SizedBox(
-                    width: 46,
-                    height: 46,
-                    child: Material(
-                      color: AppColors.orange,
-                      borderRadius: BorderRadius.circular(13),
-                      child: IconButton(
-                        tooltip: 'Filter destinasi',
-                        onPressed: _showFilterSheet,
-                        icon: const Icon(
-                          Icons.tune_rounded,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
+                if (searchController.text.isNotEmpty)
+                  IconButton(
+                    tooltip: 'Hapus pencarian',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 36,
+                      minHeight: 40,
+                    ),
+                    onPressed: () {
+                      searchController.clear();
+                      setState(() {});
+                    },
+                    icon: const Icon(
+                      Icons.close,
+                      color: AppColors.secondaryText,
+                      size: 19,
                     ),
                   ),
-                  Positioned(
-                    right: 7,
-                    top: 7,
-                    child: Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFFFD05C),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
+                IconButton(
+                  tooltip: 'Filter destinasi',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 40,
                   ),
-                ],
-              ),
-            ],
+                  onPressed: _showFilterSheet,
+                  icon: const Icon(
+                    Icons.tune_rounded,
+                    color: AppColors.blueDeep,
+                    size: 23,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 13),
+          const SizedBox(height: 14),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(

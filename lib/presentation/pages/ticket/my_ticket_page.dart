@@ -42,28 +42,57 @@ class _MyTicketPageState extends State<MyTicketPage> {
                       .where((ticket) => !_isActive(ticket))
                       .toList();
                   final displayed = _selectedTab == 0 ? active : history;
-                  return ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
-                    children: [
-                      _TicketTabs(
-                        selectedIndex: _selectedTab,
-                        activeCount: active.length,
-                        historyCount: history.length,
-                        onSelected: (index) =>
-                            setState(() => _selectedTab = index),
+                  return CustomScrollView(
+                    slivers: [
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                        sliver: SliverList(
+                          delegate: SliverChildListDelegate([
+                            _TicketTabs(
+                              selectedIndex: _selectedTab,
+                              activeCount: active.length,
+                              historyCount: history.length,
+                              onSelected: (index) =>
+                                  setState(() => _selectedTab = index),
+                            ),
+                            const SizedBox(height: 12),
+                            if (displayed.isNotEmpty) ...[
+                              _ActiveTicketCard(ticket: displayed.first),
+                              for (final ticket in displayed.skip(1)) ...[
+                                const SizedBox(height: 14),
+                                _CompactTicketCard(ticket: ticket),
+                              ],
+                            ],
+                          ]),
+                        ),
                       ),
-                      const SizedBox(height: 12),
                       if (displayed.isEmpty)
-                        _EmptyTickets(isHistory: _selectedTab == 1)
-                      else ...[
-                        _ActiveTicketCard(ticket: displayed.first),
-                        for (final ticket in displayed.skip(1)) ...[
-                          const SizedBox(height: 14),
-                          _CompactTicketCard(ticket: ticket),
-                        ],
-                      ],
-                      const SizedBox(height: 20),
-                      const _TicketHelpSection(),
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                          sliver: SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Column(
+                              children: [
+                                Expanded(
+                                  child: _EmptyTickets(
+                                    isHistory: _selectedTab == 1,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                const _TicketHelpSection(),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+                          sliver: SliverList(
+                            delegate: SliverChildListDelegate([
+                              const _TicketHelpSection(),
+                            ]),
+                          ),
+                        ),
                     ],
                   );
                 },
@@ -220,40 +249,46 @@ class _TicketTabButton extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: selected ? Colors.white : const Color(0xFF454B58),
-                  fontSize: 11,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+        child: SizedBox(
+          width: double.infinity,
+          height: double.infinity,
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: selected ? Colors.white : const Color(0xFF454B58),
+                      fontSize: 11,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 5),
-            Container(
-              width: 18,
-              height: 18,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: selected ? _ticketBlue : const Color(0xFFD8DDF0),
-                shape: BoxShape.circle,
-              ),
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  color: selected ? Colors.white : const Color(0xFF46526C),
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
+                const SizedBox(width: 5),
+                Container(
+                  width: 18,
+                  height: 18,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: selected ? _ticketBlue : const Color(0xFFD8DDF0),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '$count',
+                    style: TextStyle(
+                      color: selected ? Colors.white : const Color(0xFF46526C),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -847,33 +882,36 @@ class _EmptyTickets extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 38),
-      child: Column(
-        children: [
-          Icon(
-            isHistory
-                ? Icons.history_rounded
-                : Icons.confirmation_number_outlined,
-            color: const Color(0xFF9AA6B6),
-            size: 39,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            isHistory ? 'Belum ada tiket selesai' : 'Belum ada tiket aktif',
-            style: const TextStyle(
-              color: _ticketNavy,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isHistory
+                  ? Icons.history_rounded
+                  : Icons.confirmation_number_outlined,
+              color: const Color(0xFF9AA6B6),
+              size: 39,
             ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Tiket yang sudah dibeli akan muncul di sini.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF7C8491), fontSize: 11),
-          ),
-        ],
+            const SizedBox(height: 10),
+            Text(
+              isHistory ? 'Belum ada tiket selesai' : 'Belum ada tiket aktif',
+              style: const TextStyle(
+                color: _ticketNavy,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Tiket yang sudah dibeli akan muncul di sini.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0xFF7C8491), fontSize: 11),
+            ),
+          ],
+        ),
       ),
     );
   }

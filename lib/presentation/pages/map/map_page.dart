@@ -20,8 +20,10 @@ class _MapPageState extends State<MapPage> {
   static const _filters = ['Semua', 'Bahari', 'Alam & Air', 'Buatan'];
   static const _locations = [
     _MapLocation(
+      id: 'papuma',
       name: 'Pantai Tanjung Papuma',
       category: 'Bahari',
+      destinationCategory: 'BAHARI',
       area: 'Ambulu',
       description: 'Pantai berpasir putih dengan gugusan batu karang.',
       position: LatLng(-8.431, 113.561),
@@ -30,8 +32,10 @@ class _MapPageState extends State<MapPage> {
       icon: Icons.waves_rounded,
     ),
     _MapLocation(
+      id: 'watu-ulo',
       name: 'Pantai Watu Ulo',
       category: 'Bahari',
+      destinationCategory: 'BAHARI',
       area: 'Ambulu',
       description: 'Garis pantai ikonik di pesisir selatan Jember.',
       position: LatLng(-8.422, 113.568),
@@ -40,8 +44,22 @@ class _MapPageState extends State<MapPage> {
       icon: Icons.beach_access_rounded,
     ),
     _MapLocation(
+      id: 'teluk-love',
+      name: 'Teluk Love',
+      category: 'Bahari',
+      destinationCategory: 'BAHARI',
+      area: 'Ambulu',
+      description: 'Teluk berbentuk hati dengan panorama pesisir selatan Jember.',
+      position: LatLng(-8.433, 113.574),
+      price: 15000,
+      distance: '43 km',
+      icon: Icons.favorite_rounded,
+    ),
+    _MapLocation(
+      id: 'tancak',
       name: 'Air Terjun Tancak',
       category: 'Alam & Air',
+      destinationCategory: 'ALAM',
       area: 'Panti',
       description: 'Air terjun di kaki Gunung Argopuro.',
       position: LatLng(-8.055, 113.646),
@@ -50,18 +68,10 @@ class _MapPageState extends State<MapPage> {
       icon: Icons.waterfall_chart_rounded,
     ),
     _MapLocation(
-      name: 'Pemandian Rembangan',
-      category: 'Alam & Air',
-      area: 'Arjasa',
-      description: 'Kawasan perbukitan dengan udara sejuk.',
-      position: LatLng(-8.063, 113.734),
-      price: 20000,
-      distance: '17 km',
-      icon: Icons.pool_rounded,
-    ),
-    _MapLocation(
+      id: 'botani',
       name: 'Taman Botani Sukorambi',
       category: 'Buatan',
+      destinationCategory: 'BUATAN',
       area: 'Sukorambi',
       description: 'Taman rekreasi keluarga dengan beragam wahana.',
       position: LatLng(-8.126, 113.676),
@@ -70,14 +80,16 @@ class _MapPageState extends State<MapPage> {
       icon: Icons.park_rounded,
     ),
     _MapLocation(
-      name: 'Alun-Alun Jember',
+      id: 'dira-park',
+      name: 'Dira Park',
       category: 'Buatan',
-      area: 'Kaliwates',
-      description: 'Ruang terbuka publik di pusat Kabupaten Jember.',
-      position: _jemberCenter,
-      price: 0,
-      distance: '1 km',
-      icon: Icons.location_city_rounded,
+      destinationCategory: 'BUATAN',
+      area: 'Ambulu',
+      description: 'Taman rekreasi keluarga dengan wahana air dan area bermain.',
+      position: LatLng(-8.357, 113.603),
+      price: 20000,
+      distance: '35 km',
+      icon: Icons.attractions_rounded,
     ),
   ];
 
@@ -135,11 +147,12 @@ class _MapPageState extends State<MapPage> {
       MaterialPageRoute<void>(
         builder: (_) => DestinationDetailPage(
           destination: Destination(
-            id: location.name.toLowerCase().replaceAll(' ', '-'),
+            id: location.id,
             name: location.name,
             location: '${location.area}, Jember',
             description: location.description,
             ticketPrice: location.price,
+            category: location.destinationCategory,
           ),
         ),
       ),
@@ -229,7 +242,7 @@ class _MapPageState extends State<MapPage> {
                       hintText: 'Cari lokasi wisata di peta...',
                       prefixIcon: const Icon(Icons.search, color: blue),
                       suffixIcon: _searchQuery.isEmpty
-                          ? const Icon(Icons.tune_rounded, color: blue)
+                          ? null
                           : IconButton(
                               tooltip: 'Hapus pencarian',
                               onPressed: () {
@@ -401,8 +414,10 @@ class _MapPageState extends State<MapPage> {
 
 class _MapLocation {
   const _MapLocation({
+    required this.id,
     required this.name,
     required this.category,
+    required this.destinationCategory,
     required this.area,
     required this.description,
     required this.position,
@@ -411,8 +426,10 @@ class _MapLocation {
     required this.icon,
   });
 
+  final String id;
   final String name;
   final String category;
+  final String destinationCategory;
   final String area;
   final String description;
   final LatLng position;
