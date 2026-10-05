@@ -25,7 +25,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _openDetails() async {
     if (!_isSignedIn) {
-      await Navigator.pushNamed(context, AppRoutes.login);
+      await _openAuthentication(AppRoutes.login);
       return;
     }
     final updatedUser = await Navigator.push<User>(
@@ -33,6 +33,12 @@ class _ProfilePageState extends State<ProfilePage> {
       MaterialPageRoute<User>(builder: (_) => ProfileDetailPage(user: _user)),
     );
     if (updatedUser != null && mounted) setState(() {});
+  }
+
+  Future<bool> _openAuthentication(String route) async {
+    final authenticated = await Navigator.pushNamed(context, route);
+    if (mounted) setState(() {});
+    return authenticated == true && AuthService.currentUser != null;
   }
 
   Future<void> _signOut() async {
@@ -55,7 +61,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
     if (confirmed != true || !mounted) return;
     AuthService.logout();
-    Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (_) => false);
+    setState(() {});
   }
 
   void _showMessage(String message) {
@@ -73,87 +79,136 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Column(
           children: [
             _ProfileHeader(
+              isGuest: !_isSignedIn,
               onProfileTap: _isSignedIn
                   ? _openDetails
-                  : () => Navigator.pushNamed(context, AppRoutes.login),
+                  : () => _openAuthentication(AppRoutes.login),
               tooltip: _isSignedIn ? 'Edit profil' : 'Masuk',
             ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
                 children: [
-                  _CustomerCard(user: _user, onEdit: _openDetails),
-                  const SizedBox(height: 28),
-                  const _GroupHeading('AKUN & PREFERENSI'),
-                  const SizedBox(height: 9),
-                  _SettingsGroup(
-                    children: [
-                      _SettingRow(
-                        icon: Icons.badge_outlined,
-                        iconBackground: const Color(0xFFE9EDF2),
-                        title: 'Data Pribadi & Identitas',
-                        subtitle: 'kontak,email',
-                        onTap: _openDetails,
-                      ),
-                      _SettingRow(
-                        icon: Icons.favorite_rounded,
-                        iconBackground: const Color(0xFFFFF1E1),
-                        iconColor: const Color(0xFFE07C00),
-                        title: 'Destinasi Favorit Saya',
-                        subtitle:
-                            'Pantai Payangan, Bukit Teletubbies, 6 lainnya',
-                        onTap: () => _showMessage(
-                          'Daftar destinasi favorit kamu akan tampil di sini.',
+                  if (_isSignedIn) ...[
+                    _CustomerCard(user: _user, onEdit: _openDetails),
+                    const SizedBox(height: 28),
+                    const _GroupHeading('AKUN & PREFERENSI'),
+                    const SizedBox(height: 9),
+                    _SettingsGroup(
+                      children: [
+                        _SettingRow(
+                          icon: Icons.badge_outlined,
+                          iconBackground: const Color(0xFFE9EDF2),
+                          title: 'Data Pribadi & Identitas',
+                          subtitle: 'kontak,email',
+                          onTap: _openDetails,
                         ),
-                      ),
-                      _SettingRow(
-                        icon: Icons.notifications_active_outlined,
-                        iconBackground: const Color(0xFFE8F0FF),
-                        title: 'Notifikasi & Promo Wisata',
-                        subtitle: 'Info event kebudayaan, flash sale tiket',
-                        showDot: true,
-                        onTap: _showNotificationSettings,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  const _GroupHeading('APLIKASI & REGIONAL'),
-                  const SizedBox(height: 9),
-                  _SettingsGroup(
-                    children: [
-                      _SettingRow(
-                        icon: Icons.language_rounded,
-                        iconBackground: const Color(0xFFE9EBFF),
-                        title: 'Bahasa',
-                        subtitle: 'Bahasa Indonesia (ID)',
-                        onTap: _showLanguagePicker,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  const _GroupHeading('DUKUNGAN & LEGAL'),
-                  const SizedBox(height: 9),
-                  _SettingsGroup(
-                    children: [
-                      _SettingRow(
-                        icon: Icons.support_agent_rounded,
-                        iconBackground: const Color(0xFFE1EEFF),
-                        title: 'Pusat Bantuan Dinas Pariwisata',
-                        subtitle:
-                            'WhatsApp CS resmi, Posko Wisata & Call Center',
-                        onTap: () => _showMessage(
-                          'Pusat bantuan Dinas Pariwisata Jember.',
+                        _SettingRow(
+                          icon: Icons.favorite_rounded,
+                          iconBackground: const Color(0xFFFFF1E1),
+                          iconColor: const Color(0xFFE07C00),
+                          title: 'Destinasi Favorit Saya',
+                          subtitle:
+                              'Pantai Payangan, Bukit Teletubbies, 6 lainnya',
+                          onTap: () => _showMessage(
+                            'Daftar destinasi favorit kamu akan tampil di sini.',
+                          ),
                         ),
-                      ),
-                      _SettingRow(
-                        icon: Icons.policy_outlined,
-                        iconBackground: const Color(0xFFE9EBFF),
-                        title: 'Syarat Ketentuan & Kebijakan Privasi',
-                        subtitle: 'Perlindungan data dan pedoman berkunjung',
-                        onTap: _showLegalInformation,
-                      ),
-                    ],
-                  ),
+                        _SettingRow(
+                          icon: Icons.notifications_active_outlined,
+                          iconBackground: const Color(0xFFE8F0FF),
+                          title: 'Notifikasi & Promo Wisata',
+                          subtitle: 'Info event kebudayaan, flash sale tiket',
+                          showDot: true,
+                          onTap: _showNotificationSettings,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    const _GroupHeading('APLIKASI & REGIONAL'),
+                    const SizedBox(height: 9),
+                    _SettingsGroup(
+                      children: [
+                        _SettingRow(
+                          icon: Icons.language_rounded,
+                          iconBackground: const Color(0xFFE9EBFF),
+                          title: 'Bahasa',
+                          subtitle: 'Bahasa Indonesia (ID)',
+                          onTap: _showLanguagePicker,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    const _GroupHeading('DUKUNGAN & LEGAL'),
+                    const SizedBox(height: 9),
+                    _SettingsGroup(
+                      children: [
+                        _SettingRow(
+                          icon: Icons.support_agent_rounded,
+                          iconBackground: const Color(0xFFE1EEFF),
+                          title: 'Pusat Bantuan Dinas Pariwisata',
+                          subtitle:
+                              'WhatsApp CS resmi, Posko Wisata & Call Center',
+                          onTap: () => _showMessage(
+                            'Pusat bantuan Dinas Pariwisata Jember.',
+                          ),
+                        ),
+                        _SettingRow(
+                          icon: Icons.policy_outlined,
+                          iconBackground: const Color(0xFFE9EBFF),
+                          title: 'Syarat Ketentuan & Kebijakan Privasi',
+                          subtitle: 'Perlindungan data dan pedoman berkunjung',
+                          onTap: _showLegalInformation,
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    _GuestWelcomeCard(
+                      onSignIn: () => _openAuthentication(AppRoutes.login),
+                      onRegister: () => _openAuthentication(AppRoutes.register),
+                    ),
+                    const SizedBox(height: 25),
+                    const _GuestBenefits(),
+                    const SizedBox(height: 28),
+                    const _GroupHeading('APLIKASI & BANTUAN'),
+                    const SizedBox(height: 9),
+                    _SettingsGroup(
+                      children: [
+                        _SettingRow(
+                          icon: Icons.translate_rounded,
+                          iconBackground: const Color(0xFFF4F7FA),
+                          title: 'Pilihan Bahasa',
+                          subtitle: 'Indonesia',
+                          onTap: _showLanguagePicker,
+                        ),
+                        _SettingRow(
+                          icon: Icons.support_agent_rounded,
+                          iconBackground: const Color(0xFFF4F7FA),
+                          title: 'Pusat Bantuan & CS Pariwisata',
+                          subtitle: 'WhatsApp',
+                          onTap: () => _showMessage(
+                            'Pusat bantuan Dinas Pariwisata Jember.',
+                          ),
+                        ),
+                        _SettingRow(
+                          icon: Icons.policy_outlined,
+                          iconBackground: const Color(0xFFF4F7FA),
+                          title: 'Syarat Ketentuan & Kebijakan Privasi',
+                          subtitle: '',
+                          onTap: _showLegalInformation,
+                        ),
+                        _SettingRow(
+                          icon: Icons.info_outline_rounded,
+                          iconBackground: const Color(0xFFF4F7FA),
+                          title: 'Tentang JemberGo',
+                          subtitle: 'Versi 2.4.0 • Kabupaten Jember',
+                          onTap: () => _showMessage(
+                            'JemberGo — aplikasi wisata Kabupaten Jember.',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 30),
                   if (_isSignedIn)
                     SizedBox(
@@ -174,28 +229,6 @@ class _ProfilePageState extends State<ProfilePage> {
                           style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
-                    )
-                  else
-                    Row(
-                      children: [
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () =>
-                                Navigator.pushNamed(context, AppRoutes.login),
-                            child: const Text('Masuk'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.pushNamed(
-                              context,
-                              AppRoutes.register,
-                            ),
-                            child: const Text('Daftar'),
-                          ),
-                        ),
-                      ],
                     ),
                   const SizedBox(height: 24),
                   const _ProfileFooter(),
@@ -284,10 +317,15 @@ class _ProfilePageState extends State<ProfilePage> {
 }
 
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.onProfileTap, required this.tooltip});
+  const _ProfileHeader({
+    required this.onProfileTap,
+    required this.tooltip,
+    required this.isGuest,
+  });
 
   final VoidCallback onProfileTap;
   final String tooltip;
+  final bool isGuest;
 
   @override
   Widget build(BuildContext context) {
@@ -297,55 +335,355 @@ class _ProfileHeader extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Row(
           children: [
-            Image.asset(
-              'assets/logo_jembergonobackgroud.png',
-              width: 38,
-              height: 34,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => const Icon(
-                Icons.landscape_rounded,
-                size: 30,
-                color: _profileOrange,
+            Expanded(
+              child: Text(
+                isGuest ? 'Profil' : 'Profile',
+                style: const TextStyle(
+                  color: _profileNavy,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'JEMBERGO',
-                    style: TextStyle(
-                      color: _profileOrange,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
+            if (isGuest)
+              Tooltip(
+                message: tooltip,
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onProfileTap,
+                    borderRadius: BorderRadius.circular(22),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 9,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF4F7FA),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(color: const Color(0xFFE7ECF2)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.circle, size: 10, color: _profileOrange),
+                          SizedBox(width: 7),
+                          Text(
+                            'Mode Tamu',
+                            style: TextStyle(
+                              color: _profileInk,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Profile',
-                    style: TextStyle(
-                      color: _profileInk,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+                ),
+              )
+            else
+              IconButton.filled(
+                onPressed: onProfileTap,
+                tooltip: tooltip,
+                style: IconButton.styleFrom(
+                  backgroundColor: _profileNavy,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(42, 42),
+                ),
+                icon: const Icon(Icons.person_outline_rounded, size: 20),
               ),
-            ),
-            IconButton.filled(
-              onPressed: onProfileTap,
-              tooltip: tooltip,
-              style: IconButton.styleFrom(
-                backgroundColor: _profileNavy,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(42, 42),
-              ),
-              icon: const Icon(Icons.person_outline_rounded, size: 20),
-            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _GuestWelcomeCard extends StatelessWidget {
+  const _GuestWelcomeCard({required this.onSignIn, required this.onRegister});
+
+  final VoidCallback onSignIn;
+  final VoidCallback onRegister;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF102F52), Color(0xFF1D4A78)],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1F092340),
+            blurRadius: 14,
+            offset: Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: const Color(0x223F6B96),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0x667F9BB7), width: 2),
+                ),
+                child: const Icon(
+                  Icons.person_outline_rounded,
+                  color: Colors.white,
+                  size: 38,
+                ),
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _GuestBadge(),
+                    SizedBox(height: 8),
+                    Text(
+                      'Halo, Penjelajah!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Selamat datang di JemberGo',
+                      style: TextStyle(color: Color(0xFFBED0E5), fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          const Text(
+            'Masuk atau daftar untuk memesan tiket wisata, menyimpan destinasi favorit, dan mengelola perjalananmu di Jember.',
+            style: TextStyle(
+              color: Color(0xFFD4E0EF),
+              fontSize: 14,
+              height: 1.55,
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Divider(color: Color(0x447F9BB7), height: 1),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: onSignIn,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: _profileNavy,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text(
+                      'Masuk Akun',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: OutlinedButton(
+                    onPressed: onRegister,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Color(0xFF7895B5)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: const Text(
+                      'Daftar Akun Baru',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuestBadge extends StatelessWidget {
+  const _GuestBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFF355778),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.badge_outlined, color: Colors.white, size: 14),
+          SizedBox(width: 5),
+          Text(
+            'PENGUNJUNG',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuestBenefits extends StatelessWidget {
+  const _GuestBenefits();
+
+  static const _benefits = [
+    (
+      Icons.qr_code_2_rounded,
+      Color(0xFFEAF3FF),
+      Color(0xFF1264CE),
+      'Pemesanan Tiket Wisata Cepat',
+      'E-tiket instan dengan kode QR tanpa perlu antre di loket.',
+    ),
+    (
+      Icons.favorite_border_rounded,
+      Color(0xFFFFF7E7),
+      Color(0xFFE98600),
+      'Simpan Destinasi Favorit',
+      'Tandai pantai, bukit, dan air terjun untuk rencana liburanmu.',
+    ),
+    (
+      Icons.alt_route_rounded,
+      Color(0xFFE8FAF3),
+      Color(0xFF009A70),
+      'Panduan Rute & Akses Offline',
+      'Navigasi rute wisata akurat langsung ke lokasi tujuan.',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Keuntungan Punya Akun',
+          style: TextStyle(
+            color: _profileNavy,
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Nikmati kemudahan menjelajah seluruh keindahan Jember',
+          style: TextStyle(color: Color(0xFF73829A), fontSize: 13),
+        ),
+        const SizedBox(height: 14),
+        for (final benefit in _benefits) ...[
+          _GuestBenefitCard(
+            icon: benefit.$1,
+            iconBackground: benefit.$2,
+            iconColor: benefit.$3,
+            title: benefit.$4,
+            description: benefit.$5,
+          ),
+          if (benefit != _benefits.last) const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+}
+
+class _GuestBenefitCard extends StatelessWidget {
+  const _GuestBenefitCard({
+    required this.icon,
+    required this.iconBackground,
+    required this.iconColor,
+    required this.title,
+    required this.description,
+  });
+
+  final IconData icon;
+  final Color iconBackground;
+  final Color iconColor;
+  final String title;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 92),
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: const Color(0xFFEFF1F7)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: iconBackground,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(icon, color: iconColor, size: 27),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: _profileNavy,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    color: Color(0xFF73829A),
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

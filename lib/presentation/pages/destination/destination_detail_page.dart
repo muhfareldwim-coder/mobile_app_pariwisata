@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/destination.dart';
+import '../../../data/services/auth_service.dart';
 import '../booking/booking_page.dart';
 
 class DestinationDetailPage extends StatefulWidget {
@@ -19,6 +21,21 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
   bool isDescriptionExpanded = false;
 
   Destination get destination => widget.destination;
+
+  Future<void> _startBooking() async {
+    if (AuthService.currentUser == null) {
+      await Navigator.pushNamed(context, AppRoutes.login);
+      if (!mounted || AuthService.currentUser == null) return;
+    }
+
+    if (!mounted) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => BookingPage(destination: destination),
+      ),
+    );
+  }
 
   static const _galleryImages = [
     'https://images.unsplash.com/photo-1519046904884-53103b34b206?auto=format&fit=crop&w=800&q=85',
@@ -751,12 +768,7 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
             SizedBox(
               height: 48,
               child: FilledButton.icon(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BookingPage(destination: destination),
-                  ),
-                ),
+                onPressed: _startBooking,
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFFE98600),
                   foregroundColor: Colors.white,

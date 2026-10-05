@@ -35,7 +35,22 @@ class _LoginPageState extends State<LoginPage> {
       _passwordController.text,
     );
     if (!mounted || user == null) return;
-    Navigator.pushReplacementNamed(context, AppRoutes.home);
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context, true);
+    } else {
+      Navigator.pushReplacementNamed(context, AppRoutes.home);
+    }
+  }
+
+  Future<void> _openRegister() async {
+    final registered = await Navigator.pushNamed(context, AppRoutes.register);
+    if (!mounted ||
+        registered != true ||
+        AuthService.currentUser == null ||
+        !Navigator.canPop(context)) {
+      return;
+    }
+    Navigator.pop(context, true);
   }
 
   void _showUnavailable() {
@@ -97,7 +112,13 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(width: 6),
-              const Text('Ingat Saya'),
+              const Flexible(
+                child: Text(
+                  'Ingat Saya',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
           forgotAction: _showUnavailable,
@@ -106,7 +127,7 @@ class _LoginPageState extends State<LoginPage> {
           googleAction: _showUnavailable,
           guestAction: () =>
               Navigator.pushReplacementNamed(context, AppRoutes.home),
-          switchAction: () => Navigator.pushNamed(context, AppRoutes.register),
+          switchAction: _openRegister,
           switchLabel: 'Daftar Sekarang',
         ),
       ),

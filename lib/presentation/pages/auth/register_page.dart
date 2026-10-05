@@ -47,7 +47,12 @@ class _RegisterPageState extends State<RegisterPage> {
       _emailController.text.trim(),
       _passwordController.text,
     );
-    if (mounted) Navigator.pushReplacementNamed(context, AppRoutes.home);
+    if (!mounted) return;
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context, true);
+    } else {
+      Navigator.pushReplacementNamed(context, AppRoutes.home);
+    }
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_pariwisata/core/theme/app_colors.dart';
+import 'package:mobile_pariwisata/core/routes/app_routes.dart';
 import 'package:mobile_pariwisata/data/models/user.dart';
 import 'package:mobile_pariwisata/data/services/auth_service.dart';
 import 'package:mobile_pariwisata/data/services/payment_service.dart';
@@ -44,10 +45,13 @@ void main() {
   });
 
   testWidgets('profil membuka halaman login dan register', (tester) async {
+    AuthService.logout();
+    addTearDown(AuthService.logout);
     await tester.pumpWidget(const PariwisataApp());
     await tester.tap(find.text('Profil'));
     await tester.pump();
 
+    expect(find.text('Mode Tamu'), findsOneWidget);
     await tester.tap(find.byTooltip('Masuk'));
     await tester.pumpAndSettle();
     expect(find.byType(LoginPage), findsOneWidget);
@@ -146,7 +150,53 @@ void main() {
     expect(find.text('Bahari'), findsWidgets);
     expect(find.text('Buatan'), findsOneWidget);
     expect(find.text('Destinasi Populer'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Destinasi Terdekat'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Destinasi Terdekat'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('destinasi terdekat di Home membuka detail destinasi', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(const MaterialApp(home: HomePage()));
+
+    expect(find.text('Pantai Tanjung Papuma'), findsWidgets);
+    await tester.tap(find.text('Pantai Tanjung Papuma').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pesona & Deskripsi'), findsOneWidget);
+    expect(find.text('Fasilitas Wisata'), findsOneWidget);
+  });
+
+  testWidgets('tombol favorit destinasi populer dapat diaktifkan', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(const MaterialApp(home: HomePage()));
+
+    final addFavorite = find.byTooltip(
+      'Tambahkan Pantai Tanjung Papuma ke favorit',
+    );
+    expect(addFavorite, findsOneWidget);
+    await tester.tap(addFavorite);
+    await tester.pump();
+
+    expect(
+      find.byTooltip('Hapus Pantai Tanjung Papuma dari favorit'),
+      findsOneWidget,
+    );
+    expect(find.byType(HomePage), findsOneWidget);
   });
 
   testWidgets('header eksplor ikut bergulir bersama daftar', (tester) async {
@@ -228,7 +278,11 @@ void main() {
     TicketService.tickets.clear();
     TicketService.revision.value++;
     PaymentService.payments.clear();
-    await tester.pumpWidget(const MaterialApp(home: ExplorerPage()));
+    AuthService.logout();
+    addTearDown(AuthService.logout);
+    await tester.pumpWidget(
+      MaterialApp(routes: AppRoutes.routes, home: const ExplorerPage()),
+    );
 
     expect(find.text('6 Ditemukan'), findsOneWidget);
     await tester.tap(find.text('Bahari'));
@@ -244,6 +298,16 @@ void main() {
     expect(find.text('Pesona & Deskripsi'), findsOneWidget);
 
     await tester.tap(find.text('Beli Tiket Sekarang'));
+    await tester.pumpAndSettle();
+    expect(find.byType(LoginPage), findsOneWidget);
+    expect(find.byType(BookingPage), findsNothing);
+
+    await tester.enterText(
+      find.byType(TextFormField).first,
+      'tamu@example.com',
+    );
+    await tester.enterText(find.byType(TextFormField).last, 'password123');
+    await tester.tap(find.text('Masuk Sekarang'));
     await tester.pumpAndSettle();
     expect(find.byType(BookingPage), findsOneWidget);
 

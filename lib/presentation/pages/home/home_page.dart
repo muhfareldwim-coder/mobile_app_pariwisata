@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../data/destination_data.dart';
+import '../../../data/models/destination.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../article_detail_page.dart';
+import '../destination/destination_detail_page.dart';
 import '../destination/explorer_page.dart';
 import '../map/map_page.dart';
 import '../profile/profile_page.dart';
@@ -26,51 +29,21 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  static const _destinations = [
-    _DestinationPreview(
-      name: 'Air Terjun Tancak',
-      category: 'Alam',
-      location: 'Desa Suci, Panti, Jember',
-      imageAsset: 'assets/jembergo_tancak.jpg',
-    ),
-    _DestinationPreview(
-      name: 'Pantai Watu Ulo',
-      category: 'Bahari',
-      location: 'Sumberejo, Ambulu, Jember',
-      imageAsset: 'assets/jembergo_papuma.jpg',
-      imageUrl: 'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=1200&q=85',
-    ),
-    _DestinationPreview(
-      name: 'Pantai Tanjung Papuma',
-      category: 'Bahari',
-      location: 'Desa Lojejer, Wuluhan, Jember',
-      imageAsset: 'assets/jembergo_papuma.jpg',
-    ),
-    _DestinationPreview(
-      name: 'Teluk Love',
-      category: 'Bahari',
-      location: 'Ambulu, Jember',
-      imageAsset: 'assets/jembergo_teluk_love.jpg',
-    ),
-    _DestinationPreview(
-      name: 'Taman Botani Sukorambi',
-      category: 'Buatan',
-      location: 'Jl. Mujahir, Sukorambi, Jember',
-      imageAsset: 'assets/jembergo_taman_botani.jpg',
-    ),
-    _DestinationPreview(
-      name: 'Dira Park',
-      category: 'Buatan',
-      location: 'Ambulu, Jember',
-      imageAsset: 'assets/jembergo_taman_botani.jpg',
-      imageUrl: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=1200&q=85',
-    ),
-  ];
-
-  static const _popularOrder = [2, 3, 0, 1, 4, 5];
+  late final _favoriteDestinationIds = <String>{};
 
   @override
   Widget build(BuildContext context) {
+    final nearestDestinations = [...destinations]
+      ..sort((first, second) => first.distanceKm.compareTo(second.distanceKm));
+    final popularDestinations = [...destinations]
+      ..sort(
+        (first, second) =>
+            _reviewCountValue(second.reviewCount)
+                .compareTo(_reviewCountValue(first.reviewCount)),
+      );
+    final homeDestinations = nearestDestinations.take(3).toList();
+    final homePopularDestinations = popularDestinations.take(3).toList();
+
     return Scaffold(
       backgroundColor: _pageBackground,
       body: SafeArea(
@@ -100,23 +73,29 @@ class _HomePageState extends State<HomePage> {
                   Row(
                     children: [
                       _CategoryItem(
-                        icon: Icons.terrain_rounded,
+                        icon: Icons.forest_rounded,
                         label: 'Alam',
                         count: '1 Destinasi',
+                        color: const Color(0xFF287B61),
+                        softColor: const Color(0xFFE7F4ED),
                         onTap: () => _openCategory(context, 'ALAM'),
                       ),
                       const SizedBox(width: 9),
                       _CategoryItem(
-                        icon: Icons.public_rounded,
+                        icon: Icons.waves_rounded,
                         label: 'Bahari',
                         count: '3 Destinasi',
+                        color: const Color(0xFF2676B5),
+                        softColor: const Color(0xFFE8F3FC),
                         onTap: () => _openCategory(context, 'BAHARI'),
                       ),
                       const SizedBox(width: 9),
                       _CategoryItem(
-                        icon: Icons.location_city_rounded,
+                        icon: Icons.attractions_rounded,
                         label: 'Buatan',
                         count: '2 Destinasi',
+                        color: const Color(0xFFB76A1C),
+                        softColor: const Color(0xFFFFF1DF),
                         onTap: () => _openCategory(context, 'BUATAN'),
                       ),
                     ],
@@ -124,23 +103,38 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 22),
                   _SectionHeading(
                     title: 'Destinasi Populer',
-                    subtitle: 'Pilihan wisata Kabupaten Jember',
+                    subtitle: 'Paling banyak mendapat ulasan wisatawan',
                     action: 'Lihat Semua',
                     onAction: () => _openExplorer(context),
                   ),
                   const SizedBox(height: 10),
                   SizedBox(
-                    height: 278,
+                    height: 330,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      itemCount: _popularOrder.length,
+                      itemCount: homePopularDestinations.length,
                       separatorBuilder: (context, index) =>
                           const SizedBox(width: 12),
                       itemBuilder: (context, index) => SizedBox(
-                        width: 212,
+                        width: 240,
                         child: _DestinationCard(
-                          destination: _destinations[_popularOrder[index]],
-                          onTap: () => _openExplorer(context),
+                          key: ValueKey(
+                            'popular-destination-${homePopularDestinations[index].id}',
+                          ),
+                          destination: homePopularDestinations[index],
+                          isFavorite: _favoriteDestinationIds.contains(
+                            homePopularDestinations[index].id,
+                          ),
+                          onFavoriteTap: () => setState(() {
+                            final id = homePopularDestinations[index].id;
+                            if (!_favoriteDestinationIds.add(id)) {
+                              _favoriteDestinationIds.remove(id);
+                            }
+                          }),
+                          onTap: () => _openDestinationDetail(
+                            context,
+                            homePopularDestinations[index],
+                          ),
                         ),
                       ),
                     ),
@@ -148,17 +142,18 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 22),
                   _SectionHeading(
                     title: 'Destinasi Terdekat',
-                    subtitle: 'Rekomendasi destinasi di Jember',
-                    action: 'Semua',
+                    subtitle: 'Pilihan wisata dengan jarak terdekat',
+                    action: 'Lihat Semua',
                     onAction: () => _openExplorer(context),
                   ),
                   const SizedBox(height: 10),
-                  for (final destination in _destinations)
+                  for (final destination in homeDestinations)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 9),
                       child: _NearbyDestinationTile(
                         destination: destination,
-                        onTap: () => _openExplorer(context),
+                        onTap: () =>
+                            _openDestinationDetail(context, destination),
                       ),
                     ),
                   const SizedBox(height: 12),
@@ -199,6 +194,10 @@ class _HomePageState extends State<HomePage> {
       return;
     }
     _openPage(context, ExplorerPage(initialCategory: category));
+  }
+
+  void _openDestinationDetail(BuildContext context, Destination destination) {
+    _openPage(context, DestinationDetailPage(destination: destination));
   }
 
   void _openTab(BuildContext context, int index) {
@@ -814,12 +813,16 @@ class _CategoryItem extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.count,
+    required this.color,
+    required this.softColor,
     required this.onTap,
   });
 
   final IconData icon;
   final String label;
   final String count;
+  final Color color;
+  final Color softColor;
   final VoidCallback onTap;
 
   @override
@@ -832,16 +835,21 @@ class _CategoryItem extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(15),
           child: Container(
-            height: 92,
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            height: 112,
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: const Color(0xFFE4EAF1)),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [softColor, Colors.white, Colors.white],
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: color.withValues(alpha: 0.2)),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x0A14304B),
-                  blurRadius: 9,
-                  offset: Offset(0, 4),
+                  blurRadius: 14,
+                  offset: Offset(0, 6),
                 ),
               ],
             ),
@@ -849,15 +857,27 @@ class _CategoryItem extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF0F5FB),
-                    borderRadius: BorderRadius.circular(11),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Colors.white, softColor],
+                    ),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: color.withValues(alpha: 0.13)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.12),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  child: Icon(icon, color: AppColors.ocean, size: 19),
+                  child: Icon(icon, color: color, size: 24),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 6),
                 Text(
                   label,
                   maxLines: 1,
@@ -865,16 +885,30 @@ class _CategoryItem extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: _bodyText,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  count,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: _secondaryText, fontSize: 8),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    count,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -885,161 +919,190 @@ class _CategoryItem extends StatelessWidget {
   }
 }
 
-class _DestinationPreview {
-  const _DestinationPreview({
-    required this.name,
-    required this.category,
-    required this.location,
-    required this.imageAsset,
-    this.imageUrl,
+class _DestinationCard extends StatelessWidget {
+  const _DestinationCard({
+    super.key,
+    required this.destination,
+    required this.onTap,
+    required this.isFavorite,
+    required this.onFavoriteTap,
   });
 
-  final String name;
-  final String category;
-  final String location;
-  final String imageAsset;
-  final String? imageUrl;
-
-  Image buildImage() {
-    Widget fallback(
-      BuildContext context,
-      Object error,
-      StackTrace? stackTrace,
-    ) => const ColoredBox(
-      color: _raisedNavy,
-      child: Center(
-        child: Icon(Icons.landscape_outlined, color: _softGold, size: 36),
-      ),
-    );
-    return imageUrl == null
-        ? Image.asset(imageAsset, fit: BoxFit.cover, errorBuilder: fallback)
-        : Image.network(imageUrl!, fit: BoxFit.cover, errorBuilder: fallback);
-  }
-}
-
-class _DestinationCard extends StatelessWidget {
-  const _DestinationCard({required this.destination, required this.onTap});
-
-  final _DestinationPreview destination;
+  final Destination destination;
   final VoidCallback onTap;
+  final bool isFavorite;
+  final VoidCallback onFavoriteTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.white,
+      color: _deepNavy,
       borderRadius: BorderRadius.circular(18),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            SizedBox(
-              height: 151,
-              width: double.infinity,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  destination.buildImage(),
-                  Positioned(
-                    top: 10,
-                    left: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xD91B4567),
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                      child: Text(
-                        destination.category,
-                        style: const TextStyle(
-                          color: Color(0xFFE4F0F9),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 9,
-                    right: 9,
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      decoration: const BoxDecoration(
-                        color: Color(0xCCFFFFFF),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.favorite_border_rounded,
-                        color: Color(0xFF6E7F90),
-                        size: 17,
-                      ),
-                    ),
-                  ),
-                ],
+            if (destination.imageUrl != null)
+              Image.network(
+                destination.imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _destinationImageFallback(),
+              )
+            else
+              _destinationImageFallback(),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: [0.25, 1],
+                  colors: [Colors.transparent, Color(0xF0091F39)],
+                ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 9),
+            Positioned(
+              top: 14,
+              left: 14,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xD91B4567),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Text(
+                  _titleCase(destination.category),
+                  style: const TextStyle(
+                    color: Color(0xFFE4F0F9),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 12,
+              right: 12,
+              child: Material(
+                color: const Color(0x99091F39),
+                shape: const CircleBorder(),
+                child: IconButton(
+                  tooltip: isFavorite
+                      ? 'Hapus ${destination.name} dari favorit'
+                      : 'Tambahkan ${destination.name} ke favorit',
+                  onPressed: onFavoriteTap,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 38,
+                    height: 38,
+                  ),
+                  padding: EdgeInsets.zero,
+                  icon: Icon(
+                    isFavorite
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    color: isFavorite ? const Color(0xFFFF6B81) : Colors.white,
+                    size: 19,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 14,
+              right: 14,
+              bottom: 14,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    destination.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: _bodyText,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
                   Row(
                     children: [
                       const Icon(
-                        Icons.location_on_outlined,
-                        color: AppColors.orange,
-                        size: 13,
+                        Icons.star_rounded,
+                        color: _softGold,
+                        size: 16,
                       ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          destination.location,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: _secondaryText,
-                            fontSize: 10,
-                          ),
+                      const SizedBox(width: 3),
+                      Text(
+                        destination.rating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          color: _softGold,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        '(${destination.reviewCount})',
+                        style: const TextStyle(
+                          color: Color(0xFFD8E2EF),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 7),
-                  const Divider(height: 1, color: Color(0xFFE7ECF2)),
-                  const SizedBox(height: 6),
+                  Text(
+                    destination.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on_rounded,
+                        color: _softGold,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: Text(
+                          destination.location.replaceFirst(
+                            ', Kabupaten Jember',
+                            ', Jember',
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFB8CCDF),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  const Divider(height: 1, color: Color(0x40FFFFFF)),
+                  const SizedBox(height: 9),
                   Row(
                     children: [
                       const Expanded(
                         child: Text(
                           'Mulai dari',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: _secondaryText, fontSize: 10),
+                          style: TextStyle(
+                            color: Color(0xFFB8CCDF),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 4),
                       Text(
-                        'Rp 15.000',
+                        'Rp ${_formatHomePrice(destination.ticketPrice)}',
                         style: const TextStyle(
-                          color: AppColors.orange,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
+                          color: _softGold,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],
@@ -1060,7 +1123,7 @@ class _NearbyDestinationTile extends StatelessWidget {
     required this.onTap,
   });
 
-  final _DestinationPreview destination;
+  final Destination destination;
   final VoidCallback onTap;
 
   @override
@@ -1084,7 +1147,14 @@ class _NearbyDestinationTile extends StatelessWidget {
                 child: SizedBox(
                   width: 66,
                   height: 66,
-                  child: destination.buildImage(),
+                  child: destination.imageUrl == null
+                      ? _destinationImageFallback(24)
+                      : Image.network(
+                          destination.imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) =>
+                              _destinationImageFallback(24),
+                        ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -1115,19 +1185,13 @@ class _NearbyDestinationTile extends StatelessWidget {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF2E2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  destination.category,
-                  style: const TextStyle(
-                    color: AppColors.orange,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                  ),
+              const SizedBox(width: 8),
+              Text(
+                '${destination.distanceKm.toStringAsFixed(1)} km',
+                style: const TextStyle(
+                  color: AppColors.orange,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -1137,3 +1201,25 @@ class _NearbyDestinationTile extends StatelessWidget {
     );
   }
 }
+
+Widget _destinationImageFallback([double iconSize = 36]) => ColoredBox(
+  color: _raisedNavy,
+  child: Center(
+    child: Icon(Icons.landscape_outlined, color: _softGold, size: iconSize),
+  ),
+);
+
+String _formatHomePrice(int price) => price.toString().replaceAllMapped(
+  RegExp(r'\B(?=(\d{3})+(?!\d))'),
+  (_) => '.',
+);
+
+double _reviewCountValue(String reviewCount) {
+  final normalized = reviewCount.trim().toLowerCase();
+  final count = double.tryParse(normalized.replaceFirst('k', ''));
+  if (count == null) return 0;
+  return normalized.endsWith('k') ? count * 1000 : count;
+}
+
+String _titleCase(String value) =>
+    value.isEmpty ? value : '${value[0]}${value.substring(1).toLowerCase()}';

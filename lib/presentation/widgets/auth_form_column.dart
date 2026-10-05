@@ -108,13 +108,17 @@ class AuthFormColumn extends StatelessWidget {
                     children: [
                       const Icon(Icons.explore_outlined, size: 15, color: blue),
                       const SizedBox(width: 7),
-                      Text(
-                        eyebrow,
-                        style: const TextStyle(
-                          color: navy,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
+                      Flexible(
+                        child: Text(
+                          eyebrow,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: navy,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
                         ),
                       ),
                     ],
