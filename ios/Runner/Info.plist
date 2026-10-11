@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>JemberGo memerlukan akses ke foto agar kamu dapat menambahkan foto profil.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>JemberGo menggunakan lokasi Anda untuk menentukan titik awal rute wisata.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

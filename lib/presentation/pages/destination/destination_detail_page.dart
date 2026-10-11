@@ -4,11 +4,21 @@ import 'package:flutter/services.dart';
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/destination.dart';
+import '../../../data/models/ticket.dart';
+import '../../../data/models/user.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../data/services/device_location_service.dart';
+import '../../../data/services/destination_review_service.dart';
+import '../../../data/services/open_street_map_service.dart';
+import '../../../data/services/ticket_service.dart';
 import '../booking/booking_page.dart';
+import '../ticket/qr_ticket_page.dart';
 
 class DestinationDetailPage extends StatefulWidget {
-  const DestinationDetailPage({super.key, required this.destination});
+  const DestinationDetailPage({
+    super.key,
+    required this.destination,
+  });
 
   final Destination destination;
 
@@ -35,6 +45,36 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
         builder: (_) => BookingPage(destination: destination),
       ),
     );
+  }
+
+  Future<void> _openOpenStreetMap() async {
+    var origin = DeviceLocationService.jemberFallback;
+    try {
+      final currentLocation = await DeviceLocationService.currentLocation();
+      if (currentLocation == null && mounted) {
+        _showMessage(
+          'Lokasi tidak tersedia. Rute dimulai dari Alun-alun Jember.',
+        );
+      } else if (currentLocation != null) {
+        origin = currentLocation;
+      }
+    } on Exception {
+      if (mounted) {
+        _showMessage(
+          'Lokasi perangkat tidak tersedia. Rute dimulai dari Alun-alun Jember.',
+        );
+      }
+    }
+    if (!mounted) return;
+    final opened = await OpenStreetMapService.openDirections(
+      fromLatitude: origin.latitude,
+      fromLongitude: origin.longitude,
+      toLatitude: destination.latitude,
+      toLongitude: destination.longitude,
+    );
+    if (!opened && mounted) {
+      _showMessage('OpenStreetMap tidak dapat dibuka.');
+    }
   }
 
   static const _galleryImages = [
@@ -174,43 +214,7 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
                 const SizedBox(height: 10),
                 _locationCard(),
                 const SizedBox(height: 24),
-                Row(
-                  children: [
-                    const Expanded(
-                      child: _SectionTitle(title: 'Ulasan Wisatawan'),
-                    ),
-                    TextButton(
-                      onPressed: () =>
-                          _showMessage('Semua ulasan sudah ditampilkan'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF1264CE),
-                        padding: EdgeInsets.zero,
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text(
-                        'Lihat Semua',
-                        style: TextStyle(fontSize: 11),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 9),
-                const _ReviewCard(
-                  initial: 'B',
-                  name: 'Bagas Wicaksono',
-                  meta: 'Pengunjung Lokal • 3 hari lalu',
-                  rating: 5,
-                  review: 'Pemandangan karang dan pantainya menenangkan. Suasana pagi hari sangat menyenangkan, ombaknya berbusa putih dan ikan bakar di warung lokal benar-benar segar.',
-                ),
-                const SizedBox(height: 9),
-                const _ReviewCard(
-                  initial: 'C',
-                  name: 'Citra Lestari',
-                  meta: 'Solo Traveler • 1 minggu lalu',
-                  rating: 4,
-                  review: 'Akses jalannya sudah beraspal halus. Tiket masuk sangat sepadan dengan fasilitas toilet bersih dan gazebo teduh di tepi hutan lindung.',
-                ),
+                _reviewSection(),
               ],
             ),
           ),
@@ -218,6 +222,165 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
       ),
       bottomNavigationBar: _purchaseBar(),
     );
+  }
+
+  Widget _reviewSection() => ValueListenableBuilder<int>(
+    valueListenable: TicketService.revision,
+    builder: (context, ticketRevision, child) => ValueListenableBuilder<int>(
+      valueListenable: DestinationReviewService.revision,
+      builder: (context, reviewRevision, child) {
+        final user = AuthService.currentUser;
+        final userEmail = user?.email ?? '';
+        final reviews = DestinationReviewService.forDestination(destination.id);
+        final userReview = user == null
+            ? null
+            : DestinationReviewService.byUserForDestination(
+                destination.id,
+                userEmail,
+              );
+        final ticket = user == null
+            ? null
+            : TicketService.tickets
+                  .where(
+                    (item) =>
+                        item.destinationId == destination.id &&
+                        item.status == 'valid' &&
+                        item.leaderEmail.trim().toLowerCase() ==
+                            userEmail.trim().toLowerCase(),
+                  )
+                  .firstOrNull;
+        final reviewTicket = user == null || userReview != null
+            ? null
+            : TicketService.tickets
+                  .where(
+                    (item) =>
+                        item.destinationId == destination.id &&
+                        item.status == 'used' &&
+                        item.leaderEmail.trim().toLowerCase() ==
+                            userEmail.trim().toLowerCase(),
+                  )
+                  .firstOrNull;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _SectionTitle(title: 'Ulasan Wisatawan'),
+            const SizedBox(height: 8),
+            if (userReview == null)
+              _reviewEligibilityPanel(
+                user: user,
+                ticket: ticket,
+                reviewTicket: reviewTicket,
+              )
+            else
+              const _ReviewEligibilityNote(
+                icon: Icons.verified_rounded,
+                message: 'Terima kasih! Ulasan Anda sudah tercatat sebagai pengunjung terverifikasi.',
+              ),
+            if (reviews.isEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: 10),
+                child: Text(
+                  'Belum ada ulasan terverifikasi untuk destinasi ini.',
+                  style: TextStyle(color: Color(0xFF737B88), fontSize: 11),
+                ),
+              )
+            else ...[
+              const SizedBox(height: 9),
+              for (final review in reviews) ...[
+                _ReviewCard(
+                  initial: review.userName.isEmpty
+                      ? '?'
+                      : review.userName[0].toUpperCase(),
+                  name: review.userName,
+                  meta: 'Pembeli tiket terverifikasi',
+                  rating: review.rating,
+                  review: review.review,
+                ),
+                if (review != reviews.last) const SizedBox(height: 9),
+              ],
+            ],
+          ],
+        );
+      },
+    ),
+  );
+
+  Widget _reviewEligibilityPanel({
+    required User? user,
+    required Ticket? ticket,
+    required Ticket? reviewTicket,
+  }) {
+    if (user == null) {
+      return _ReviewEligibilityNote(
+        icon: Icons.lock_outline_rounded,
+        message:
+            'Masuk dengan akun pembeli tiket untuk memberi rating dan ulasan.',
+        actionLabel: 'Masuk',
+        onAction: _loginForReview,
+      );
+    }
+    if (reviewTicket != null) {
+      return _ReviewEligibilityNote(
+        icon: Icons.rate_review_outlined,
+        message: 'Tiket Anda sudah digunakan. Bagikan pengalaman wisata Anda.',
+        actionLabel: 'Tulis ulasan',
+        onAction: () => _writeReview(reviewTicket),
+      );
+    }
+    if (ticket != null && ticket.status == 'valid') {
+      return _ReviewEligibilityNote(
+        icon: Icons.confirmation_number_outlined,
+        message: 'Rating dan ulasan tersedia setelah tiket digunakan pada hari kunjungan.',
+        actionLabel: 'Buka e-tiket',
+        onAction: () => _openTicket(ticket),
+      );
+    }
+    return const _ReviewEligibilityNote(
+      icon: Icons.lock_outline_rounded,
+      message: 'Rating dan ulasan hanya dapat dikirim setelah membeli dan menggunakan tiket destinasi ini.',
+    );
+  }
+
+  Future<void> _loginForReview() async {
+    await Navigator.pushNamed(context, AppRoutes.login);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _openTicket(Ticket ticket) async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(builder: (_) => QrTicketPage(ticket: ticket)),
+    );
+  }
+
+  Future<void> _writeReview(Ticket ticket) async {
+    final user = AuthService.currentUser;
+    if (user == null) {
+      await _loginForReview();
+      return;
+    }
+
+    final result = await showDialog<(int, String)>(
+      context: context,
+      builder: (_) => _WriteReviewDialog(destinationName: destination.name),
+    );
+
+    if (result == null || !mounted) return;
+    try {
+      DestinationReviewService.submit(
+        destinationId: destination.id,
+        ticketId: ticket.id,
+        userEmail: user.email,
+        userName: user.name,
+        rating: result.$1,
+        review: result.$2,
+      );
+    } on StateError {
+      _showMessage(
+        'Ulasan hanya dapat dikirim dengan tiket yang sudah digunakan.',
+      );
+    }
   }
 
   Widget _heroAndHighlights() {
@@ -706,7 +869,7 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
             width: double.infinity,
             height: 39,
             child: FilledButton.icon(
-              onPressed: () => _showMessage('Peta interaktif belum tersedia'),
+              onPressed: _openOpenStreetMap,
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFFE9EDFF),
                 foregroundColor: const Color(0xFF075FC7),
@@ -717,7 +880,7 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
               ),
               icon: const Icon(Icons.directions_outlined, size: 17),
               label: const Text(
-                'Buka di Google Maps',
+                'Buka lokasi di OpenStreetMap',
                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
               ),
             ),
@@ -995,6 +1158,151 @@ class _FacilityCard extends StatelessWidget {
             ],
           ),
         ),
+      ],
+    ),
+  );
+}
+
+class _WriteReviewDialog extends StatefulWidget {
+  const _WriteReviewDialog({required this.destinationName});
+
+  final String destinationName;
+
+  @override
+  State<_WriteReviewDialog> createState() => _WriteReviewDialogState();
+}
+
+class _WriteReviewDialogState extends State<_WriteReviewDialog> {
+  final _controller = TextEditingController();
+  int _selectedRating = 5;
+  String? _validationMessage;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text('Ulas ${widget.destinationName}'),
+    content: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Rating Anda'),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var star = 1; star <= 5; star++)
+                IconButton(
+                  tooltip: '$star bintang',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 40,
+                  ),
+                  onPressed: () => setState(() => _selectedRating = star),
+                  icon: Icon(
+                    star <= _selectedRating
+                        ? Icons.star_rounded
+                        : Icons.star_outline_rounded,
+                    color: const Color(0xFFFFA35B),
+                  ),
+                ),
+            ],
+          ),
+          TextField(
+            controller: _controller,
+            minLines: 3,
+            maxLines: 5,
+            maxLength: 500,
+            decoration: const InputDecoration(
+              labelText: 'Ceritakan pengalaman Anda',
+              alignLabelWithHint: true,
+              border: OutlineInputBorder(),
+            ),
+          ),
+          if (_validationMessage != null)
+            Text(
+              _validationMessage!,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Batal'),
+      ),
+      FilledButton(
+        onPressed: () {
+          if (_controller.text.trim().isEmpty) {
+            setState(() => _validationMessage = 'Ulasan tidak boleh kosong.');
+            return;
+          }
+          Navigator.pop(context, (_selectedRating, _controller.text.trim()));
+        },
+        child: const Text('Kirim ulasan'),
+      ),
+    ],
+  );
+}
+
+class _ReviewEligibilityNote extends StatelessWidget {
+  const _ReviewEligibilityNote({
+    required this.icon,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(11),
+    decoration: BoxDecoration(
+      color: const Color(0xFFEFF2FF),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, color: const Color(0xFF1264CE), size: 19),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            message,
+            style: const TextStyle(
+              color: AppColors.navy,
+              fontSize: 11,
+              height: 1.35,
+            ),
+          ),
+        ),
+        if (actionLabel != null && onAction != null) ...[
+          const SizedBox(width: 6),
+          TextButton(
+            onPressed: onAction,
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF1264CE),
+              padding: const EdgeInsets.symmetric(horizontal: 7),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              actionLabel!,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
       ],
     ),
   );

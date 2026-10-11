@@ -300,8 +300,7 @@ class _ActiveTicketCard extends StatelessWidget {
 
   final Ticket ticket;
 
-  String get _qrData =>
-      'JEMBERGO|${ticket.id}|${ticket.bookingId}|${ticket.destinationName}|${ticket.visitDate.toIso8601String()}';
+  String get _qrData => TicketService.qrPayload(ticket);
 
   @override
   Widget build(BuildContext context) {
@@ -382,7 +381,7 @@ class _ActiveTicketCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 7),
                       const Text(
-                        'Scan barcode langsung di pos loket gerbang masuk',
+                        'Tunjukkan QR e-tiket kepada petugas di loket masuk',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Color(0xFF4D5665),
@@ -421,15 +420,8 @@ class _ActiveTicketCard extends StatelessWidget {
                       child: SizedBox(
                         height: 43,
                         child: OutlinedButton.icon(
-                          onPressed: () => ScaffoldMessenger.of(context)
-                              .showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Unduh PDF tersedia setelah backend aktif.',
-                                  ),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              ),
+                          onPressed: () =>
+                              downloadTicketPdf(context, ticket),
                           style: OutlinedButton.styleFrom(
                             backgroundColor: const Color(0xFFE4E8FF),
                             foregroundColor: _ticketBlue,
@@ -977,7 +969,7 @@ class _TicketHelpSection extends StatelessWidget {
           ),
           const _HelpTile(
             icon: Icons.qr_code_scanner_rounded,
-            title: 'Kendala Scan Barcode di Lokasi?',
+            title: 'Kendala menggunakan e-tiket di lokasi?',
             content: 'Tunjukkan kode booking kepada petugas loket untuk pemeriksaan manual.',
           ),
           const SizedBox(height: 10),

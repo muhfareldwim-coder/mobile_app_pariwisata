@@ -3,6 +3,9 @@ class Destination {
     required this.id,
     required this.name,
     required this.location,
+    required this.latitude,
+    required this.longitude,
+    required this.routeDistanceKm,
     this.description = '',
     this.imageUrl,
     this.ticketPrice = 0,
@@ -16,6 +19,9 @@ class Destination {
   final String id;
   final String name;
   final String location;
+  final double latitude;
+  final double longitude;
+  final double routeDistanceKm;
   final String description;
   final String? imageUrl;
   final int ticketPrice;

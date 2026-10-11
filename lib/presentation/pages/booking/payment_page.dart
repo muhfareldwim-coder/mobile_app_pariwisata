@@ -97,6 +97,7 @@ class _PaymentPageState extends State<PaymentPage> {
     );
     await TicketService().issueTicket(
       bookingId: widget.booking.id,
+      destinationId: widget.destination.id,
       destinationName: widget.destination.name,
       destinationImageUrl: widget.destination.imageUrl,
       visitDate: widget.booking.visitDate,

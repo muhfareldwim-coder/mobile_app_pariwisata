@@ -2,6 +2,7 @@ class Ticket {
   const Ticket({
     required this.id,
     required this.bookingId,
+    this.destinationId = '',
     required this.destinationName,
     this.destinationImageUrl,
     required this.visitDate,
@@ -18,6 +19,7 @@ class Ticket {
 
   final String id;
   final String bookingId;
+  final String destinationId;
   final String destinationName;
   final String? destinationImageUrl;
   final DateTime visitDate;
@@ -32,4 +34,22 @@ class Ticket {
   final String status;
 
   int get quantity => adultCount + childCount;
+
+  Ticket copyWith({String? status}) => Ticket(
+    id: id,
+    bookingId: bookingId,
+    destinationId: destinationId,
+    destinationName: destinationName,
+    destinationImageUrl: destinationImageUrl,
+    visitDate: visitDate,
+    adultCount: adultCount,
+    childCount: childCount,
+    leaderName: leaderName,
+    leaderEmail: leaderEmail,
+    leaderPhone: leaderPhone,
+    memberNames: memberNames,
+    amountPaid: amountPaid,
+    paymentMethod: paymentMethod,
+    status: status ?? this.status,
+  );
 }
