@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../data/models/user.dart';
+import '../../../data/services/profile_photo_service.dart';
 
 const _profileBlue = Color(0xFF1674E8);
 const _profileInk = Color(0xFF153454);
@@ -25,6 +29,13 @@ class _ProfileDetailPageState extends State<ProfileDetailPage> {
   );
   late final _emailController = TextEditingController(text: widget.user.email);
   late final _phoneController = TextEditingController(text: widget.user.phone);
+  String? _photoPath;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhoto();
+  }
 
   @override
   void dispose() {
@@ -40,6 +51,72 @@ class _ProfileDetailPageState extends State<ProfileDetailPage> {
     _showPhotoMessage(
       'Penyimpanan profil akan tersedia setelah akun terhubung.',
     );
+  }
+
+  Future<void> _loadPhoto() async {
+    try {
+      final photo = await ProfilePhotoService.getPhoto(widget.user.id);
+      if (!mounted) return;
+      setState(() => _photoPath = photo?.path);
+    } on Exception catch (error, stackTrace) {
+      if (!mounted) return;
+      debugPrint('Profile photo could not be loaded: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _showPhotoMessage('Foto profil gagal dimuat: $error');
+    }
+  }
+
+  Future<void> _changePhoto() async {
+    try {
+      final photo = await ProfilePhotoService.pickPhoto(widget.user.id);
+      if (!mounted || photo == null) return;
+      setState(() => _photoPath = photo.path);
+      _showPhotoMessage('Foto profil berhasil diperbarui.');
+    } on PlatformException catch (error, stackTrace) {
+      debugPrint(
+        'Profile photo picker failed: ${error.code}: ${error.message}',
+      );
+      debugPrintStack(stackTrace: stackTrace);
+      if (mounted) _showPhotoMessage(_photoPickerErrorMessage(error));
+    } on FileSystemException catch (error, stackTrace) {
+      debugPrint('Profile photo could not be saved: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (mounted) {
+        _showPhotoMessage(
+          'Foto gagal disimpan ke perangkat. Periksa ruang penyimpanan.',
+        );
+      }
+    } on Exception catch (error, stackTrace) {
+      debugPrint('Profile photo update failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (mounted) {
+        _showPhotoMessage(
+          'Foto gagal diperbarui (${error.runtimeType}). Tutup lalu buka kembali aplikasi dan coba lagi.',
+        );
+      }
+    }
+  }
+
+  String _photoPickerErrorMessage(PlatformException error) {
+    if (error.code == 'already_active') {
+      return 'Galeri masih terbuka. Tutup galeri lalu coba lagi.';
+    }
+    if (error.code == 'photo_access_denied' ||
+        error.code == 'photo_access_denied_limited') {
+      return 'Akses foto ditolak. Izinkan akses Foto untuk JemberGo di Pengaturan.';
+    }
+    return 'Galeri gagal dibuka (${error.code}). Tutup lalu buka kembali aplikasi dan coba lagi.';
+  }
+
+  Future<void> _removePhoto() async {
+    try {
+      await ProfilePhotoService.removePhoto(widget.user.id);
+      if (!mounted) return;
+      setState(() => _photoPath = null);
+      _showPhotoMessage('Foto profil berhasil dihapus.');
+    } on Exception {
+      if (mounted) _showPhotoMessage('Foto profil gagal dihapus. Coba lagi.');
+    }
   }
 
   void _showPhotoMessage(String message) {
@@ -67,11 +144,9 @@ class _ProfileDetailPageState extends State<ProfileDetailPage> {
                   padding: const EdgeInsets.fromLTRB(24, 10, 24, 24),
                   children: [
                     _ProfilePhoto(
-                      onChange: () => _showPhotoMessage(
-                        'Pemilihan foto profil belum tersedia.',
-                      ),
-                      onRemove: () =>
-                          _showPhotoMessage('Fitur hapus foto belum tersedia.'),
+                      imagePath: _photoPath,
+                      onChange: _changePhoto,
+                      onRemove: _removePhoto,
                     ),
                     const SizedBox(height: 24),
                     _DetailSection(
@@ -272,8 +347,13 @@ class _DetailHeader extends StatelessWidget {
 }
 
 class _ProfilePhoto extends StatelessWidget {
-  const _ProfilePhoto({required this.onChange, required this.onRemove});
+  const _ProfilePhoto({
+    required this.imagePath,
+    required this.onChange,
+    required this.onRemove,
+  });
 
+  final String? imagePath;
   final VoidCallback onChange;
   final VoidCallback onRemove;
 
@@ -293,15 +373,19 @@ class _ProfilePhoto extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: ClipOval(
-                child: Image.network(
-                  _avatarUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const ColoredBox(
-                        color: Color(0xFFDCE8F6),
-                        child: Icon(Icons.person, size: 54, color: _profileInk),
+                child: imagePath == null
+                    ? Image.network(
+                        _avatarUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const _DefaultProfilePhoto(),
+                      )
+                    : Image.file(
+                        File(imagePath!),
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const _DefaultProfilePhoto(),
                       ),
-                ),
               ),
             ),
             Positioned(
@@ -355,6 +439,16 @@ class _ProfilePhoto extends StatelessWidget {
       ],
     );
   }
+}
+
+class _DefaultProfilePhoto extends StatelessWidget {
+  const _DefaultProfilePhoto();
+
+  @override
+  Widget build(BuildContext context) => const ColoredBox(
+    color: Color(0xFFDCE8F6),
+    child: Icon(Icons.person, size: 54, color: _profileInk),
+  );
 }
 
 class _DetailSection extends StatelessWidget {

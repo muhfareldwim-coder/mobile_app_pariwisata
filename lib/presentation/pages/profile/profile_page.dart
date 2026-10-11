@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/routes/app_routes.dart';
 import '../../../data/models/user.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../data/services/profile_photo_service.dart';
 import 'profile_detail_page.dart';
 
 const _profileNavy = Color(0xFF08213E);
@@ -20,6 +23,8 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  int _photoVersion = 0;
+
   User get _user => AuthService.currentUser ?? User.sample;
   bool get _isSignedIn => AuthService.currentUser != null;
 
@@ -28,11 +33,13 @@ class _ProfilePageState extends State<ProfilePage> {
       await _openAuthentication(AppRoutes.login);
       return;
     }
-    final updatedUser = await Navigator.push<User>(
+    await Navigator.push<User>(
       context,
       MaterialPageRoute<User>(builder: (_) => ProfileDetailPage(user: _user)),
     );
-    if (updatedUser != null && mounted) setState(() {});
+    if (mounted) {
+      setState(() => _photoVersion++);
+    }
   }
 
   Future<bool> _openAuthentication(String route) async {
@@ -90,7 +97,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
                 children: [
                   if (_isSignedIn) ...[
-                    _CustomerCard(user: _user, onEdit: _openDetails),
+                    _CustomerCard(
+                      key: ValueKey(_photoVersion),
+                      user: _user,
+                      onEdit: _openDetails,
+                    ),
                     const SizedBox(height: 28),
                     const _GroupHeading('AKUN & PREFERENSI'),
                     const SizedBox(height: 9),
@@ -690,7 +701,7 @@ class _GuestBenefitCard extends StatelessWidget {
 }
 
 class _CustomerCard extends StatelessWidget {
-  const _CustomerCard({required this.user, required this.onEdit});
+  const _CustomerCard({super.key, required this.user, required this.onEdit});
 
   final User user;
   final VoidCallback onEdit;
@@ -721,7 +732,7 @@ class _CustomerCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _Avatar(size: 78),
+                _Avatar(size: 78, userId: user.id),
                 const SizedBox(width: 15),
                 Expanded(
                   child: Padding(
@@ -836,13 +847,28 @@ class _CustomerCard extends StatelessWidget {
   }
 }
 
-class _Avatar extends StatelessWidget {
-  const _Avatar({required this.size});
+class _Avatar extends StatefulWidget {
+  const _Avatar({required this.size, required this.userId});
 
   final double size;
+  final String userId;
+
+  @override
+  State<_Avatar> createState() => _AvatarState();
+}
+
+class _AvatarState extends State<_Avatar> {
+  late Future<File?> _photoFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _photoFuture = ProfilePhotoService.getPhoto(widget.userId);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final size = widget.size;
     return SizedBox(
       width: size,
       height: size,
@@ -856,15 +882,29 @@ class _Avatar extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: ClipOval(
-              child: Image.network(
-                _customerAvatarUrl,
-                width: size - 8,
-                height: size - 8,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => const ColoredBox(
-                  color: Color(0xFFD9E5F1),
-                  child: Icon(Icons.person, color: _profileNavy, size: 40),
-                ),
+              child: FutureBuilder<File?>(
+                future: _photoFuture,
+                builder: (context, snapshot) {
+                  final photo = snapshot.data;
+                  if (photo != null) {
+                    return Image.file(
+                      photo,
+                      width: size - 8,
+                      height: size - 8,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          _defaultAvatar(),
+                    );
+                  }
+                  return Image.network(
+                    _customerAvatarUrl,
+                    width: size - 8,
+                    height: size - 8,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        _defaultAvatar(),
+                  );
+                },
               ),
             ),
           ),
@@ -890,6 +930,11 @@ class _Avatar extends StatelessWidget {
       ),
     );
   }
+
+  Widget _defaultAvatar() => const ColoredBox(
+    color: Color(0xFFD9E5F1),
+    child: Icon(Icons.person, color: _profileNavy, size: 40),
+  );
 }
 
 class _StatItem extends StatelessWidget {

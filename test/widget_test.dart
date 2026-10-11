@@ -83,6 +83,7 @@ void main() {
     await tester.tap(find.byTooltip('Edit profil'));
     await tester.pumpAndSettle();
     expect(find.text('Informasi Utama'), findsOneWidget);
+    expect(find.textContaining('Foto profil gagal dimuat'), findsNothing);
     expect(tester.takeException(), isNull);
 
     await tester.enterText(
