@@ -1,11 +1,16 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile_pariwisata/core/utils/date_formatters.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:mobile_pariwisata/core/theme/app_colors.dart';
-import 'package:mobile_pariwisata/core/routes/app_routes.dart';
+import 'package:mobile_pariwisata/data/models/destination.dart';
 import 'package:mobile_pariwisata/data/models/user.dart';
+import 'package:mobile_pariwisata/data/services/api_service.dart';
+import 'package:mobile_pariwisata/data/services/article_service.dart';
 import 'package:mobile_pariwisata/data/services/auth_service.dart';
-import 'package:mobile_pariwisata/data/services/payment_service.dart';
-import 'package:mobile_pariwisata/data/services/ticket_service.dart';
 import 'package:mobile_pariwisata/main.dart';
 import 'package:mobile_pariwisata/presentation/pages/auth/login_page.dart';
 import 'package:mobile_pariwisata/presentation/pages/auth/register_page.dart';
@@ -17,19 +22,26 @@ import 'package:mobile_pariwisata/presentation/pages/map/map_page.dart';
 import 'package:mobile_pariwisata/presentation/pages/profile/profile_page.dart';
 import 'package:mobile_pariwisata/presentation/pages/profile/profile_detail_page.dart';
 import 'package:mobile_pariwisata/presentation/pages/ticket/my_ticket_page.dart';
-import 'package:mobile_pariwisata/presentation/pages/ticket/qr_ticket_page.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 void main() {
   testWidgets('aplikasi membuka halaman home', (tester) async {
-    await tester.pumpWidget(const PariwisataApp());
+    await tester.pumpWidget(PariwisataApp(locationProvider: () async => null));
 
     expect(find.byType(HomePage), findsOneWidget);
     expect(find.textContaining('Halo, Petualang!'), findsOneWidget);
+    expect(
+      formatIndonesianDate(DateTime(2026, 10, 21)),
+      'Rabu, 21 Oktober 2026',
+    );
+    final localizedDate = MaterialLocalizations.of(
+      tester.element(find.byType(HomePage)),
+    ).formatMediumDate(DateTime(2026, 10, 21));
+    expect(localizedDate, contains('Okt'));
+    expect(localizedDate, isNot(contains('Oct')));
   });
 
   testWidgets('tab utama membuka peta, tiket, dan profil', (tester) async {
-    await tester.pumpWidget(const PariwisataApp());
+    await tester.pumpWidget(PariwisataApp(locationProvider: () async => null));
 
     await tester.tap(find.text('Peta'));
     await tester.pump();
@@ -47,7 +59,7 @@ void main() {
   testWidgets('profil membuka halaman login dan register', (tester) async {
     AuthService.logout();
     addTearDown(AuthService.logout);
-    await tester.pumpWidget(const PariwisataApp());
+    await tester.pumpWidget(PariwisataApp(locationProvider: () async => null));
     await tester.tap(find.text('Profil'));
     await tester.pump();
 
@@ -56,9 +68,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(LoginPage), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Daftar Sekarang'));
+    await tester.ensureVisible(find.text('Daftar'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Daftar Sekarang'));
+    await tester.tap(find.text('Daftar'));
     await tester.pumpAndSettle();
     expect(find.byType(RegisterPage), findsOneWidget);
   });
@@ -71,8 +83,12 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     AuthService.logout();
     addTearDown(AuthService.logout);
-    await AuthService().login('budi.santoso@example.com', 'password123');
-    await tester.pumpWidget(const PariwisataApp());
+    AuthService.currentUser = User.sample.copyWith(
+      name: 'Budi Santoso',
+      email: 'budi.santoso@example.com',
+      username: 'budisantoso',
+    );
+    await tester.pumpWidget(PariwisataApp(locationProvider: () async => null));
 
     await tester.tap(find.text('Profil'));
     await tester.pumpAndSettle();
@@ -135,7 +151,9 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
 
-    await tester.pumpWidget(const MaterialApp(home: HomePage()));
+    await tester.pumpWidget(
+      MaterialApp(home: HomePage(locationProvider: () async => null)),
+    );
 
     expect(find.byType(HomePage), findsOneWidget);
     final header = find.byKey(const ValueKey('home-header'));
@@ -167,14 +185,37 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
 
-    await tester.pumpWidget(const MaterialApp(home: HomePage()));
+    await tester.pumpWidget(
+      MaterialApp(home: HomePage(locationProvider: () async => null)),
+    );
 
     expect(find.text('Pantai Tanjung Papuma'), findsWidgets);
     await tester.tap(find.text('Pantai Tanjung Papuma').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('Pesona & Deskripsi'), findsOneWidget);
-    expect(find.text('Fasilitas Wisata'), findsOneWidget);
+    expect(find.text('Tentang Destinasi'), findsOneWidget);
+    expect(find.text('Lokasi & rute'), findsOneWidget);
+    expect(find.text('Fasilitas'), findsOneWidget);
+    expect(find.text('Jenis tiket'), findsOneWidget);
+    expect(find.text('Galeri Pantai Tanjung Papuma'), findsOneWidget);
+    expect(find.text('Ulasan pengunjung'), findsOneWidget);
+    expect(find.text('Buka lokasi di OpenStreetMap'), findsNothing);
+    expect(
+      find.text(
+        'Masuk dengan akun pembeli tiket untuk memberi rating dan ulasan.',
+      ),
+      findsNothing,
+    );
+
+    final sectionOrder = [
+      'Tentang Destinasi',
+      'Lokasi & rute',
+      'Fasilitas',
+      'Jenis tiket',
+      'Galeri Pantai Tanjung Papuma',
+      'Ulasan pengunjung',
+    ].map((title) => tester.getTopLeft(find.text(title).first).dy).toList();
+    expect(sectionOrder, orderedEquals(sectionOrder.toList()..sort()));
   });
 
   testWidgets('tombol favorit destinasi populer dapat diaktifkan', (
@@ -184,7 +225,9 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
 
-    await tester.pumpWidget(const MaterialApp(home: HomePage()));
+    await tester.pumpWidget(
+      MaterialApp(home: HomePage(locationProvider: () async => null)),
+    );
 
     final addFavorite = find.byTooltip(
       'Tambahkan Pantai Tanjung Papuma ke favorit',
@@ -225,7 +268,7 @@ void main() {
     tester.view.physicalSize = const Size(430, 1200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
-    await tester.pumpWidget(const PariwisataApp());
+    await tester.pumpWidget(PariwisataApp(locationProvider: () async => null));
 
     await tester.tap(find.text('Bahari').first);
     await tester.pumpAndSettle();
@@ -235,13 +278,43 @@ void main() {
     expect(find.text('Pantai Tanjung Papuma'), findsOneWidget);
   });
 
-  testWidgets('berita punya halaman sendiri dan kategorinya membuka Jelajah', (
+  testWidgets('beranda and detail use articles loaded from the website API', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(430, 1200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
-    await tester.pumpWidget(const MaterialApp(home: HomePage()));
+    final articleService = ArticleService(
+      api: ApiService(
+        baseUrl: 'http://localhost/api/v1',
+        client: MockClient((request) async {
+          expect(request.url.path, '/api/v1/artikel');
+          return http.Response(
+            jsonEncode({
+              'data': [
+                {
+                  'id': 12,
+                  'judul': 'Artikel resmi dari website',
+                  'isi': 'Konten artikel dari website.',
+                  'gambar': null,
+                  'tanggal_publikasi': '2026-10-15T09:30:00+07:00',
+                },
+              ],
+            }),
+            200,
+          );
+        }),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(
+          articleService: articleService,
+          locationProvider: () async => null,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
 
     final homeScroll = find.byKey(const ValueKey('home-scroll'));
     await tester.dragUntilVisible(
@@ -249,90 +322,44 @@ void main() {
       homeScroll,
       const Offset(0, -500),
     );
-    final readMore = find.text('Baca Selengkapnya →').first;
+    expect(find.text('Artikel resmi dari website'), findsOneWidget);
+    final readMore = find.text('Baca selengkapnya →').first;
     await tester.dragUntilVisible(readMore, homeScroll, const Offset(0, -350));
     await tester.pumpAndSettle();
     await tester.tap(readMore);
     await tester.pumpAndSettle();
 
     expect(find.byType(ArticleDetailPage), findsOneWidget);
-    expect(find.text('Jelajahi wisata Jember'), findsOneWidget);
-
-    final articleBahari = find.descendant(
-      of: find.byType(ArticleDetailPage),
-      matching: find.text('Bahari'),
-    );
-    await tester.ensureVisible(articleBahari);
-    await tester.pumpAndSettle();
-    await tester.tap(articleBahari);
-    await tester.pumpAndSettle();
-    expect(find.byType(ExplorerPage), findsOneWidget);
-    expect(find.text('3 Ditemukan'), findsOneWidget);
+    expect(find.text('Konten artikel dari website.'), findsOneWidget);
+    expect(find.text('Jelajahi wisata Jember'), findsNothing);
   });
 
-  testWidgets('booking dibayar QRIS dan menerbitkan QR e-ticket', (
+  testWidgets('booking tanpa tipe tiket dari API tidak memakai data simulasi', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(430, 1400);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    TicketService.tickets.clear();
-    TicketService.revision.value++;
-    PaymentService.payments.clear();
-    AuthService.logout();
-    addTearDown(AuthService.logout);
     await tester.pumpWidget(
-      MaterialApp(routes: AppRoutes.routes, home: const ExplorerPage()),
+      const MaterialApp(
+        home: BookingPage(
+          destination: Destination(
+            id: 'sample-destination',
+            name: 'Pantai Papuma',
+            location: 'Jember',
+            latitude: -8.4,
+            longitude: 113.5,
+            routeDistanceKm: 0,
+          ),
+        ),
+      ),
     );
 
-    expect(find.text('6 Ditemukan'), findsOneWidget);
-    await tester.tap(find.text('Bahari'));
-    await tester.pumpAndSettle();
-    expect(find.text('3 Ditemukan'), findsOneWidget);
-
-    await tester.enterText(find.byType(TextField), 'Papuma');
-    await tester.pumpAndSettle();
-    expect(find.text('1 Ditemukan'), findsOneWidget);
-
-    await tester.tap(find.text('Pantai Tanjung Papuma'));
-    await tester.pumpAndSettle();
-    expect(find.text('Pesona & Deskripsi'), findsOneWidget);
-
-    await tester.tap(find.text('Beli Tiket Sekarang'));
-    await tester.pumpAndSettle();
-    expect(find.byType(LoginPage), findsOneWidget);
-    expect(find.byType(BookingPage), findsNothing);
-
-    await tester.enterText(
-      find.byType(TextFormField).first,
-      'tamu@example.com',
+    expect(
+      find.text('Pilihan tiket belum tersedia dari server.'),
+      findsOneWidget,
     );
-    await tester.enterText(find.byType(TextFormField).last, 'password123');
-    await tester.tap(find.text('Masuk Sekarang'));
-    await tester.pumpAndSettle();
-    expect(find.byType(BookingPage), findsOneWidget);
-
-    expect(find.text('Total Pembayaran'), findsOneWidget);
     await tester.tap(find.text('Lanjut Bayar'));
     await tester.pumpAndSettle();
-    expect(find.byType(PaymentPage), findsOneWidget);
-    expect(find.text('Bayar dengan QRIS'), findsOneWidget);
-    expect(find.text('Transfer Bank'), findsNothing);
-    expect(find.byType(QrImageView), findsOneWidget);
-
-    await tester.tap(find.text('Saya Sudah Bayar'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('Ini simulasi UI.'), findsOneWidget);
-    await tester.tap(find.text('Lanjutkan Simulasi'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(MyTicketPage), findsOneWidget);
-    expect(find.text('Tiket Aktif'), findsOneWidget);
-    expect(find.textContaining('JMB-'), findsOneWidget);
-    expect(find.byType(QrImageView), findsOneWidget);
-    expect(PaymentService.payments.single.method, 'QRIS');
-    expect(TicketService.tickets, hasLength(1));
-    expect(find.byType(QrTicketPage), findsNothing);
+    expect(find.text('Jenis tiket destinasi belum tersedia.'), findsOneWidget);
+    expect(find.byType(PaymentPage), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

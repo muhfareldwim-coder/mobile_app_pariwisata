@@ -5,7 +5,6 @@ import '../../../data/services/auth_service.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/auth_form_column.dart';
 import '../../widgets/auth_shell.dart';
-import '../../widgets/terms_agreement.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -18,19 +17,18 @@ class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
   final _authService = AuthService();
-  bool _agreed = false;
   bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -41,55 +39,80 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _register() async {
-    if (!(_formKey.currentState?.validate() ?? false) || !_agreed) return;
-    await _authService.register(
-      _nameController.text.trim(),
-      _emailController.text.trim(),
-      _passwordController.text,
-    );
-    if (!mounted) return;
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context, true);
-    } else {
-      Navigator.pushReplacementNamed(context, AppRoutes.home);
+    if (_isSubmitting || !(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+    setState(() => _isSubmitting = true);
+    try {
+      await _authService.register(
+        _nameController.text.trim(),
+        _emailController.text.trim(),
+        _phoneController.text.trim(),
+        _passwordController.text,
+      );
+      if (!mounted) return;
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context, true);
+      } else {
+        Navigator.pushReplacementNamed(context, AppRoutes.home);
+      }
+    } on Exception catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    String? requiredValue(String? value) =>
-        value == null || value.trim().isEmpty ? 'Bagian ini wajib diisi' : null;
     return AuthShell(
       form: Form(
         key: _formKey,
         child: AuthFormColumn(
-          eyebrow: 'WISATA • BUDAYA • PETUALANGAN',
-          description: 'Mulai petualangan baru di alam Jember',
+          eyebrow: 'SISTEM INFORMASI DAN LAYANAN PARIWISATA KABUPATEN JEMBER',
+          description: 'Daftar untuk mendapatkan akses ke layanan pariwisata Kabupaten Jember',
           isRegister: true,
           fields: [
             AppTextField(
               label: 'Nama Lengkap',
-              hint: 'misal: Ahmad Pratama',
+              hint: 'Nama lengkap',
               controller: _nameController,
-              prefixIcon: Icons.person_outline,
-              validator: requiredValue,
+              validator: (value) =>
+                  value != null &&
+                      value.trim().isNotEmpty &&
+                      RegExp(r'^[\p{L}\s]+$', unicode: true).hasMatch(value)
+                  ? null
+                  : 'Nama lengkap hanya boleh berisi huruf dan spasi.',
             ),
             AppTextField(
-              label: 'Email Aktif',
-              hint: 'misal: ahmad.pratama@email.com',
+              label: 'Nomor Telepon',
+              hint: 'Masukkan Nomor Telepon',
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              validator: (value) =>
+                  value != null &&
+                      RegExp(r'^(?:[0-9]{10,12}|\+[0-9]{10,15})$')
+                          .hasMatch(value.trim())
+                  ? null
+                  : 'Masukkan nomor telepon yang valid',
+            ),
+            AppTextField(
+              label: 'Email',
+              hint: 'Masukkan Email',
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
-              prefixIcon: Icons.mail_outline,
-              validator: (value) => value != null && value.contains('@')
+              validator: (value) => value != null && value.trim().contains('@')
                   ? null
                   : 'Masukkan email yang valid',
             ),
             AppTextField(
-              label: 'Kata Sandi Baru',
-              hint: 'Minimal 8 karakter unik',
+              label: 'Password',
+              hint: 'Minimal 8 karakter',
               controller: _passwordController,
               obscureText: _obscurePassword,
-              prefixIcon: Icons.lock_outline,
               validator: (value) => value != null && value.length >= 8
                   ? null
                   : 'Password minimal 8 karakter',
@@ -103,39 +126,16 @@ class _RegisterPageState extends State<RegisterPage> {
                     setState(() => _obscurePassword = !_obscurePassword),
               ),
             ),
-            AppTextField(
-              label: 'Konfirmasi Kata Sandi',
-              hint: 'Ulangi kata sandi Anda',
-              controller: _confirmPasswordController,
-              obscureText: _obscureConfirmPassword,
-              prefixIcon: Icons.check_box_outlined,
-              validator: (value) => value == _passwordController.text
-                  ? null
-                  : 'Konfirmasi kata sandi tidak sama',
-              suffix: IconButton(
-                icon: Icon(
-                  _obscureConfirmPassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                ),
-                onPressed: () => setState(
-                  () => _obscureConfirmPassword = !_obscureConfirmPassword,
-                ),
-              ),
-            ),
           ],
-          agreementSection: TermsAgreement(
-            value: _agreed,
-            onChanged: (value) => setState(() => _agreed = value),
-          ),
-          buttonLabel: 'Buat Akun JemberGo',
+          buttonLabel: 'Daftar',
+          isSubmitting: _isSubmitting,
           onSubmit: _register,
           googleAction: _showUnavailable,
           guestAction: () =>
               Navigator.pushReplacementNamed(context, AppRoutes.home),
           switchAction: () =>
               Navigator.pushReplacementNamed(context, AppRoutes.login),
-          switchLabel: 'Masuk di sini',
+          switchLabel: 'Masuk',
         ),
       ),
     );

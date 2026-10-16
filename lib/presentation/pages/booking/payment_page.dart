@@ -1,13 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/models/booking.dart';
 import '../../../data/models/destination.dart';
 import '../../../data/models/payment.dart';
+import '../../../data/services/api_service.dart';
 import '../../../data/services/payment_service.dart';
-import '../../../data/services/ticket_service.dart';
+import '../../../core/utils/date_formatters.dart';
 import '../main_navigation_page.dart';
 
 const _paymentNavy = Color(0xFF0B294A);
@@ -20,97 +22,180 @@ class PaymentPage extends StatefulWidget {
     super.key,
     required this.booking,
     required this.destination,
+    this.paymentService,
+    this.additionalChangeId,
+    this.paymentAmount,
   });
 
   final Booking booking;
   final Destination destination;
+  final PaymentService? paymentService;
+  final String? additionalChangeId;
+  final int? paymentAmount;
 
   @override
   State<PaymentPage> createState() => _PaymentPageState();
 }
 
-class _PaymentPageState extends State<PaymentPage> {
-  static const _paymentDuration = Duration(minutes: 15);
+class _PaymentPageState extends State<PaymentPage> with WidgetsBindingObserver {
+  Timer? _pollTimer;
   Timer? _countdownTimer;
-  Duration _remaining = _paymentDuration;
-  bool _isProcessing = false;
+  Payment? _payment;
+  String? _error;
+  bool _isLoading = true;
+  bool _isCheckingStatus = false;
+  bool _isOpeningCheckout = false;
+  bool _didComplete = false;
 
-  int get _childPrice =>
-      ((widget.destination.ticketPrice * .6) / 1000).round() * 1000;
-  int get _total =>
-      (widget.booking.adultCount * widget.destination.ticketPrice) +
-      (widget.booking.childCount * _childPrice);
-  String get _qrPayload =>
-      'JEMBERGO|QRIS|${widget.booking.id}|$_total|${widget.booking.destinationId}';
+  PaymentService get _paymentService =>
+      widget.paymentService ?? PaymentService();
+
+  String get _remainingText {
+    final deadline = _payment?.expiresAt ?? widget.booking.paymentDeadline;
+    if (deadline == null) return '--:--';
+    final remaining = deadline.difference(DateTime.now());
+    if (remaining.isNegative) return '00:00';
+    return _formatDuration(remaining);
+  }
 
   @override
   void initState() {
     super.initState();
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() {
-        _remaining = _remaining - const Duration(seconds: 1);
-        if (_remaining.isNegative) _remaining = Duration.zero;
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(_createPayment());
+    if (widget.booking.paymentDeadline != null ||
+        widget.additionalChangeId != null) {
+      _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
       });
-    });
+    }
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _refreshPaymentStatus(),
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_refreshPaymentStatus());
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pollTimer?.cancel();
     _countdownTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> _confirmDemoPayment() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Konfirmasi Pembayaran'),
-        content: const Text(
-          'Ini simulasi UI. Belum ada transaksi QRIS sungguhan yang dikirim '
-          'ke bank atau payment gateway.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Kembali'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Lanjutkan Simulasi'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted || _isProcessing) return;
-
-    setState(() => _isProcessing = true);
-    _countdownTimer?.cancel();
-    final payment = await PaymentService().createPayment(
-      Payment(
-        id: 'PAY-${widget.booking.id}',
-        bookingId: widget.booking.id,
-        amount: _total,
-        status: 'paid',
-        method: 'QRIS',
-      ),
-    );
-    await TicketService().issueTicket(
-      bookingId: widget.booking.id,
-      destinationId: widget.destination.id,
-      destinationName: widget.destination.name,
-      destinationImageUrl: widget.destination.imageUrl,
-      visitDate: widget.booking.visitDate,
-      adultCount: widget.booking.adultCount,
-      childCount: widget.booking.childCount,
-      leaderName: widget.booking.leaderName,
-      leaderEmail: widget.booking.leaderEmail,
-      leaderPhone: widget.booking.leaderPhone,
-      memberNames: widget.booking.memberNames,
-      amountPaid: payment.amount,
-      paymentMethod: payment.method,
-    );
+  Future<void> _createPayment() async {
     if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final payment = widget.additionalChangeId == null
+          ? await _paymentService.createPayment(widget.booking.id)
+          : await _paymentService.createAdditionalPayment(
+              widget.booking.id,
+              widget.additionalChangeId!,
+            );
+      if (!mounted) return;
+      setState(() => _payment = payment);
+      if (payment.isPaid) {
+        await _completePayment();
+      } else if (payment.status.toUpperCase() == 'EXPIRED') {
+        setState(
+          () => _error = 'Batas waktu pembayaran berakhir. Buat pemesanan baru untuk melanjutkan.',
+        );
+      } else if (!payment.isPending) {
+        setState(() => _error = 'Status pembayaran: ${payment.status}.');
+      } else if (payment.checkoutUrl == null && payment.qrCodeUrl == null) {
+        setState(
+          () => _error = 'Kode pembayaran belum tersedia. Hubungi pengelola atau coba lagi.',
+        );
+      }
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } on FormatException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _refreshPaymentStatus() async {
+    if (!mounted ||
+        _isLoading ||
+        _isCheckingStatus ||
+        _payment?.isPending != true) {
+      return;
+    }
+    _isCheckingStatus = true;
+    try {
+      final payment = widget.additionalChangeId == null
+          ? await _paymentService.getPaymentStatus(widget.booking.id)
+          : await _paymentService.getAdditionalPaymentStatus(
+              widget.booking.id,
+              widget.additionalChangeId!,
+            );
+      if (!mounted) return;
+      setState(() {
+        _payment = payment;
+        _error = null;
+      });
+      if (payment.isPaid) {
+        await _completePayment();
+      } else if (payment.status.toUpperCase() == 'EXPIRED') {
+        setState(
+          () => _error = 'Batas waktu pembayaran berakhir. Buat pemesanan baru untuk melanjutkan.',
+        );
+      } else if (!payment.isPending) {
+        setState(() => _error = 'Status pembayaran: ${payment.status}.');
+      }
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } on FormatException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      _isCheckingStatus = false;
+    }
+  }
+
+  Future<void> _openCheckout() async {
+    final checkoutUrl = _payment?.checkoutUrl;
+    if (checkoutUrl == null) {
+      setState(() => _error = 'Tautan pembayaran belum tersedia. Coba lagi.');
+      return;
+    }
+
+    setState(() {
+      _isOpeningCheckout = true;
+      _error = null;
+    });
+    try {
+      final opened = await launchUrl(
+        checkoutUrl,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened && mounted) {
+        setState(() => _error = 'Halaman pembayaran tidak dapat dibuka.');
+      }
+    } on PlatformException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? error.code);
+    } finally {
+      if (mounted) setState(() => _isOpeningCheckout = false);
+    }
+  }
+
+  Future<void> _completePayment() async {
+    if (!mounted || _didComplete) return;
+    _didComplete = true;
+    _pollTimer?.cancel();
+    _countdownTimer?.cancel();
     Navigator.pushAndRemoveUntil<void>(
       context,
       MaterialPageRoute<void>(
@@ -135,22 +220,42 @@ class _PaymentPageState extends State<PaymentPage> {
                 children: [
                   const _PaymentProgress(),
                   const SizedBox(height: 18),
+                  const Text(
+                    'Ringkasan pesanan',
+                    style: TextStyle(
+                      color: _paymentNavy,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   _AmountCard(
                     destination: widget.destination,
                     booking: widget.booking,
-                    total: _total,
-                    formattedTime: _formatDuration(_remaining),
+                    total: widget.paymentAmount ?? widget.booking.totalAmount,
+                    isAdditional: widget.additionalChangeId != null,
+                    formattedTime: _remainingText,
                   ),
                   const SizedBox(height: 16),
-                  _QrPaymentCard(
-                    payload: _qrPayload,
-                    bookingId: widget.booking.id,
-                    total: _total,
+                  _SecurePaymentCard(
+                    bookingCode: widget.booking.code,
+                    orderId: _payment?.orderId,
+                    status: _payment?.status ?? 'MENYIAPKAN',
                   ),
+                  if (_payment?.qrCodeUrl != null) ...[
+                    const SizedBox(height: 13),
+                    _PaymentQrCodeCard(
+                      url: _payment!.qrCodeUrl!,
+                      headers: _paymentService.qrCodeImageHeaders,
+                      qrCodeSourceUrl: _payment!.qrCodeSourceUrl,
+                    ),
+                  ],
                   const SizedBox(height: 13),
-                  const _PaymentInstructions(),
+                  _PaymentInstructions(hasQrCode: _payment?.qrCodeUrl != null),
                   const SizedBox(height: 13),
-                  const _DemoNotice(),
+                  const _PaymentStatusNotice(),
+                  if (_error != null) const SizedBox(height: 12),
+                  if (_error != null) _PaymentError(message: _error!),
                 ],
               ),
             ),
@@ -158,9 +263,25 @@ class _PaymentPageState extends State<PaymentPage> {
         ),
       ),
       bottomNavigationBar: _ConfirmPaymentBar(
-        total: _total,
-        isProcessing: _isProcessing,
-        onConfirm: _confirmDemoPayment,
+        total: widget.paymentAmount ?? widget.booking.totalAmount,
+        isProcessing: _isLoading || _isOpeningCheckout,
+        isQrPayment: _payment?.qrCodeUrl != null && _payment!.isPending,
+        isRetry:
+            _payment == null || (!_payment!.isPending && !_payment!.isPaid),
+        isExpired: _payment?.status.toUpperCase() == 'EXPIRED',
+        isEnabled:
+            !_isLoading &&
+            _payment?.status.toUpperCase() != 'EXPIRED' &&
+            (_payment == null ||
+                _payment?.qrCodeUrl != null ||
+                _payment?.checkoutUrl != null ||
+                _payment?.isPending == false),
+        onPressed:
+            _payment == null || (!_payment!.isPending && !_payment!.isPaid)
+            ? _createPayment
+            : _payment?.qrCodeUrl != null
+            ? _refreshPaymentStatus
+            : _openCheckout,
       ),
     );
   }
@@ -194,7 +315,6 @@ class _PaymentHeader extends StatelessWidget {
                 ),
               ),
             ),
-            const _QrisBrandMark(),
           ],
         ),
       ),
@@ -299,12 +419,14 @@ class _AmountCard extends StatelessWidget {
     required this.destination,
     required this.booking,
     required this.total,
+    required this.isAdditional,
     required this.formattedTime,
   });
 
   final Destination destination;
   final Booking booking;
   final int total;
+  final bool isAdditional;
   final String formattedTime;
 
   @override
@@ -327,9 +449,9 @@ class _AmountCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Total Pembayaran',
+                  isAdditional ? 'Biaya Tambahan' : 'Total Pembayaran',
                   style: TextStyle(color: Color(0xFF667080), fontSize: 12),
                 ),
               ),
@@ -375,28 +497,56 @@ class _AmountCard extends StatelessWidget {
           _InfoLine(label: 'Destinasi', value: destination.name),
           const SizedBox(height: 6),
           _InfoLine(
-            label: 'Jumlah tiket',
-            value:
-                '${booking.quantity} tiket (${booking.adultCount} dewasa, ${booking.childCount} anak)',
+            label: 'Tanggal kunjungan',
+            value: formatIndonesianDate(booking.visitDate),
           ),
           const SizedBox(height: 6),
-          _InfoLine(label: 'Kode booking', value: booking.id),
+          _InfoLine(label: 'Total peserta', value: '${booking.quantity} orang'),
+          const SizedBox(height: 6),
+          _InfoLine(
+            label: isAdditional ? 'Tagihan tambahan' : 'Total pesanan',
+            value: _formatPrice(total),
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: Color(0xFFE8EAF3)),
+          const SizedBox(height: 10),
+          const Text(
+            'Rincian peserta',
+            style: TextStyle(
+              color: _paymentNavy,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (var index = 0; index < booking.participants.length; index++) ...[
+            _InfoLine(
+              label: index == 0
+                  ? '${booking.participants[index].name} (Ketua)'
+                  : booking.participants[index].name,
+              value: booking.participants[index].ticketTypeName,
+            ),
+            if (index < booking.participants.length - 1)
+              const SizedBox(height: 5),
+          ],
+          const SizedBox(height: 6),
+          _InfoLine(label: 'Kode booking', value: booking.code),
         ],
       ),
     );
   }
 }
 
-class _QrPaymentCard extends StatelessWidget {
-  const _QrPaymentCard({
-    required this.payload,
-    required this.bookingId,
-    required this.total,
+class _SecurePaymentCard extends StatelessWidget {
+  const _SecurePaymentCard({
+    required this.bookingCode,
+    required this.orderId,
+    required this.status,
   });
 
-  final String payload;
-  final String bookingId;
-  final int total;
+  final String bookingCode;
+  final String? orderId;
+  final String status;
 
   @override
   Widget build(BuildContext context) {
@@ -414,18 +564,19 @@ class _QrPaymentCard extends StatelessWidget {
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               const Icon(
-                Icons.qr_code_2_rounded,
+                Icons.lock_outline_rounded,
                 color: _paymentBlue,
                 size: 20,
               ),
               const SizedBox(width: 7),
               const Expanded(
                 child: Text(
-                  'Bayar dengan QRIS',
+                  'Pembayaran diproses dengan aman',
                   style: TextStyle(
                     color: _paymentNavy,
                     fontSize: 15,
@@ -433,51 +584,24 @@ class _QrPaymentCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const _QrisBrandMark(),
             ],
           ),
-          const SizedBox(height: 15),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F2FF),
-              borderRadius: BorderRadius.circular(13),
+          const SizedBox(height: 14),
+          _InfoLine(label: 'Status', value: status),
+          if (orderId != null) ...[
+            const SizedBox(height: 7),
+            _InfoLine(label: 'Kode transaksi', value: orderId!),
+          ],
+          const SizedBox(height: 7),
+          _InfoLine(label: 'Kode booking', value: bookingCode),
+          const SizedBox(height: 13),
+          const Text(
+            'Data pesananmu tercatat dan e-ticket akan diterbitkan setelah pembayaran berhasil dikonfirmasi.',
+            style: TextStyle(
+              color: Color(0xFF596579),
+              fontSize: 12,
+              height: 1.45,
             ),
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: QrImageView(
-                data: payload,
-                version: QrVersions.auto,
-                size: 220,
-                backgroundColor: Colors.white,
-                eyeStyle: const QrEyeStyle(
-                  eyeShape: QrEyeShape.square,
-                  color: _paymentNavy,
-                ),
-                dataModuleStyle: const QrDataModuleStyle(
-                  dataModuleShape: QrDataModuleShape.square,
-                  color: _paymentNavy,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _formatPrice(total),
-            style: const TextStyle(
-              color: _paymentBlue,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Booking $bookingId',
-            style: const TextStyle(color: Color(0xFF7B8290), fontSize: 10),
           ),
         ],
       ),
@@ -485,8 +609,114 @@ class _QrPaymentCard extends StatelessWidget {
   }
 }
 
+class _PaymentQrCodeCard extends StatelessWidget {
+  const _PaymentQrCodeCard({
+    required this.url,
+    required this.headers,
+    required this.qrCodeSourceUrl,
+  });
+
+  final Uri url;
+  final Map<String, String> headers;
+  final Uri? qrCodeSourceUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final sourceUrl = qrCodeSourceUrl;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0809233F),
+            blurRadius: 12,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'Selesaikan pembayaran',
+            style: TextStyle(
+              color: _paymentNavy,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Image.asset(
+            'assets/logo-qris-transparent.png',
+            height: 32,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: 240,
+            height: 240,
+            child: Image.network(
+              url.toString(),
+              headers: headers,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => const Center(
+                child: Text(
+                  'Kode pembayaran tidak dapat dimuat. Periksa koneksi lalu coba lagi.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Color(0xFF596579), fontSize: 12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Buka aplikasi pembayaran yang mendukung, lalu pindai kode di atas.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF596579),
+              fontSize: 12,
+              height: 1.45,
+            ),
+          ),
+          if (sourceUrl != null) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () async {
+                try {
+                  await Clipboard.setData(
+                    ClipboardData(text: sourceUrl.toString()),
+                  );
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Tautan Midtrans berhasil disalin.'),
+                    ),
+                  );
+                } on PlatformException {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Tautan Midtrans gagal disalin.'),
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.copy_rounded, size: 18),
+              label: const Text('Salin tautan Midtrans'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _PaymentInstructions extends StatelessWidget {
-  const _PaymentInstructions();
+  const _PaymentInstructions({required this.hasQrCode});
+
+  final bool hasQrCode;
 
   @override
   Widget build(BuildContext context) {
@@ -496,7 +726,7 @@ class _PaymentInstructions extends StatelessWidget {
         color: const Color(0xFFEAF2FF),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -508,18 +738,33 @@ class _PaymentInstructions extends StatelessWidget {
             ),
           ),
           SizedBox(height: 7),
-          _InstructionRow(
-            number: '1',
-            text: 'Buka aplikasi bank atau e-wallet.',
-          ),
-          _InstructionRow(
-            number: '2',
-            text: 'Pilih menu Scan QRIS, lalu pindai kode di atas.',
-          ),
-          _InstructionRow(
-            number: '3',
-            text: 'Pastikan nominal sesuai sebelum membayar.',
-          ),
+          if (hasQrCode) ...[
+            _InstructionRow(
+              number: '1',
+              text: 'Pindai kode pembayaran yang tampil di atas.',
+            ),
+            _InstructionRow(
+              number: '2',
+              text: 'Selesaikan pembayaran dari aplikasi pembayaranmu.',
+            ),
+            _InstructionRow(
+              number: '3',
+              text: 'Status pesanan akan diperbarui otomatis.',
+            ),
+          ] else ...[
+            _InstructionRow(
+              number: '1',
+              text: 'Tekan Bayar Sekarang untuk membuka halaman pembayaran.',
+            ),
+            _InstructionRow(
+              number: '2',
+              text: 'Pilih metode pembayaran yang tersedia.',
+            ),
+            _InstructionRow(
+              number: '3',
+              text: 'Selesaikan pembayaran lalu kembali ke aplikasi untuk memeriksa status.',
+            ),
+          ],
         ],
       ),
     );
@@ -559,8 +804,8 @@ class _InstructionRow extends StatelessWidget {
   }
 }
 
-class _DemoNotice extends StatelessWidget {
-  const _DemoNotice();
+class _PaymentStatusNotice extends StatelessWidget {
+  const _PaymentStatusNotice();
 
   @override
   Widget build(BuildContext context) {
@@ -571,7 +816,7 @@ class _DemoNotice extends StatelessWidget {
         SizedBox(width: 7),
         Expanded(
           child: Text(
-            'QRIS ini masih simulasi UI. Pembayaran asli aktif setelah terhubung ke payment gateway.',
+            'Pembayaran diproses dengan aman. Status transaksi diperiksa kembali ke server dan e-ticket diterbitkan setelah pembayaran dikonfirmasi.',
             style: TextStyle(
               color: Color(0xFF727B8B),
               fontSize: 10,
@@ -584,16 +829,58 @@ class _DemoNotice extends StatelessWidget {
   }
 }
 
+class _PaymentError extends StatelessWidget {
+  const _PaymentError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF0EF),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline_rounded, color: Colors.red, size: 17),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFF8B2822),
+                fontSize: 11,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ConfirmPaymentBar extends StatelessWidget {
   const _ConfirmPaymentBar({
     required this.total,
     required this.isProcessing,
-    required this.onConfirm,
+    required this.isEnabled,
+    required this.isQrPayment,
+    required this.isRetry,
+    required this.isExpired,
+    required this.onPressed,
   });
 
   final int total;
   final bool isProcessing;
-  final VoidCallback onConfirm;
+  final bool isEnabled;
+  final bool isQrPayment;
+  final bool isRetry;
+  final bool isExpired;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -637,7 +924,7 @@ class _ConfirmPaymentBar extends StatelessWidget {
             SizedBox(
               height: 47,
               child: FilledButton(
-                onPressed: isProcessing ? null : onConfirm,
+                onPressed: isProcessing || !isEnabled ? null : onPressed,
                 style: FilledButton.styleFrom(
                   backgroundColor: _paymentOrange,
                   foregroundColor: Colors.white,
@@ -655,8 +942,14 @@ class _ConfirmPaymentBar extends StatelessWidget {
                           color: Colors.white,
                         ),
                       )
-                    : const Text(
-                        'Saya Sudah Bayar',
+                    : Text(
+                        isExpired
+                            ? 'Kedaluwarsa'
+                            : isRetry
+                            ? 'Coba Lagi'
+                            : isQrPayment
+                            ? 'Cek Status'
+                            : 'Bayar Sekarang',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -666,36 +959,6 @@ class _ConfirmPaymentBar extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _QrisBrandMark extends StatelessWidget {
-  const _QrisBrandMark();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF2F5FA),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: const Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(
-              text: 'QR',
-              style: TextStyle(color: _paymentNavy),
-            ),
-            TextSpan(
-              text: 'IS',
-              style: TextStyle(color: _paymentOrange),
-            ),
-          ],
-        ),
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
       ),
     );
   }
@@ -743,7 +1006,8 @@ String _formatPrice(int value) =>
     'Rp ${value.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => '.')}';
 
 String _formatDuration(Duration value) {
+  final hours = value.inHours;
   final minutes = value.inMinutes.remainder(60).toString().padLeft(2, '0');
   final seconds = value.inSeconds.remainder(60).toString().padLeft(2, '0');
-  return '$minutes:$seconds';
+  return hours > 0 ? '$hours:$minutes:$seconds' : '$minutes:$seconds';
 }

@@ -67,8 +67,12 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    AuthService.logout();
-    setState(() {});
+    try {
+      await AuthService().logoutFromServer();
+      if (mounted) setState(() {});
+    } on Exception catch (error) {
+      if (mounted) _showMessage(error.toString());
+    }
   }
 
   void _showMessage(String message) {

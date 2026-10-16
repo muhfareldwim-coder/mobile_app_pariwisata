@@ -1,17 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:latlong2/latlong.dart';
 
 import 'core/routes/app_routes.dart';
 import 'core/theme/app_colors.dart';
 import 'presentation/pages/main_navigation_page.dart';
 
 class PariwisataApp extends StatelessWidget {
-  const PariwisataApp({super.key});
+  const PariwisataApp({super.key, this.locationProvider});
+
+  final Future<LatLng?> Function()? locationProvider;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'JemberGo',
       debugShowCheckedModeBanner: false,
+      locale: const Locale('id', 'ID'),
+      supportedLocales: const [Locale('id', 'ID')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       routes: AppRoutes.routes,
       theme: ThemeData(
         scaffoldBackgroundColor: AppColors.bg,
@@ -35,7 +46,7 @@ class PariwisataApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const MainNavigationPage(),
+      home: MainNavigationPage(locationProvider: locationProvider),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/destination_data.dart';
 import '../../../data/models/destination.dart';
+import '../../../data/services/destination_service.dart';
 import '../../widgets/destination/category_chip.dart';
 import '../../widgets/destination/destination_card.dart';
 import 'destination_detail_page.dart';
@@ -19,6 +20,10 @@ class ExplorerPage extends StatefulWidget {
 class _ExplorerPageState extends State<ExplorerPage> {
   final searchController = TextEditingController();
   final favorites = <String>{};
+  final _destinationService = DestinationService();
+  List<Destination> _destinations = destinations;
+  String? _loadError;
+  bool _isLoading = true;
   late String selectedCategory;
   String selectedSort = 'Terpopuler';
 
@@ -26,12 +31,34 @@ class _ExplorerPageState extends State<ExplorerPage> {
   void initState() {
     super.initState();
     selectedCategory = widget.initialCategory;
+    _loadDestinations();
   }
 
   @override
   void dispose() {
     searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadDestinations() async {
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+    try {
+      final loaded = await _destinationService.getDestinations();
+      if (!mounted) return;
+      setState(() {
+        _destinations = loaded;
+        _isLoading = false;
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = error.toString();
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -43,7 +70,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
   }
 
   Widget _exploreBody() {
-    final filtered = destinations.where((destination) {
+    final filtered = _destinations.where((destination) {
       final categoryMatches =
           selectedCategory == 'Semua' ||
           destination.category == selectedCategory.toUpperCase();
@@ -179,7 +206,30 @@ class _ExplorerPageState extends State<ExplorerPage> {
             ],
           ),
         ),
-        if (filtered.isEmpty)
+        if (_isLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: LinearProgressIndicator(),
+          )
+        else if (_loadError != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+            child: Column(
+              children: [
+                Text(
+                  _loadError!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.secondaryText),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: _loadDestinations,
+                  child: const Text('Coba lagi'),
+                ),
+              ],
+            ),
+          ),
+        if (!_isLoading && _loadError == null && filtered.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 48),
             child: Center(
@@ -188,8 +238,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
                 style: TextStyle(color: AppColors.secondaryText),
               ),
             ),
-          )
-        else
+          ),
+        if (filtered.isNotEmpty)
           for (final destination in filtered)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -367,20 +417,21 @@ class _ExplorerPageState extends State<ExplorerPage> {
                 CategoryChip(
                   label: 'Alam',
                   icon: Icons.park_outlined,
-                  count: 14,
+                  count: _categoryCount('ALAM'),
                   selected: selectedCategory == 'ALAM',
                   onTap: () => setState(() => selectedCategory = 'ALAM'),
                 ),
                 CategoryChip(
                   label: 'Bahari',
                   icon: Icons.waves_rounded,
-                  count: 8,
+                  count: _categoryCount('BAHARI'),
                   selected: selectedCategory == 'BAHARI',
                   onTap: () => setState(() => selectedCategory = 'BAHARI'),
                 ),
                 CategoryChip(
                   label: 'Buatan',
                   icon: Icons.account_balance_outlined,
+                  count: _categoryCount('BUATAN'),
                   selected: selectedCategory == 'BUATAN',
                   onTap: () => setState(() => selectedCategory = 'BUATAN'),
                 ),
@@ -527,6 +578,11 @@ class _ExplorerPageState extends State<ExplorerPage> {
       ? ((double.tryParse(value.substring(0, value.length - 1)) ?? 0) * 1000)
             .round()
       : int.tryParse(value) ?? 0;
+
+  int _categoryCount(String category) => _destinations
+      .where((destination) => destination.category == category)
+      .length;
+
   String _categoryLabel(String category) =>
       category[0] + category.substring(1).toLowerCase();
 }

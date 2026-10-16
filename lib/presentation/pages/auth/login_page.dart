@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../core/routes/app_routes.dart';
 import '../../../data/services/auth_service.dart';
@@ -20,6 +22,9 @@ class _LoginPageState extends State<LoginPage> {
   final _authService = AuthService();
   bool _rememberMe = true;
   bool _obscurePassword = true;
+  bool _isSubmitting = false;
+  bool _isGoogleSubmitting = false;
+  static Future<void>? _googleSignInInitialization;
 
   @override
   void dispose() {
@@ -29,17 +34,93 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _login() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    final user = await _authService.login(
-      _emailController.text.trim(),
-      _passwordController.text,
-    );
-    if (!mounted || user == null) return;
+    if (_isSubmitting || !(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _isSubmitting = true);
+    try {
+      await _authService.login(
+        _emailController.text.trim(),
+        _passwordController.text,
+        rememberMe: _rememberMe,
+      );
+      _completeLogin();
+    } on Exception catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _loginWithGoogle() async {
+    if (_isSubmitting) return;
+    if (kIsWeb) {
+      _showMessage('Login Google tersedia melalui aplikasi Android atau iOS.');
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+      _isGoogleSubmitting = true;
+    });
+    try {
+      final serverClientId = await _authService.googleSignInServerClientId();
+      _googleSignInInitialization ??= GoogleSignIn.instance.initialize(
+        serverClientId: serverClientId,
+      );
+      try {
+        await _googleSignInInitialization;
+      } on Exception {
+        _googleSignInInitialization = null;
+        rethrow;
+      }
+
+      final account = await GoogleSignIn.instance.authenticate();
+      final idToken = account.authentication.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        throw const FormatException(
+          'Google tidak mengembalikan token akun. Periksa konfigurasi OAuth aplikasi.',
+        );
+      }
+
+      await _authService.loginWithGoogleIdToken(
+        idToken,
+        rememberMe: _rememberMe,
+      );
+      _completeLogin();
+    } on GoogleSignInException catch (error) {
+      if (error.code != GoogleSignInExceptionCode.canceled && mounted) {
+        _showMessage(error.toString());
+      }
+    } on Exception catch (error) {
+      if (mounted) _showMessage(error.toString());
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+          _isGoogleSubmitting = false;
+        });
+      }
+    }
+  }
+
+  void _completeLogin() {
+    if (!mounted) return;
     if (Navigator.canPop(context)) {
       Navigator.pop(context, true);
     } else {
       Navigator.pushReplacementNamed(context, AppRoutes.home);
     }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showPasswordRecoveryUnavailable() {
+    _showMessage('Pemulihan kata sandi belum tersedia di aplikasi.');
   }
 
   Future<void> _openRegister() async {
@@ -53,38 +134,30 @@ class _LoginPageState extends State<LoginPage> {
     Navigator.pop(context, true);
   }
 
-  void _showUnavailable() {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Fitur ini belum tersedia.')));
-  }
-
   @override
   Widget build(BuildContext context) {
     return AuthShell(
       form: Form(
         key: _formKey,
         child: AuthFormColumn(
-          eyebrow: 'GERBANG WISATA BUMI PANDHALUNGAN',
-          description: 'Jelajahi keindahan pesona alam, budaya, dan pesisir Kabupaten Jember',
+          eyebrow: 'SISTEM INFORMASI DAN LAYANAN PARIWISATA KABUPATEN JEMBER',
+          description: 'Masuk untuk menikmati informasi dan layanan pariwisata Kabupaten Jember',
           isRegister: false,
           fields: [
             AppTextField(
-              label: 'Email atau Nama Pengguna',
+              label: 'Email',
               hint: 'nama@email.com',
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
-              prefixIcon: Icons.mail_outline,
-              validator: (value) => value != null && value.trim().isNotEmpty
+              validator: (value) => value != null && value.trim().contains('@')
                   ? null
-                  : 'Masukkan email atau nama pengguna',
+                  : 'Masukkan email yang valid',
             ),
             AppTextField(
               label: 'Kata Sandi',
-              hint: 'Masukkan kata sandi akun',
+              hint: 'Masukkan password',
               controller: _passwordController,
               obscureText: _obscurePassword,
-              prefixIcon: Icons.lock_outline,
               validator: (value) => value != null && value.length >= 8
                   ? null
                   : 'Password minimal 8 karakter',
@@ -121,14 +194,16 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ],
           ),
-          forgotAction: _showUnavailable,
-          buttonLabel: 'Masuk Sekarang',
+          forgotAction: _showPasswordRecoveryUnavailable,
+          buttonLabel: 'Masuk',
+          isSubmitting: _isSubmitting,
+          isGoogleSubmitting: _isGoogleSubmitting,
           onSubmit: _login,
-          googleAction: _showUnavailable,
+          googleAction: _loginWithGoogle,
           guestAction: () =>
               Navigator.pushReplacementNamed(context, AppRoutes.home),
           switchAction: _openRegister,
-          switchLabel: 'Daftar Sekarang',
+          switchLabel: 'Daftar',
         ),
       ),
     );

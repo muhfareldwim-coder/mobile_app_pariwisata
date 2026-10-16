@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
@@ -8,17 +9,15 @@ import '../../../data/models/ticket.dart';
 import '../../../data/models/user.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/device_location_service.dart';
+import '../../../data/services/destination_service.dart';
 import '../../../data/services/destination_review_service.dart';
-import '../../../data/services/open_street_map_service.dart';
+import '../../../data/services/route_estimate_service.dart';
 import '../../../data/services/ticket_service.dart';
 import '../booking/booking_page.dart';
 import '../ticket/qr_ticket_page.dart';
 
 class DestinationDetailPage extends StatefulWidget {
-  const DestinationDetailPage({
-    super.key,
-    required this.destination,
-  });
+  const DestinationDetailPage({super.key, required this.destination});
 
   final Destination destination;
 
@@ -29,8 +28,80 @@ class DestinationDetailPage extends StatefulWidget {
 class _DestinationDetailPageState extends State<DestinationDetailPage> {
   bool isFavorite = false;
   bool isDescriptionExpanded = false;
+  late Destination _destination;
+  final _mapController = MapController();
+  final _destinationService = DestinationService();
+  final _routeEstimateService = RouteEstimateService();
+  RouteEstimate? _routeEstimate;
+  String? _routeError;
+  String? _detailError;
+  bool _isEstimatingRoute = false;
 
-  Destination get destination => widget.destination;
+  Destination get destination => _destination;
+
+  @override
+  void initState() {
+    super.initState();
+    _destination = widget.destination;
+    _loadDestinationDetails();
+  }
+
+  Future<void> _loadDestinationDetails() async {
+    if (int.tryParse(destination.id) == null) return;
+    try {
+      final details = await _destinationService.getDestination(destination.id);
+      if (!mounted) return;
+      setState(() {
+        _destination = details;
+        _detailError = null;
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() => _detailError = error.toString());
+    }
+  }
+
+  Future<void> _calculateRouteEstimate() async {
+    if (_isEstimatingRoute) return;
+    setState(() {
+      _isEstimatingRoute = true;
+      _routeError = null;
+    });
+    try {
+      final origin = await DeviceLocationService.currentLocation();
+      if (origin == null) {
+        throw const FormatException(
+          'Lokasi perangkat tidak tersedia. Aktifkan GPS dan izinkan akses lokasi.',
+        );
+      }
+      final estimate = await _routeEstimateService.estimate(
+        origin: origin,
+        destination: LatLng(destination.latitude, destination.longitude),
+      );
+      if (!mounted) return;
+      setState(() {
+        _routeEstimate = estimate;
+        _isEstimatingRoute = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || estimate.routePoints.length < 2) return;
+        _mapController.fitCamera(
+          CameraFit.bounds(
+            bounds: LatLngBounds.fromPoints(estimate.routePoints),
+            padding: const EdgeInsets.all(32),
+            maxZoom: 15,
+          ),
+        );
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _routeError = error.toString();
+        _isEstimatingRoute = false;
+        _routeEstimate = null;
+      });
+    }
+  }
 
   Future<void> _startBooking() async {
     if (AuthService.currentUser == null) {
@@ -47,42 +118,6 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
     );
   }
 
-  Future<void> _openOpenStreetMap() async {
-    var origin = DeviceLocationService.jemberFallback;
-    try {
-      final currentLocation = await DeviceLocationService.currentLocation();
-      if (currentLocation == null && mounted) {
-        _showMessage(
-          'Lokasi tidak tersedia. Rute dimulai dari Alun-alun Jember.',
-        );
-      } else if (currentLocation != null) {
-        origin = currentLocation;
-      }
-    } on Exception {
-      if (mounted) {
-        _showMessage(
-          'Lokasi perangkat tidak tersedia. Rute dimulai dari Alun-alun Jember.',
-        );
-      }
-    }
-    if (!mounted) return;
-    final opened = await OpenStreetMapService.openDirections(
-      fromLatitude: origin.latitude,
-      fromLongitude: origin.longitude,
-      toLatitude: destination.latitude,
-      toLongitude: destination.longitude,
-    );
-    if (!opened && mounted) {
-      _showMessage('OpenStreetMap tidak dapat dibuka.');
-    }
-  }
-
-  static const _galleryImages = [
-    'https://images.unsplash.com/photo-1519046904884-53103b34b206?auto=format&fit=crop&w=800&q=85',
-    'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=800&q=85',
-    'https://images.unsplash.com/photo-1506953823976-52e1fdc0149a?auto=format&fit=crop&w=800&q=85',
-  ];
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -98,60 +133,32 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
           icon: const Icon(Icons.arrow_back),
         ),
         titleSpacing: 0,
-        title: Row(
-          children: [
-            Container(
-              width: 25,
-              height: 25,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF0FF),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                'J',
-                style: TextStyle(
-                  color: AppColors.navy,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-            const SizedBox(width: 9),
-            const Text(
-              'Detail',
-              style: TextStyle(
-                color: AppColors.navy,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 14),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: AppColors.navy,
-              child: IconButton(
-                padding: EdgeInsets.zero,
-                tooltip: 'Profil',
-                onPressed: () {},
-                icon: const Icon(
-                  Icons.person_outline,
-                  size: 19,
-                  color: Colors.white,
-                ),
-              ),
-            ),
+        title: Text(
+          destination.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.navy,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
           ),
-        ],
+        ),
       ),
       body: ListView(
+        key: const ValueKey('destination-detail-scroll'),
         padding: const EdgeInsets.only(bottom: 22),
         children: [
-          _heroAndHighlights(),
+          if (_detailError != null)
+            MaterialBanner(
+              content: Text('Detail terbaru tidak dapat dimuat: $_detailError'),
+              actions: [
+                TextButton(
+                  onPressed: _loadDestinationDetails,
+                  child: const Text('Coba lagi'),
+                ),
+              ],
+            ),
+          _hero(),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 19, 16, 0),
             child: Column(
@@ -159,60 +166,68 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
               children: [
                 _sectionHeading(
                   icon: Icons.verified_outlined,
-                  title: 'Pesona & Deskripsi',
+                  title: 'Tentang Destinasi',
                 ),
                 const SizedBox(height: 8),
                 _descriptionCard(),
                 const SizedBox(height: 24),
-                Row(
-                  children: [
-                    const Expanded(
-                      child: _SectionTitle(title: 'Fasilitas Wisata'),
-                    ),
-                    TextButton(
-                      onPressed: () {},
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF1264CE),
-                        padding: EdgeInsets.zero,
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text(
-                        'Lengkap & Nyaman',
-                        style: TextStyle(fontSize: 11),
-                      ),
-                    ),
-                  ],
-                ),
+                const _SectionTitle(title: 'Lokasi & rute'),
+                const SizedBox(height: 10),
+                _locationCard(),
+                const SizedBox(height: 24),
+                const _SectionTitle(title: 'Fasilitas'),
                 const SizedBox(height: 9),
                 _facilityGrid(),
+                const SizedBox(height: 20),
+                const _SectionTitle(title: 'Jenis tiket'),
+                const SizedBox(height: 9),
+                if (destination.ticketTypes.isEmpty)
+                  const Text(
+                    'Jenis tiket belum tersedia.',
+                    style: TextStyle(color: Color(0xFF737B88), fontSize: 11),
+                  )
+                else
+                  for (final ticket in destination.ticketTypes)
+                    _TicketTypeRow(ticket: ticket),
                 const SizedBox(height: 24),
                 Row(
                   children: [
-                    const Expanded(
-                      child: _SectionTitle(title: 'Galeri Suasana'),
-                    ),
-                    TextButton(
-                      onPressed: _openGallery,
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF1264CE),
-                        padding: EdgeInsets.zero,
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Jelajahi lebih dekat',
+                            style: TextStyle(
+                              color: AppColors.orange,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: .5,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          _SectionTitle(title: 'Galeri ${destination.name}'),
+                        ],
                       ),
-                      child: const Text(
-                        'Lihat Semua',
-                        style: TextStyle(fontSize: 11),
-                      ),
                     ),
+                    if (destination.gallery.isNotEmpty)
+                      TextButton(
+                        onPressed: _openGallery,
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF1264CE),
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text(
+                          'Lihat Semua',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 9),
                 _gallery(),
-                const SizedBox(height: 24),
-                const _SectionTitle(title: 'Lokasi & Akses'),
-                const SizedBox(height: 10),
-                _locationCard(),
                 const SizedBox(height: 24),
                 _reviewSection(),
               ],
@@ -232,6 +247,7 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
         final user = AuthService.currentUser;
         final userEmail = user?.email ?? '';
         final reviews = DestinationReviewService.forDestination(destination.id);
+        final apiReviews = destination.reviews;
         final userReview = user == null
             ? null
             : DestinationReviewService.byUserForDestination(
@@ -264,24 +280,27 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _SectionTitle(title: 'Ulasan Wisatawan'),
+            const _SectionTitle(title: 'Ulasan pengunjung'),
             const SizedBox(height: 8),
-            if (userReview == null)
-              _reviewEligibilityPanel(
-                user: user,
-                ticket: ticket,
-                reviewTicket: reviewTicket,
-              )
-            else
-              const _ReviewEligibilityNote(
-                icon: Icons.verified_rounded,
-                message: 'Terima kasih! Ulasan Anda sudah tercatat sebagai pengunjung terverifikasi.',
-              ),
-            if (reviews.isEmpty)
+            if (apiReviews.isNotEmpty) ...[
+              const SizedBox(height: 9),
+              for (final review in apiReviews) ...[
+                _ReviewCard(
+                  initial: review.name.isEmpty
+                      ? '?'
+                      : review.name[0].toUpperCase(),
+                  name: review.name,
+                  meta: 'Ulasan pengunjung',
+                  rating: review.rating,
+                  review: review.review,
+                ),
+                if (review != apiReviews.last) const SizedBox(height: 9),
+              ],
+            ] else if (reviews.isEmpty)
               const Padding(
                 padding: EdgeInsets.only(top: 10),
                 child: Text(
-                  'Belum ada ulasan terverifikasi untuk destinasi ini.',
+                  'Belum ada ulasan.',
                   style: TextStyle(color: Color(0xFF737B88), fontSize: 11),
                 ),
               )
@@ -300,6 +319,21 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
                 if (review != reviews.last) const SizedBox(height: 9),
               ],
             ],
+            if (userReview != null) ...[
+              const SizedBox(height: 10),
+              const _ReviewEligibilityNote(
+                icon: Icons.verified_rounded,
+                message: 'Terima kasih! Ulasan Anda sudah tercatat sebagai pengunjung terverifikasi.',
+              ),
+            ] else if (user != null &&
+                (reviewTicket != null || ticket?.status == 'valid')) ...[
+              const SizedBox(height: 10),
+              _reviewEligibilityPanel(
+                user: user,
+                ticket: ticket,
+                reviewTicket: reviewTicket,
+              ),
+            ],
           ],
         );
       },
@@ -307,19 +341,10 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
   );
 
   Widget _reviewEligibilityPanel({
-    required User? user,
+    required User user,
     required Ticket? ticket,
     required Ticket? reviewTicket,
   }) {
-    if (user == null) {
-      return _ReviewEligibilityNote(
-        icon: Icons.lock_outline_rounded,
-        message:
-            'Masuk dengan akun pembeli tiket untuk memberi rating dan ulasan.',
-        actionLabel: 'Masuk',
-        onAction: _loginForReview,
-      );
-    }
     if (reviewTicket != null) {
       return _ReviewEligibilityNote(
         icon: Icons.rate_review_outlined,
@@ -336,10 +361,7 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
         onAction: () => _openTicket(ticket),
       );
     }
-    return const _ReviewEligibilityNote(
-      icon: Icons.lock_outline_rounded,
-      message: 'Rating dan ulasan hanya dapat dikirim setelah membeli dan menggunakan tiket destinasi ini.',
-    );
+    return const SizedBox.shrink();
   }
 
   Future<void> _loginForReview() async {
@@ -383,15 +405,14 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
     }
   }
 
-  Widget _heroAndHighlights() {
+  Widget _hero() {
     final heroHeight = (MediaQuery.sizeOf(context).width * .78).clamp(
       285.0,
       330.0,
     );
     return SizedBox(
-      height: heroHeight + 52,
+      height: heroHeight,
       child: Stack(
-        clipBehavior: Clip.none,
         children: [
           Positioned(
             top: 0,
@@ -401,7 +422,12 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                _NetworkImage(url: destination.imageUrl, iconSize: 58),
+                _NetworkImage(
+                  url:
+                      destination.imageUrl ??
+                      destination.gallery.firstOrNull?.url,
+                  iconSize: 58,
+                ),
                 const DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -433,19 +459,13 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
                             : AppColors.navy,
                         onTap: () => setState(() => isFavorite = !isFavorite),
                       ),
-                      const SizedBox(width: 7),
-                      _HeroAction(
-                        icon: Icons.share_outlined,
-                        tooltip: 'Bagikan destinasi',
-                        onTap: _shareDestination,
-                      ),
                     ],
                   ),
                 ),
                 Positioned(
                   left: 16,
                   right: 16,
-                  bottom: 37,
+                  bottom: 16,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -459,7 +479,7 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          'WISATA ${destination.category}',
+                          destination.category,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 9,
@@ -469,7 +489,7 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
                       ),
                       const SizedBox(height: 7),
                       Text(
-                        destination.name.replaceFirst('Pantai ', ''),
+                        destination.name,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -485,105 +505,36 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
                       const SizedBox(height: 5),
                       Row(
                         children: [
-                          const Icon(
-                            Icons.star_rounded,
-                            color: Color(0xFFFFA35B),
-                            size: 17,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            destination.rating.toStringAsFixed(1),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            '(${destination.reviewCount} ulasan)',
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 11,
-                            ),
-                          ),
                           const Spacer(),
-                          InkWell(
-                            onTap: _openGallery,
-                            borderRadius: BorderRadius.circular(15),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 9,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0x99334956),
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                              child: Text(
-                                '▣ 1/${_galleryImages.length} Foto',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
+                          if (destination.gallery.isNotEmpty)
+                            InkWell(
+                              onTap: _openGallery,
+                              borderRadius: BorderRadius.circular(15),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 9,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0x99334956),
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                child: Text(
+                                  '▣ ${destination.gallery.length} Foto',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                     ],
                   ),
                 ),
               ],
-            ),
-          ),
-          Positioned(left: 16, right: 16, bottom: 0, child: _highlightCard()),
-        ],
-      ),
-    );
-  }
-
-  Widget _highlightCard() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 13),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(17),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1408233F),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _HighlightItem(
-              icon: Icons.place_outlined,
-              label: 'Jarak',
-              value: '${destination.distanceKm.toStringAsFixed(1)} km',
-              color: const Color(0xFF1264CE),
-            ),
-          ),
-          const _VerticalDivider(),
-          const Expanded(
-            child: _HighlightItem(
-              icon: Icons.schedule_rounded,
-              label: 'Jam Buka',
-              value: '24 Jam',
-              color: AppColors.orange,
-            ),
-          ),
-          const _VerticalDivider(),
-          Expanded(
-            child: _HighlightItem(
-              icon: Icons.confirmation_number_outlined,
-              label: 'Tiket Masuk',
-              value: 'Rp ${_formatPrice(destination.ticketPrice)}',
-              color: const Color(0xFF1264CE),
             ),
           ),
         ],
@@ -593,7 +544,7 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
 
   Widget _descriptionCard() {
     final description = destination.description.isEmpty
-        ? 'Nikmati suasana dan keindahan alam Jember di ${destination.name}. Temukan pengalaman wisata yang nyaman bersama keluarga maupun teman.'
+        ? 'Deskripsi destinasi belum tersedia.'
         : destination.description;
     return Container(
       width: double.infinity,
@@ -605,6 +556,28 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.location_on_outlined,
+                color: Color(0xFF1264CE),
+                size: 18,
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  destination.location,
+                  style: const TextStyle(
+                    color: Color(0xFF606977),
+                    height: 1.4,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           Text(
             description,
             maxLines: isDescriptionExpanded ? null : 4,
@@ -635,13 +608,68 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
               style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
             ),
           ),
+          const Divider(height: 18),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.schedule_rounded,
+                    color: Color(0xFF1264CE),
+                    size: 17,
+                  ),
+                  const SizedBox(width: 7),
+                  Text(
+                    destination.openingHours.isEmpty
+                        ? 'Jam operasional belum tersedia'
+                        : destination.openingHours,
+                    style: const TextStyle(
+                      color: Color(0xFF606977),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              if (destination.reviewCount.isNotEmpty &&
+                  destination.reviewCount != '0')
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.star_rounded,
+                      color: Color(0xFFFFA35B),
+                      size: 18,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${destination.rating.toStringAsFixed(1)} (${destination.reviewCount} ulasan)',
+                      style: const TextStyle(
+                        color: AppColors.navy,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
         ],
       ),
     );
   }
 
   Widget _facilityGrid() {
-    final facilities = _facilityItems;
+    final facilities = destination.facilities;
+    if (facilities.isEmpty) {
+      return const Text(
+        'Belum tersedia.',
+        style: TextStyle(color: Color(0xFF737B88), fontSize: 11),
+      );
+    }
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -652,67 +680,22 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
         crossAxisSpacing: 8,
         mainAxisExtent: 60,
       ),
-      itemBuilder: (context, index) =>
-          _FacilityCard(facility: facilities[index]),
-    );
-  }
-
-  List<_Facility> get _facilityItems {
-    final values = destination.facilities.map(_facilityFromLabel).toList();
-    const defaults = [
-      _Facility('Toilet & Bilas', 'Air tawar bersih', Icons.wc_rounded),
-      _Facility('Gazebo Santai', 'Area beristirahat', Icons.cabin_outlined),
-      _Facility('Mushola', 'Tempat ibadah', Icons.mosque_outlined),
-      _Facility('Spot Foto', 'Pemandangan indah', Icons.photo_camera_outlined),
-      _Facility('Area Kuliner', 'Makanan lokal', Icons.restaurant_outlined),
-      _Facility('Parkir Luas', 'Bus & kendaraan', Icons.local_parking_rounded),
-    ];
-    for (final item in defaults) {
-      if (values.length >= 6) break;
-      if (!values.any((value) => value.title == item.title)) values.add(item);
-    }
-    return values.take(6).toList();
-  }
-
-  _Facility _facilityFromLabel(String label) {
-    final normalized = label.toLowerCase();
-    if (normalized.contains('parkir')) {
-      return _Facility(label, 'Bus & kendaraan', Icons.local_parking_rounded);
-    }
-    if (normalized.contains('resto') ||
-        normalized.contains('cafe') ||
-        normalized.contains('pujasera')) {
-      return _Facility(label, 'Kuliner sekitar', Icons.restaurant_outlined);
-    }
-    if (normalized.contains('camp')) {
-      return _Facility(label, 'Tenda & api unggun', Icons.terrain_rounded);
-    }
-    if (normalized.contains('kolam') || normalized.contains('water')) {
-      return _Facility(label, 'Area bermain air', Icons.pool_rounded);
-    }
-    if (normalized.contains('foto') || normalized.contains('sunrise')) {
-      return _Facility(label, 'Pemandangan indah', Icons.photo_camera_outlined);
-    }
-    if (normalized.contains('trekking') ||
-        normalized.contains('air pegunungan')) {
-      return _Facility(label, 'Jalur petualangan', Icons.hiking_rounded);
-    }
-    if (normalized.contains('flora') || normalized.contains('fauna')) {
-      return _Facility(label, 'Wisata edukasi', Icons.park_outlined);
-    }
-    return _Facility(
-      label,
-      'Fasilitas tersedia',
-      Icons.check_circle_outline_rounded,
+      itemBuilder: (context, index) => _FacilityCard(label: facilities[index]),
     );
   }
 
   Widget _gallery() {
+    if (destination.gallery.isEmpty) {
+      return const Text(
+        'Galeri destinasi belum tersedia.',
+        style: TextStyle(color: Color(0xFF737B88), fontSize: 11),
+      );
+    }
     return SizedBox(
       height: 126,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: _galleryImages.length,
+        itemCount: destination.gallery.length,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) => ClipRRect(
           borderRadius: BorderRadius.circular(13),
@@ -721,7 +704,10 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                _NetworkImage(url: _galleryImages[index], iconSize: 34),
+                _NetworkImage(
+                  url: destination.gallery[index].url,
+                  iconSize: 34,
+                ),
                 const DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -735,7 +721,10 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
                   left: 9,
                   bottom: 8,
                   child: Text(
-                    index == 0 ? 'Siti Hinggil' : 'Pesisir Jember',
+                    destination.gallery[index].caption?.trim().isNotEmpty ==
+                            true
+                        ? destination.gallery[index].caption!.trim()
+                        : 'Foto destinasi',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 10,
@@ -752,6 +741,14 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
   }
 
   Widget _locationCard() {
+    final destinationPoint = LatLng(
+      destination.latitude,
+      destination.longitude,
+    );
+    final route = _routeEstimate;
+    final durationMinutes = route == null
+        ? 0
+        : (route.durationSeconds / 60 / 5).ceil() * 5;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -763,131 +760,138 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: SizedBox(
-              height: 160,
+              height: 190,
               width: double.infinity,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const CustomPaint(
-                    size: Size(double.infinity, 160),
-                    painter: _LocationMapPainter(),
+              child: FlutterMap(
+                key: ValueKey('destination-map-${destination.id}'),
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: destinationPoint,
+                  initialZoom: 14,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.all,
                   ),
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0863C6),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
-                      boxShadow: const [
-                        BoxShadow(color: Color(0x40000000), blurRadius: 8),
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.example.mobile_pariwisata',
+                  ),
+                  if (route != null && route.routePoints.length > 1)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: route.routePoints,
+                          color: const Color(0xFF0863C6),
+                          strokeWidth: 5,
+                        ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.location_on,
-                      color: Colors.white,
-                      size: 23,
-                    ),
-                  ),
-                  const Positioned(
-                    left: 12,
-                    top: 12,
-                    child: Text(
-                      'PESISIR JEMBER',
-                      style: TextStyle(
-                        color: Color(0xFF5B8079),
-                        fontSize: 8,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    right: 11,
-                    bottom: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: .9),
-                        borderRadius: BorderRadius.circular(7),
-                      ),
-                      child: const Text(
-                        'Papuma',
-                        style: TextStyle(
-                          color: AppColors.navy,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: destinationPoint,
+                        width: 44,
+                        height: 44,
+                        child: const Icon(
+                          Icons.location_pin,
+                          color: Color(0xFF0863C6),
+                          size: 42,
                         ),
                       ),
-                    ),
+                      if (route != null && route.routePoints.isNotEmpty)
+                        Marker(
+                          point: route.routePoints.first,
+                          width: 24,
+                          height: 24,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF22A06B),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 3),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const RichAttributionWidget(
+                    attributions: [
+                      TextSourceAttribution('OpenStreetMap contributors'),
+                    ],
+                    showFlutterMapAttribution: false,
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(
-                Icons.location_on_outlined,
-                color: Color(0xFF1264CE),
-                size: 19,
-              ),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Alamat Lengkap',
-                      style: TextStyle(
-                        color: AppColors.navy,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${destination.location}\nKabupaten Jember, Jawa Timur',
-                      style: const TextStyle(
-                        color: Color(0xFF606977),
-                        height: 1.4,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 11),
           SizedBox(
             width: double.infinity,
-            height: 39,
-            child: FilledButton.icon(
-              onPressed: _openOpenStreetMap,
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFE9EDFF),
-                foregroundColor: const Color(0xFF075FC7),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                elevation: 0,
-              ),
-              icon: const Icon(Icons.directions_outlined, size: 17),
-              label: const Text(
-                'Buka lokasi di OpenStreetMap',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+            height: 42,
+            child: OutlinedButton.icon(
+              onPressed: _isEstimatingRoute ? null : _calculateRouteEstimate,
+              icon: _isEstimatingRoute
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.route_outlined, size: 18),
+              label: Text(
+                _isEstimatingRoute
+                    ? 'Menghitung rute...'
+                    : _routeEstimate == null
+                    ? 'Lihat estimasi jarak & waktu'
+                    : 'Perbarui estimasi rute',
+                style: const TextStyle(fontSize: 11),
               ),
             ),
           ),
+          if (_routeError != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _routeError!,
+              style: const TextStyle(color: AppColors.danger, fontSize: 11),
+            ),
+          ],
+          if (route != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _HighlightItem(
+                    icon: Icons.route_outlined,
+                    label: 'Jarak rute',
+                    value:
+                        '${(route.distanceMeters / 1000).toStringAsFixed(1)} km',
+                    color: const Color(0xFF1264CE),
+                  ),
+                ),
+                const _VerticalDivider(),
+                Expanded(
+                  child: _HighlightItem(
+                    icon: Icons.schedule_rounded,
+                    label: 'Estimasi berkendara',
+                    value: _formatDuration(durationMinutes),
+                    color: AppColors.orange,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  String _formatDuration(int minutes) {
+    if (minutes < 60) return '$minutes menit';
+    final hours = minutes ~/ 60;
+    final remainingMinutes = minutes % 60;
+    return remainingMinutes == 0
+        ? '$hours jam'
+        : '$hours jam $remainingMinutes menit';
   }
 
   Widget _purchaseBar() {
@@ -913,12 +917,14 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Total Tarif',
+                    'Harga tiket mulai',
                     style: TextStyle(color: Color(0xFF5F6672), fontSize: 10),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Rp ${_formatPrice(destination.ticketPrice)}',
+                    destination.ticketTypes.isEmpty
+                        ? 'Belum tersedia'
+                        : 'Rp ${_formatPrice(destination.ticketPrice)}',
                     style: const TextStyle(
                       color: AppColors.navy,
                       fontSize: 19,
@@ -942,9 +948,14 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
                   elevation: 2,
                 ),
                 icon: const Icon(Icons.confirmation_number_outlined, size: 18),
-                label: const Text(
-                  'Beli Tiket Sekarang',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                label: Text(
+                  AuthService.currentUser == null
+                      ? 'Masuk untuk memesan'
+                      : 'Pesan tiket',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ),
@@ -964,6 +975,10 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
       );
 
   Future<void> _openGallery() async {
+    if (destination.gallery.isEmpty) {
+      _showMessage('Galeri destinasi belum tersedia.');
+      return;
+    }
     await showDialog<void>(
       context: context,
       builder: (context) => Dialog(
@@ -972,13 +987,17 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
         child: Stack(
           alignment: Alignment.topRight,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: AspectRatio(
-                aspectRatio: 4 / 3,
-                child: _NetworkImage(
-                  url: destination.imageUrl ?? _galleryImages.first,
-                  iconSize: 50,
+            SizedBox(
+              height: MediaQuery.sizeOf(context).height * .72,
+              width: double.infinity,
+              child: PageView.builder(
+                itemCount: destination.gallery.length,
+                itemBuilder: (context, index) => ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: _NetworkImage(
+                    url: destination.gallery[index].url,
+                    iconSize: 50,
+                  ),
                 ),
               ),
             ),
@@ -991,13 +1010,6 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
         ),
       ),
     );
-  }
-
-  Future<void> _shareDestination() async {
-    await Clipboard.setData(
-      ClipboardData(text: 'JemberGo: ${destination.name}'),
-    );
-    _showMessage('Nama destinasi disalin untuk dibagikan');
   }
 
   void _showMessage(String message) {
@@ -1103,62 +1115,70 @@ class _VerticalDivider extends StatelessWidget {
       Container(width: 1, height: 42, color: const Color(0xFFE5E8F5));
 }
 
-class _Facility {
-  const _Facility(this.title, this.subtitle, this.icon);
-  final String title;
-  final String subtitle;
-  final IconData icon;
-}
-
 class _FacilityCard extends StatelessWidget {
-  const _FacilityCard({required this.facility});
-  final _Facility facility;
+  const _FacilityCard({required this.label});
+  final String label;
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(9),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(11),
+      borderRadius: BorderRadius.circular(12),
     ),
-    child: Row(
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: const Color(0xFFE9EDFF),
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Icon(facility.icon, color: AppColors.navy, size: 18),
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        label,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: AppColors.navy,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                facility.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.navy,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                ),
+      ),
+    ),
+  );
+}
+
+class _TicketTypeRow extends StatelessWidget {
+  const _TicketTypeRow({required this.ticket});
+
+  final DestinationTicketType ticket;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              ticket.name,
+              style: const TextStyle(
+                color: AppColors.navy,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(height: 2),
-              Text(
-                facility.subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Color(0xFF737B88), fontSize: 9),
-              ),
-            ],
+            ),
           ),
-        ),
-      ],
+          Text(
+            'Rp ${ticket.price.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.')}',
+            style: const TextStyle(
+              color: AppColors.navy,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -1419,104 +1439,4 @@ class _NetworkImage extends StatelessWidget {
       child: Icon(Icons.landscape_rounded, color: Colors.white, size: iconSize),
     ),
   );
-}
-
-class _LocationMapPainter extends CustomPainter {
-  const _LocationMapPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawColor(const Color(0xFFD6EBDD), BlendMode.src);
-    final sea = Path()
-      ..moveTo(0, size.height * .58)
-      ..cubicTo(
-        size.width * .16,
-        size.height * .45,
-        size.width * .2,
-        size.height * .72,
-        size.width * .38,
-        size.height * .66,
-      )
-      ..cubicTo(
-        size.width * .53,
-        size.height * .58,
-        size.width * .63,
-        size.height * .82,
-        size.width * .73,
-        size.height * .73,
-      )
-      ..lineTo(size.width * .73, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-    canvas.drawPath(sea, Paint()..color = const Color(0xFF88C7D6));
-    final roadPaint = Paint()
-      ..color = const Color(0xFFFFFEF5)
-      ..strokeWidth = 5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final roads = [
-      Path()
-        ..moveTo(-8, size.height * .25)
-        ..cubicTo(
-          size.width * .28,
-          size.height * .12,
-          size.width * .42,
-          size.height * .47,
-          size.width + 8,
-          size.height * .28,
-        ),
-      Path()
-        ..moveTo(size.width * .12, -5)
-        ..cubicTo(
-          size.width * .35,
-          size.height * .4,
-          size.width * .5,
-          size.height * .48,
-          size.width * .86,
-          size.height + 5,
-        ),
-      Path()
-        ..moveTo(-5, size.height * .43)
-        ..cubicTo(
-          size.width * .36,
-          size.height * .34,
-          size.width * .62,
-          size.height * .6,
-          size.width + 5,
-          size.height * .55,
-        ),
-    ];
-    for (final path in roads) {
-      canvas.drawPath(path, roadPaint);
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = const Color(0xFFC6C4AD)
-          ..strokeWidth = .7
-          ..style = PaintingStyle.stroke,
-      );
-    }
-    final parkPaint = Paint()..color = const Color(0xFFB7D9B7);
-    canvas.drawOval(
-      Rect.fromLTWH(
-        size.width * .58,
-        size.height * .05,
-        size.width * .3,
-        size.height * .2,
-      ),
-      parkPaint,
-    );
-    canvas.drawOval(
-      Rect.fromLTWH(
-        size.width * .08,
-        size.height * .05,
-        size.width * .26,
-        size.height * .19,
-      ),
-      parkPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

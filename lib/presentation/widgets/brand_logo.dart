@@ -7,8 +7,8 @@ class BrandLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Image.asset(
       'assets/logo_jembergonobackgroud.png',
-      width: 620,
-      height: 190,
+      width: 150,
+      height: 52,
       fit: BoxFit.contain,
     );
   }

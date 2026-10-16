@@ -6,10 +6,11 @@ import '../../../data/models/ticket.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/ticket_service.dart';
 import '../../../data/services/ticket_pdf_service.dart';
+import '../../../core/utils/date_formatters.dart';
 
-const _ticketNavy = Color(0xFF0B294A);
+const _ticketNavy = Color(0xFF173B60);
 const _ticketBlue = Color(0xFF0874E8);
-const _ticketBackground = Color(0xFFF9F8FF);
+const _ticketBackground = Color(0xFFF8FAFC);
 
 class QrTicketPage extends StatelessWidget {
   const QrTicketPage({super.key, required this.ticket});
@@ -40,7 +41,7 @@ class QrTicketPage extends StatelessWidget {
               qrData: currentQrData,
               onCopy: () => _copyBookingCode(context),
             ),
-            const SizedBox(height: 13),
+            const SizedBox(height: 12),
             _TicketUseStatus(ticket: currentTicket),
             const SizedBox(height: 13),
             Row(
@@ -71,7 +72,7 @@ class QrTicketPage extends StatelessWidget {
                           downloadTicketPdf(context, currentTicket),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: _ticketBlue,
-                        backgroundColor: const Color(0xFFE4E8FF),
+                        backgroundColor: const Color(0xFFEAF2F8),
                         side: BorderSide.none,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(9),
@@ -84,7 +85,7 @@ class QrTicketPage extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             const _TicketNotice(),
           ],
         ),
@@ -187,14 +188,6 @@ class _TicketUseStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final used = ticket.status == 'used';
-    if (used) {
-      return const _UsageStatus(
-        icon: Icons.verified_rounded,
-        message: 'Tiket sudah dikonfirmasi digunakan. Anda dapat memberi rating dan ulasan.',
-      );
-    }
-
     final user = AuthService.currentUser;
     final isOwner =
         user != null &&
@@ -210,6 +203,30 @@ class _TicketUseStatus extends StatelessWidget {
         isOwner &&
         ticket.status == 'valid' &&
         !visitDay.isAfter(DateTime(now.year, now.month, now.day));
+
+    if (ticket.status == 'used') {
+      return const _UsageStatus(
+        icon: Icons.verified_rounded,
+        message: 'Tiket sudah digunakan',
+        detail: 'Kamu sudah bisa memberikan rating dan ulasan.',
+      );
+    }
+
+    if (!canConfirm) {
+      final isUpcoming =
+          ticket.status == 'valid' &&
+          visitDay.isAfter(DateTime(now.year, now.month, now.day));
+      return _UsageStatus(
+        icon: isUpcoming
+            ? Icons.event_available_rounded
+            : Icons.confirmation_number_outlined,
+        message: isUpcoming ? 'Tiket siap digunakan' : 'Tiket aktif',
+        detail: isUpcoming
+            ? 'Berlaku pada ${formatIndonesianDate(ticket.visitDate)}. Tunjukkan QR ini di pintu masuk.'
+            : 'Tunjukkan QR ini kepada petugas di pintu masuk.',
+        isUpcoming: isUpcoming,
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -262,17 +279,15 @@ class _TicketUseStatus extends StatelessWidget {
                 : 'Tersedia setelah tanggal kunjungan',
           ),
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFFE9EDFF),
-            foregroundColor: _ticketNavy,
-            disabledBackgroundColor: const Color(0xFFF0F1F5),
-            disabledForegroundColor: const Color(0xFF737B88),
+            backgroundColor: _ticketNavy,
+            foregroundColor: Colors.white,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         const Text(
-          'Konfirmasi sementara sampai fitur scan QR petugas tersedia.',
+          'Konfirmasi hanya jika kamu sudah berkunjung.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFF737B88), fontSize: 11),
+          style: TextStyle(color: Color(0xFF7890A1), fontSize: 11),
         ),
       ],
     );
@@ -280,30 +295,54 @@ class _TicketUseStatus extends StatelessWidget {
 }
 
 class _UsageStatus extends StatelessWidget {
-  const _UsageStatus({required this.icon, required this.message});
+  const _UsageStatus({
+    required this.icon,
+    required this.message,
+    required this.detail,
+    this.isUpcoming = false,
+  });
 
   final IconData icon;
   final String message;
+  final String detail;
+  final bool isUpcoming;
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(12),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     decoration: BoxDecoration(
-      color: const Color(0xFFE9F7EF),
+      color: isUpcoming ? const Color(0xFFFFF3E2) : const Color(0xFFEAF3EE),
       borderRadius: BorderRadius.circular(12),
     ),
     child: Row(
       children: [
-        Icon(icon, color: const Color(0xFF16854B)),
-        const SizedBox(width: 8),
+        Icon(
+          icon,
+          color: isUpcoming ? const Color(0xFF9A5200) : const Color(0xFF13795B),
+        ),
+        const SizedBox(width: 10),
         Expanded(
-          child: Text(
-            message,
-            style: const TextStyle(
-              color: _ticketNavy,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                message,
+                style: const TextStyle(
+                  color: _ticketNavy,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                detail,
+                style: const TextStyle(
+                  color: Color(0xFF617486),
+                  fontSize: 11,
+                  height: 1.3,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -345,14 +384,14 @@ class _TicketPass extends StatelessWidget {
             child: Column(
               children: [
                 _BookingCodePanel(bookingId: ticket.bookingId, onCopy: onCopy),
-                const SizedBox(height: 13),
+                const SizedBox(height: 14),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: _TicketInfo(
                         label: 'Jadwal Masuk',
-                        value: _formatDate(ticket.visitDate),
+                        value: formatIndonesianDate(ticket.visitDate),
                         detail: '08:00 - 17:00 WIB',
                       ),
                     ),
@@ -372,59 +411,51 @@ class _TicketPass extends StatelessWidget {
                 const SizedBox(height: 13),
                 const _DashedRule(),
                 const SizedBox(height: 13),
-                Container(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F2FF),
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(9),
-                        ),
-                        child: QrImageView(
-                          data: qrData,
-                          version: QrVersions.auto,
-                          size: 180,
-                          backgroundColor: Colors.white,
-                          eyeStyle: const QrEyeStyle(
-                            eyeShape: QrEyeShape.square,
-                            color: _ticketNavy,
-                          ),
-                          dataModuleStyle: const QrDataModuleStyle(
-                            dataModuleShape: QrDataModuleShape.square,
-                            color: _ticketNavy,
-                          ),
-                        ),
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 300),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEAF2F8),
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      const SizedBox(height: 8),
-                      const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      child: Column(
                         children: [
-                          Icon(
-                            Icons.qr_code_scanner,
-                            color: _ticketBlue,
-                            size: 15,
-                          ),
-                          SizedBox(width: 5),
-                          Flexible(
-                            child: Text(
-                              'Scan barcode langsung di pos loket gerbang masuk',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Color(0xFF4A5363),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: QrImageView(
+                              data: qrData,
+                              version: QrVersions.auto,
+                              size: 180,
+                              backgroundColor: Colors.white,
+                              eyeStyle: const QrEyeStyle(
+                                eyeShape: QrEyeShape.square,
+                                color: _ticketNavy,
                               ),
+                              dataModuleStyle: const QrDataModuleStyle(
+                                dataModuleShape: QrDataModuleShape.square,
+                                color: _ticketNavy,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 9),
+                          const Text(
+                            'Tunjukkan QR e-tiket kepada petugas di pintu masuk',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Color(0xFF4A5363),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ],
@@ -444,7 +475,7 @@ class _TicketHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 174,
+      height: 164,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -453,6 +484,7 @@ class _TicketHero extends StatelessWidget {
             Image.network(
               ticket.destinationImageUrl!,
               fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
               errorBuilder: (_, _, _) => const _TicketImageFallback(),
             )
           else
@@ -584,7 +616,7 @@ class _TicketPill extends StatelessWidget {
             label,
             style: TextStyle(
               color: foreground,
-              fontSize: 9,
+              fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -605,8 +637,9 @@ class _BookingCodePanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 9, 7, 9),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F2FF),
+        color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
         children: [
@@ -618,7 +651,7 @@ class _BookingCodePanel extends StatelessWidget {
                   'KODE BOOKING',
                   style: TextStyle(
                     color: Color(0xFF737B89),
-                    fontSize: 9,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -668,7 +701,7 @@ class _TicketInfo extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(color: Color(0xFF7A818D), fontSize: 9),
+          style: const TextStyle(color: Color(0xFF7890A1), fontSize: 11),
         ),
         const SizedBox(height: 3),
         Text(
@@ -676,7 +709,7 @@ class _TicketInfo extends StatelessWidget {
           textAlign: alignEnd ? TextAlign.end : TextAlign.start,
           style: const TextStyle(
             color: _ticketNavy,
-            fontSize: 11,
+            fontSize: 13,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -686,7 +719,7 @@ class _TicketInfo extends StatelessWidget {
           textAlign: alignEnd ? TextAlign.end : TextAlign.start,
           style: TextStyle(
             color: alignEnd ? _ticketBlue : const Color(0xFF626B79),
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: alignEnd ? FontWeight.w600 : FontWeight.w400,
           ),
         ),
@@ -748,21 +781,3 @@ class _TicketNotice extends StatelessWidget {
 
 String _formatPrice(int value) =>
     'Rp ${value.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => '.')}';
-
-String _formatDate(DateTime date) {
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'Mei',
-    'Jun',
-    'Jul',
-    'Agu',
-    'Sep',
-    'Okt',
-    'Nov',
-    'Des',
-  ];
-  return '${date.day} ${months[date.month - 1]} ${date.year}';
-}

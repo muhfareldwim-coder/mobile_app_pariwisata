@@ -10,6 +10,7 @@ import '../../../data/destination_data.dart';
 import '../../../data/models/destination.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/device_location_service.dart';
+import '../../../data/services/destination_service.dart';
 import '../../../data/services/open_street_map_service.dart';
 import '../booking/booking_page.dart';
 import '../destination/destination_detail_page.dart';
@@ -32,6 +33,8 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> {
   final _mapController = MapController();
+  final _destinationService = DestinationService();
+  List<Destination> _destinations = destinations;
   Destination? _selectedDestination = destinations.first;
   _TravelMode _travelMode = _TravelMode.car;
   LatLng _startLocation = DeviceLocationService.jemberFallback;
@@ -44,32 +47,38 @@ class _MapPageState extends State<MapPage> {
   @override
   void initState() {
     super.initState();
+    _loadDestinations();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadDeviceLocation();
     });
   }
 
-  List<LatLng> get _routePoints {
-    final destination = _selectedDestination;
-    if (destination == null) return const [];
-
-    final latitudeDelta = destination.latitude - _startLocation.latitude;
-    final longitudeDelta = destination.longitude - _startLocation.longitude;
-    return [
-      _startLocation,
-      for (final fraction in [.25, .5, .75])
-        LatLng(
-          _startLocation.latitude + latitudeDelta * fraction,
-          _startLocation.longitude +
-              longitudeDelta * fraction +
-              .012 * math.sin(math.pi * fraction) * longitudeDelta.sign,
-        ),
-      LatLng(destination.latitude, destination.longitude),
-    ];
+  Future<void> _loadDestinations() async {
+    try {
+      final loaded = await _destinationService.getDestinations();
+      if (!mounted || loaded.isEmpty) return;
+      final selectedId = _selectedDestination?.id;
+      setState(() {
+        _destinations = loaded;
+        _selectedDestination =
+            loaded
+                .where((destination) => destination.id == selectedId)
+                .firstOrNull ??
+            loaded.first;
+      });
+      if (!_hasUserMovedMap) _fitMapToDestinations();
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _locationMessage = 'Destinasi terbaru gagal dimuat: $error';
+      });
+    }
   }
 
   double _routeDistanceKm(Destination destination) {
-    if (!_isDeviceLocation) return destination.routeDistanceKm;
+    if (!_isDeviceLocation && destination.routeDistanceKm > 0) {
+      return destination.routeDistanceKm;
+    }
     final directDistance = const Distance().as(
       LengthUnit.Kilometer,
       _startLocation,
@@ -164,7 +173,7 @@ class _MapPageState extends State<MapPage> {
       CameraFit.bounds(
         bounds: LatLngBounds.fromPoints([
           _startLocation,
-          for (final destination in destinations)
+          for (final destination in _destinations)
             LatLng(destination.latitude, destination.longitude),
         ]),
         padding: const EdgeInsets.fromLTRB(32, 28, 64, 56),
@@ -332,7 +341,7 @@ class _MapPageState extends State<MapPage> {
                     initialCameraFit: CameraFit.bounds(
                       bounds: LatLngBounds.fromPoints([
                         _startLocation,
-                        for (final destination in destinations)
+                        for (final destination in _destinations)
                           LatLng(destination.latitude, destination.longitude),
                       ]),
                       padding: const EdgeInsets.fromLTRB(32, 28, 64, 56),
@@ -346,26 +355,6 @@ class _MapPageState extends State<MapPage> {
                       userAgentPackageName: 'com.example.mobile_pariwisata',
                       maxNativeZoom: 19,
                     ),
-                    if (selectedDestination != null)
-                      PolylineLayer(
-                        polylines: [
-                          Polyline(
-                            points: _routePoints,
-                            strokeWidth: 8,
-                            color: const Color(0xFF7DB8FF),
-                          ),
-                          Polyline(
-                            points: _routePoints,
-                            strokeWidth: 4,
-                            color: _blue,
-                          ),
-                          Polyline(
-                            points: _routePoints,
-                            strokeWidth: 1.5,
-                            color: Colors.white,
-                          ),
-                        ],
-                      ),
                     MarkerLayer(
                       markers: [
                         Marker(
@@ -379,7 +368,7 @@ class _MapPageState extends State<MapPage> {
                                 : 'Titik Awal: Alun-alun Jember',
                           ),
                         ),
-                        for (final destination in destinations)
+                        for (final destination in _destinations)
                           Marker(
                             point: LatLng(
                               destination.latitude,
@@ -428,7 +417,7 @@ class _MapPageState extends State<MapPage> {
                       ],
                     ),
                     child: Text(
-                      '${destinations.length} destinasi wisata di Jember',
+                      '${_destinations.length} destinasi wisata di Jember',
                       style: const TextStyle(
                         color: _navy,
                         fontSize: 12,

@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../data/models/article.dart';
 import '../../../data/destination_data.dart';
 import '../../../data/models/destination.dart';
+import '../../../data/services/article_service.dart';
+import '../../../data/services/device_location_service.dart';
+import '../../../data/services/destination_service.dart';
 import '../../widgets/bottom_navigation.dart';
+import '../../widgets/article_card.dart';
+import '../article_list_page.dart';
 import '../article_detail_page.dart';
 import '../destination/destination_detail_page.dart';
 import '../destination/explorer_page.dart';
@@ -19,10 +26,18 @@ const _bodyText = Color(0xFF132C49);
 const _secondaryText = Color(0xFF8492A5);
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key, this.onTabSelected, this.onCategorySelected});
+  const HomePage({
+    super.key,
+    this.onTabSelected,
+    this.onCategorySelected,
+    this.articleService,
+    this.locationProvider,
+  });
 
   final ValueChanged<int>? onTabSelected;
   final ValueChanged<String>? onCategorySelected;
+  final ArticleService? articleService;
+  final Future<LatLng?> Function()? locationProvider;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -30,12 +45,90 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late final _favoriteDestinationIds = <String>{};
+  late final ArticleService _articleService;
+  final _destinationService = DestinationService();
+  List<Article> _articles = const [];
+  List<Destination> _destinations = destinations;
+  String? _articleLoadError;
+  String? _loadError;
+  String? _locationWarning;
+  bool _isLoadingArticles = true;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _articleService = widget.articleService ?? ArticleService();
+    _loadDestinations();
+    _loadArticles();
+  }
+
+  Future<void> _loadArticles() async {
+    setState(() {
+      _isLoadingArticles = true;
+      _articleLoadError = null;
+    });
+    try {
+      final articles = await _articleService.getArticles();
+      if (!mounted) return;
+      setState(() {
+        _articles = articles;
+        _isLoadingArticles = false;
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _articleLoadError = error.toString();
+        _isLoadingArticles = false;
+      });
+    }
+  }
+
+  Future<void> _loadDestinations() async {
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+      _locationWarning = null;
+    });
+
+    var origin = DeviceLocationService.jemberFallback;
+    try {
+      final currentLocation =
+          await (widget.locationProvider ??
+              DeviceLocationService.currentLocation)();
+      if (currentLocation != null) {
+        origin = currentLocation;
+      } else {
+        _locationWarning =
+            'Lokasi tidak tersedia; jarak dihitung dari Alun-alun Jember.';
+      }
+    } on Exception {
+      _locationWarning =
+          'Lokasi gagal dimuat; jarak dihitung dari Alun-alun Jember.';
+    }
+    if (!mounted) return;
+
+    try {
+      final loaded = await _destinationService.getDestinations(origin: origin);
+      if (!mounted) return;
+      setState(() {
+        _destinations = loaded;
+        _isLoading = false;
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = error.toString();
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final nearestDestinations = [...destinations]
+    final nearestDestinations = [..._destinations]
       ..sort((first, second) => first.distanceKm.compareTo(second.distanceKm));
-    final popularDestinations = [...destinations]
+    final popularDestinations = [..._destinations]
       ..sort(
         (first, second) =>
             _reviewCountValue(second.reviewCount)
@@ -57,118 +150,148 @@ class _HomePageState extends State<HomePage> {
               onNotificationsTap: () => _openTab(context, 3),
             ),
             Expanded(
-              child: ListView(
-                key: const ValueKey('home-scroll'),
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 30),
-                children: [
-                  _HeroBanner(onExploreTap: () => _openExplorer(context)),
-                  const SizedBox(height: 20),
-                  _SectionHeading(
-                    title: 'Kategori Wisata',
-                    subtitle: 'Pilih ragam destinasi unggulan',
-                    action: 'Semua',
-                    onAction: () => _openExplorer(context),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      _CategoryItem(
-                        icon: Icons.forest_rounded,
-                        label: 'Alam',
-                        count: '1 Destinasi',
-                        color: const Color(0xFF287B61),
-                        softColor: const Color(0xFFE7F4ED),
-                        onTap: () => _openCategory(context, 'ALAM'),
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  await Future.wait([_loadDestinations(), _loadArticles()]);
+                },
+                child: ListView(
+                  key: const ValueKey('home-scroll'),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 30),
+                  children: [
+                    _HeroBanner(onExploreTap: () => _openExplorer(context)),
+                    if (_isLoading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: LinearProgressIndicator(),
                       ),
-                      const SizedBox(width: 9),
-                      _CategoryItem(
-                        icon: Icons.waves_rounded,
-                        label: 'Bahari',
-                        count: '3 Destinasi',
-                        color: const Color(0xFF2676B5),
-                        softColor: const Color(0xFFE8F3FC),
-                        onTap: () => _openCategory(context, 'BAHARI'),
+                    if (_loadError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Destinasi gagal dimuat: $_loadError',
+                              style: const TextStyle(color: _bodyText),
+                            ),
+                            TextButton(
+                              onPressed: _loadDestinations,
+                              child: const Text('Muat ulang'),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(width: 9),
-                      _CategoryItem(
-                        icon: Icons.attractions_rounded,
-                        label: 'Buatan',
-                        count: '2 Destinasi',
-                        color: const Color(0xFFB76A1C),
-                        softColor: const Color(0xFFFFF1DF),
-                        onTap: () => _openCategory(context, 'BUATAN'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 22),
-                  _SectionHeading(
-                    title: 'Destinasi Populer',
-                    subtitle: 'Paling banyak mendapat ulasan wisatawan',
-                    action: 'Lihat Semua',
-                    onAction: () => _openExplorer(context),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 330,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: homePopularDestinations.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(width: 12),
-                      itemBuilder: (context, index) => SizedBox(
-                        width: 240,
-                        child: _DestinationCard(
-                          key: ValueKey(
-                            'popular-destination-${homePopularDestinations[index].id}',
-                          ),
-                          destination: homePopularDestinations[index],
-                          isFavorite: _favoriteDestinationIds.contains(
-                            homePopularDestinations[index].id,
-                          ),
-                          onFavoriteTap: () => setState(() {
-                            final id = homePopularDestinations[index].id;
-                            if (!_favoriteDestinationIds.add(id)) {
-                              _favoriteDestinationIds.remove(id);
-                            }
-                          }),
-                          onTap: () => _openDestinationDetail(
-                            context,
-                            homePopularDestinations[index],
+                    const SizedBox(height: 20),
+                    _SectionHeading(
+                      title: 'Kategori Wisata',
+                      subtitle: 'Pilih ragam destinasi unggulan',
+                      action: 'Semua',
+                      onAction: () => _openExplorer(context),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _CategoryItem(
+                          icon: Icons.forest_rounded,
+                          label: 'Alam',
+                          count: _categoryCount('ALAM'),
+                          color: const Color(0xFF287B61),
+                          softColor: const Color(0xFFE7F4ED),
+                          onTap: () => _openCategory(context, 'ALAM'),
+                        ),
+                        const SizedBox(width: 9),
+                        _CategoryItem(
+                          icon: Icons.waves_rounded,
+                          label: 'Bahari',
+                          count: _categoryCount('BAHARI'),
+                          color: const Color(0xFF2676B5),
+                          softColor: const Color(0xFFE8F3FC),
+                          onTap: () => _openCategory(context, 'BAHARI'),
+                        ),
+                        const SizedBox(width: 9),
+                        _CategoryItem(
+                          icon: Icons.attractions_rounded,
+                          label: 'Buatan',
+                          count: _categoryCount('BUATAN'),
+                          color: const Color(0xFFB76A1C),
+                          softColor: const Color(0xFFFFF1DF),
+                          onTap: () => _openCategory(context, 'BUATAN'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 22),
+                    _SectionHeading(
+                      title: 'Destinasi Populer',
+                      subtitle: 'Paling banyak mendapat ulasan wisatawan',
+                      action: 'Lihat Semua',
+                      onAction: () => _openExplorer(context),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 330,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: homePopularDestinations.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(width: 12),
+                        itemBuilder: (context, index) => SizedBox(
+                          width: 240,
+                          child: _DestinationCard(
+                            key: ValueKey(
+                              'popular-destination-${homePopularDestinations[index].id}',
+                            ),
+                            destination: homePopularDestinations[index],
+                            isFavorite: _favoriteDestinationIds.contains(
+                              homePopularDestinations[index].id,
+                            ),
+                            onFavoriteTap: () => setState(() {
+                              final id = homePopularDestinations[index].id;
+                              if (!_favoriteDestinationIds.add(id)) {
+                                _favoriteDestinationIds.remove(id);
+                              }
+                            }),
+                            onTap: () => _openDestinationDetail(
+                              context,
+                              homePopularDestinations[index],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 22),
-                  _SectionHeading(
-                    title: 'Destinasi Terdekat',
-                    subtitle: 'Pilihan wisata dengan jarak terdekat',
-                    action: 'Lihat Semua',
-                    onAction: () => _openExplorer(context),
-                  ),
-                  const SizedBox(height: 10),
-                  for (final destination in homeDestinations)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 9),
-                      child: _NearbyDestinationTile(
-                        destination: destination,
-                        onTap: () =>
-                            _openDestinationDetail(context, destination),
+                    const SizedBox(height: 22),
+                    _SectionHeading(
+                      title: 'Destinasi Terdekat',
+                      subtitle: _locationWarning ?? 'Pilihan wisata dengan jarak terdekat dari lokasi Anda',
+                      action: 'Lihat Semua',
+                      onAction: () => _openExplorer(context),
+                    ),
+                    const SizedBox(height: 10),
+                    for (final destination in homeDestinations)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 9),
+                        child: _NearbyDestinationTile(
+                          destination: destination,
+                          onTap: () =>
+                              _openDestinationDetail(context, destination),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    _ArticlesSection(
+                      articles: _articles,
+                      isLoading: _isLoadingArticles,
+                      loadError: _articleLoadError,
+                      onRetry: _loadArticles,
+                      onExploreTap: () => _openPage(
+                        context,
+                        ArticleListPage(articles: _articles),
+                      ),
+                      onArticleTap: (article) => _openPage(
+                        context,
+                        ArticleDetailPage(article: article),
                       ),
                     ),
-                  const SizedBox(height: 12),
-                  _ArticlesSection(
-                    onExploreTap: () => _openExplorer(context),
-                    onArticleTap: (article) => _openPage(
-                      context,
-                      ArticleDetailPage(
-                        article: article,
-                        onCategorySelected: (category) =>
-                            _openCategory(context, category),
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -181,6 +304,13 @@ class _HomePageState extends State<HomePage> {
             )
           : null,
     );
+  }
+
+  String _categoryCount(String category) {
+    final count = _destinations
+        .where((destination) => destination.category == category)
+        .length;
+    return '$count Destinasi';
   }
 
   void _openExplorer(BuildContext context) {
@@ -517,219 +647,66 @@ class _HeroBanner extends StatelessWidget {
 
 class _ArticlesSection extends StatelessWidget {
   const _ArticlesSection({
+    required this.articles,
+    required this.isLoading,
+    required this.loadError,
+    required this.onRetry,
     required this.onExploreTap,
     required this.onArticleTap,
   });
 
+  final List<Article> articles;
+  final bool isLoading;
+  final String? loadError;
+  final VoidCallback onRetry;
   final VoidCallback onExploreTap;
-  final ValueChanged<NewsArticle> onArticleTap;
+  final ValueChanged<Article> onArticleTap;
 
   @override
   Widget build(BuildContext context) {
-    const jfcArticle = NewsArticle(
-      imageAsset: 'assets/jembergo_article_jfc.png',
-      category: 'Transportasi & Acara',
-      meta: 'Jember Event  •  5 menit baca',
-      title: 'Jadwal & Rute Shuttle Wisata Jember Fashion Carnival (JFC) 2026',
-      summary: 'Pemerintah Kabupaten Jember menyediakan akses transportasi terpadu untuk memudahkan mobilitas.',
-      sections: [
-        'Jember Fashion Carnival kembali menghadirkan rangkaian pertunjukan kostum spektakuler di pusat Kota Jember. Untuk membantu pengunjung menikmati acara dengan nyaman, layanan shuttle wisata disiapkan dari sejumlah titik parkir dan pusat keramaian.',
-        'Datang lebih awal, periksa informasi titik naik shuttle sebelum berangkat, dan ikuti arahan petugas di lapangan. Jadwal operasional dapat berubah mengikuti pengaturan lalu lintas dan agenda resmi acara.',
-        'Sesudah acara, lanjutkan perjalanan dengan menjelajahi destinasi alam, pantai, dan taman wisata di Kabupaten Jember.',
-      ],
-    );
-    const stayArticle = NewsArticle(
-      imageAsset: 'assets/jembergo_article_homestay.png',
-      category: 'Tips & Panduan',
-      meta: 'Panduan Petualang  •  3 menit baca',
-      title: '5 Panduan Booking Homestay & Destinasi Wisata Tanpa Boncos',
-      summary: 'Simak cara memanfaatkan paket liburan awal musim dan spot wisata ramah keluarga di sekitar Kabupaten Jember.',
-      sections: [
-        'Rencanakan perjalanan sebelum memesan penginapan. Tentukan area yang paling dekat dengan tujuan utama agar waktu dan biaya perjalanan tetap terukur.',
-        'Bandingkan fasilitas, aturan pembatalan, serta ulasan terbaru. Untuk liburan keluarga, pastikan akses kendaraan, jam check-in, dan fasilitas anak tersedia.',
-        'Susun itinerary yang realistis. Gabungkan destinasi yang berada di area berdekatan dan sisakan waktu untuk beristirahat.',
-      ],
-    );
+    final latestArticles = articles.take(3).toList();
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 30, 20, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _SectionHeading(
-            title: 'Berita & Panduan Wisata',
-            subtitle: 'Informasi acara, cerita, dan tips berwisata',
+            title: 'Artikel Terbaru',
+            subtitle: 'Baca artikel terbaru seputar wisata Jember.',
             action: 'Lihat Semua',
             onAction: onExploreTap,
           ),
           const SizedBox(height: 10),
-          _ArticleCard(
-            imageAsset: jfcArticle.imageAsset,
-            tag: jfcArticle.category,
-            meta: jfcArticle.meta,
-            title: jfcArticle.title,
-            summary: jfcArticle.summary,
-            footer: 'Terbit Terkini',
-            onTap: () => onArticleTap(jfcArticle),
-          ),
-          const SizedBox(height: 10),
-          _ArticleCard(
-            imageAsset: stayArticle.imageAsset,
-            tag: stayArticle.category,
-            meta: stayArticle.meta,
-            title: stayArticle.title,
-            summary: stayArticle.summary,
-            footer: 'Tips Lokal',
-            onTap: () => onArticleTap(stayArticle),
-          ),
+          if (isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (loadError != null)
+            Column(
+              children: [
+                Text(
+                  'Artikel gagal dimuat: $loadError',
+                  style: const TextStyle(color: _bodyText),
+                ),
+                TextButton(onPressed: onRetry, child: const Text('Muat ulang')),
+              ],
+            )
+          else if (articles.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 18),
+              child: Text('Belum ada artikel yang dipublikasikan.'),
+            )
+          else
+            for (final article in latestArticles) ...[
+              ArticleCard(
+                key: ValueKey('home-article-${article.id}'),
+                article: article,
+                onTap: () => onArticleTap(article),
+              ),
+              if (article != latestArticles.last) const SizedBox(height: 10),
+            ],
         ],
-      ),
-    );
-  }
-}
-
-class _ArticleCard extends StatelessWidget {
-  const _ArticleCard({
-    required this.imageAsset,
-    required this.tag,
-    required this.meta,
-    required this.title,
-    required this.summary,
-    required this.footer,
-    required this.onTap,
-  });
-
-  final String imageAsset;
-  final String tag;
-  final String meta;
-  final String title;
-  final String summary;
-  final String footer;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(17),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFE5EAF0)),
-            borderRadius: BorderRadius.circular(17),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0A14304B),
-                blurRadius: 10,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                height: 142,
-                width: double.infinity,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.asset(imageAsset, fit: BoxFit.cover),
-                    Positioned(
-                      left: 12,
-                      top: 12,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xD9163858),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          tag,
-                          style: const TextStyle(
-                            color: AppColors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(13, 12, 13, 11),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      meta,
-                      style: const TextStyle(
-                        color: _secondaryText,
-                        fontSize: 9,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      title,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _bodyText,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      summary,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _secondaryText,
-                        fontSize: 11,
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    const Divider(height: 1, color: Color(0xFFE9EDF2)),
-                    const SizedBox(height: 7),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            footer,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: _secondaryText,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        const Text(
-                          'Baca Selengkapnya →',
-                          maxLines: 1,
-                          style: TextStyle(
-                            color: AppColors.orange,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

@@ -1,20 +1,25 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../data/models/ticket.dart';
+import '../../../data/services/api_service.dart';
+import '../../../data/services/auth_service.dart';
 import '../../../data/services/ticket_service.dart';
+import '../../../core/utils/date_formatters.dart';
+import 'manage_trip_page.dart';
 import 'qr_ticket_page.dart';
 
-const _ticketNavy = Color(0xFF0B294A);
+const _ticketNavy = Color(0xFF173B60);
 const _ticketBlue = Color(0xFF0874E8);
-const _ticketOrange = Color(0xFFE98600);
-const _ticketBackground = Color(0xFFF9F8FF);
+const _ticketOrange = Color(0xFFF58B05);
+const _ticketBackground = Color(0xFFF8FAFC);
 
 class MyTicketPage extends StatefulWidget {
-  const MyTicketPage({super.key, this.onProfileTap});
+  const MyTicketPage({super.key, this.onProfileTap, this.isSelected = true});
 
   final VoidCallback? onProfileTap;
+  final bool isSelected;
 
   @override
   State<MyTicketPage> createState() => _MyTicketPageState();
@@ -22,6 +27,47 @@ class MyTicketPage extends StatefulWidget {
 
 class _MyTicketPageState extends State<MyTicketPage> {
   int _selectedTab = 0;
+  bool _isLoading = false;
+  String? _loadError;
+  String? _loadedCustomerId;
+
+  @override
+  void initState() {
+    super.initState();
+    final userId = AuthService.currentUser?.id;
+    if (widget.isSelected && userId != null) {
+      _loadedCustomerId = userId;
+      unawaited(_loadTickets());
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant MyTicketPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final userId = AuthService.currentUser?.id;
+    if (userId == null) {
+      _loadedCustomerId = null;
+    } else if (widget.isSelected && userId != _loadedCustomerId) {
+      _loadedCustomerId = userId;
+      unawaited(_loadTickets());
+    }
+  }
+
+  Future<void> _loadTickets() async {
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+    try {
+      await TicketService().refreshFromServer();
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _loadError = error.message);
+    } on FormatException catch (error) {
+      if (mounted) setState(() => _loadError = error.message);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,18 +101,35 @@ class _MyTicketPageState extends State<MyTicketPage> {
                               onSelected: (index) =>
                                   setState(() => _selectedTab = index),
                             ),
+                            if (_loadError != null) ...[
+                              const SizedBox(height: 12),
+                              Text(
+                                _loadError!,
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: _isLoading ? null : _loadTickets,
+                                child: const Text('Muat ulang tiket'),
+                              ),
+                            ],
+                            if (_isLoading) ...[
+                              const SizedBox(height: 24),
+                              const Center(child: CircularProgressIndicator()),
+                            ],
                             const SizedBox(height: 12),
-                            if (displayed.isNotEmpty) ...[
-                              _ActiveTicketCard(ticket: displayed.first),
-                              for (final ticket in displayed.skip(1)) ...[
-                                const SizedBox(height: 14),
+                            if (!_isLoading)
+                              for (final ticket in displayed) ...[
+                                if (ticket != displayed.first)
+                                  const SizedBox(height: 14),
                                 _CompactTicketCard(ticket: ticket),
                               ],
-                            ],
                           ]),
                         ),
                       ),
-                      if (displayed.isEmpty)
+                      if (!_isLoading && displayed.isEmpty)
                         SliverPadding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                           sliver: SliverFillRemaining(
@@ -78,21 +141,12 @@ class _MyTicketPageState extends State<MyTicketPage> {
                                     isHistory: _selectedTab == 1,
                                   ),
                                 ),
-                                const SizedBox(height: 20),
-                                const _TicketHelpSection(),
                               ],
                             ),
                           ),
                         )
                       else
-                        SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-                          sliver: SliverList(
-                            delegate: SliverChildListDelegate([
-                              const _TicketHelpSection(),
-                            ]),
-                          ),
-                        ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 24)),
                     ],
                   );
                 },
@@ -156,7 +210,7 @@ class _TicketHeader extends StatelessWidget {
                   ),
                   SizedBox(height: 2),
                   Text(
-                    'Ticket',
+                    'Tiket Saya',
                     style: TextStyle(
                       color: _ticketNavy,
                       fontSize: 18,
@@ -201,7 +255,7 @@ class _TicketTabs extends StatelessWidget {
       height: 44,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0xFFE9EBFF),
+        color: const Color(0xFFEAF2F8),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
@@ -263,25 +317,25 @@ class _TicketTabButton extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: selected ? Colors.white : const Color(0xFF454B58),
-                      fontSize: 11,
+                      fontSize: 13,
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
                 ),
                 const SizedBox(width: 5),
                 Container(
-                  width: 18,
-                  height: 18,
+                  width: 20,
+                  height: 20,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: selected ? _ticketBlue : const Color(0xFFD8DDF0),
+                    color: selected ? _ticketBlue : const Color(0xFFDCE7EE),
                     shape: BoxShape.circle,
                   ),
                   child: Text(
                     '$count',
                     style: TextStyle(
                       color: selected ? Colors.white : const Color(0xFF46526C),
-                      fontSize: 9,
+                      fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -290,250 +344,6 @@ class _TicketTabButton extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _ActiveTicketCard extends StatelessWidget {
-  const _ActiveTicketCard({required this.ticket});
-
-  final Ticket ticket;
-
-  String get _qrData => TicketService.qrPayload(ticket);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1609233F),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _TicketImageHero(ticket: ticket),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(15, 14, 15, 15),
-            child: Column(
-              children: [
-                _BookingCodeRow(bookingId: ticket.bookingId),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _DetailColumn(
-                        label: 'Jadwal Masuk',
-                        value: _formatDate(ticket.visitDate),
-                        detail: '08:00 - 17:00 WIB',
-                      ),
-                    ),
-                    Expanded(
-                      child: _DetailColumn(
-                        label: 'Rincian Pengunjung',
-                        value: '${ticket.quantity} Tiket',
-                        detail: ticket.amountPaid > 0
-                            ? '${_formatPrice(ticket.amountPaid)} (Lunas)'
-                            : 'QRIS (Lunas)',
-                        alignEnd: true,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 13),
-                const _DashedDivider(),
-                const SizedBox(height: 13),
-                Container(
-                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F2FF),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: QrImageView(
-                          data: _qrData,
-                          version: QrVersions.auto,
-                          size: 164,
-                          backgroundColor: Colors.white,
-                          eyeStyle: const QrEyeStyle(
-                            eyeShape: QrEyeShape.square,
-                            color: _ticketNavy,
-                          ),
-                          dataModuleStyle: const QrDataModuleStyle(
-                            dataModuleShape: QrDataModuleShape.square,
-                            color: _ticketNavy,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 7),
-                      const Text(
-                        'Tunjukkan QR e-tiket kepada petugas di loket masuk',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Color(0xFF4D5665),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 43,
-                        child: FilledButton.icon(
-                          onPressed: () => _openTicketDetail(context),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: _ticketNavy,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(9),
-                            ),
-                          ),
-                          icon: const Icon(Icons.qr_code_2, size: 18),
-                          label: const Text(
-                            'QR Penuh',
-                            style: TextStyle(fontSize: 11),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: SizedBox(
-                        height: 43,
-                        child: OutlinedButton.icon(
-                          onPressed: () =>
-                              downloadTicketPdf(context, ticket),
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: const Color(0xFFE4E8FF),
-                            foregroundColor: _ticketBlue,
-                            side: BorderSide.none,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(9),
-                            ),
-                          ),
-                          icon: const Icon(Icons.download_rounded, size: 17),
-                          label: const Text(
-                            'Unduh PDF',
-                            style: TextStyle(fontSize: 11),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _openTicketDetail(BuildContext context) {
-    Navigator.push<void>(
-      context,
-      MaterialPageRoute<void>(builder: (_) => QrTicketPage(ticket: ticket)),
-    );
-  }
-}
-
-class _TicketImageHero extends StatelessWidget {
-  const _TicketImageHero({required this.ticket});
-
-  final Ticket ticket;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 144,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (ticket.destinationImageUrl != null &&
-              ticket.destinationImageUrl!.isNotEmpty)
-            Image.network(
-              ticket.destinationImageUrl!,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => const _TicketImageFallback(),
-            )
-          else
-            const _TicketImageFallback(),
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Color(0xD900152D)],
-                stops: [0.3, 1],
-              ),
-            ),
-          ),
-          Positioned(
-            left: 12,
-            top: 12,
-            child: _Badge(
-              icon: Icons.confirmation_number_rounded,
-              label: 'Tiket Wisata Resmi',
-              background: const Color(0xFFF4F8FF),
-              foreground: _ticketNavy,
-            ),
-          ),
-          const Positioned(
-            right: 12,
-            top: 12,
-            child: _Badge(
-              icon: Icons.circle,
-              label: 'Siap Digunakan',
-              background: Color(0xFFFFF8EC),
-              foreground: Color(0xFF8A4D00),
-              iconSize: 7,
-            ),
-          ),
-          Positioned(
-            left: 13,
-            right: 13,
-            bottom: 11,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  ticket.destinationName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                const Text(
-                  '⌖ Jember, Jawa Timur',
-                  style: TextStyle(color: Colors.white70, fontSize: 10),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -549,65 +359,6 @@ class _TicketImageFallback extends StatelessWidget {
       child: Icon(Icons.landscape_rounded, color: _ticketNavy, size: 38),
     ),
   );
-}
-
-class _BookingCodeRow extends StatelessWidget {
-  const _BookingCodeRow({required this.bookingId});
-
-  final String bookingId;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(11, 8, 6, 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F2FF),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'KODE BOOKING',
-                  style: TextStyle(
-                    color: Color(0xFF777F8E),
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  bookingId,
-                  style: const TextStyle(
-                    color: _ticketNavy,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton.filledTonal(
-            onPressed: () async {
-              await Clipboard.setData(ClipboardData(text: bookingId));
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Kode booking disalin.'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-            tooltip: 'Salin kode booking',
-            icon: const Icon(Icons.copy_rounded, color: _ticketBlue, size: 17),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _DetailColumn extends StatelessWidget {
@@ -632,7 +383,7 @@ class _DetailColumn extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(color: Color(0xFF7A818D), fontSize: 9),
+          style: const TextStyle(color: Color(0xFF7890A1), fontSize: 12),
         ),
         const SizedBox(height: 3),
         Text(
@@ -640,7 +391,7 @@ class _DetailColumn extends StatelessWidget {
           textAlign: alignEnd ? TextAlign.end : TextAlign.start,
           style: const TextStyle(
             color: _ticketNavy,
-            fontSize: 10,
+            fontSize: 13,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -650,28 +401,13 @@ class _DetailColumn extends StatelessWidget {
           textAlign: alignEnd ? TextAlign.end : TextAlign.start,
           style: TextStyle(
             color: alignEnd ? _ticketBlue : const Color(0xFF626B79),
-            fontSize: 9,
+            fontSize: 11,
             fontWeight: alignEnd ? FontWeight.w600 : FontWeight.w400,
           ),
         ),
       ],
     );
   }
-}
-
-class _DashedDivider extends StatelessWidget {
-  const _DashedDivider();
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) => Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(
-        (constraints.maxWidth / 8).floor(),
-        (_) => Container(width: 4, height: 1, color: const Color(0xFFCDD3E1)),
-      ),
-    ),
-  );
 }
 
 class _CompactTicketCard extends StatelessWidget {
@@ -732,7 +468,7 @@ class _CompactTicketCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: _ticketNavy,
-                        fontSize: 13,
+                        fontSize: 15,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -740,18 +476,18 @@ class _CompactTicketCard extends StatelessWidget {
                       'Jember',
                       style: const TextStyle(
                         color: Color(0xFF7B8290),
-                        fontSize: 10,
+                        fontSize: 12,
                       ),
                     ),
                   ],
                 ),
               ),
               _Badge(
-                icon: Icons.circle,
-                label: 'Terkonfirmasi',
-                background: const Color(0xFFE6EEFF),
-                foreground: _ticketBlue,
-                iconSize: 6,
+                icon: _ticketStatusIcon(ticket),
+                label: _ticketStatusLabel(ticket),
+                background: _ticketStatusBackground(ticket),
+                foreground: _ticketStatusForeground(ticket),
+                iconSize: 11,
               ),
             ],
           ),
@@ -767,12 +503,12 @@ class _CompactTicketCard extends StatelessWidget {
                 Expanded(
                   child: _DetailColumn(
                     label: 'Tanggal Kunjungan',
-                    value: _formatDate(ticket.visitDate),
+                    value: formatIndonesianDate(ticket.visitDate),
                     detail: '',
                   ),
                 ),
                 _DetailColumn(
-                  label: 'Pesanan',
+                  label: 'Total dibayar',
                   value: '${ticket.quantity} tiket',
                   detail: ticket.amountPaid > 0
                       ? _formatPrice(ticket.amountPaid)
@@ -791,32 +527,71 @@ class _CompactTicketCard extends StatelessWidget {
                   ticket.bookingId,
                   style: const TextStyle(
                     color: Color(0xFF59616E),
-                    fontSize: 11,
+                    fontSize: 12,
                   ),
                 ),
               ),
-              TextButton.icon(
-                onPressed: () => Navigator.push<void>(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => QrTicketPage(ticket: ticket),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => QrTicketPage(ticket: ticket),
+                    ),
                   ),
-                ),
-                style: TextButton.styleFrom(
-                  backgroundColor: _ticketNavy,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  minimumSize: const Size(0, 36),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _ticketNavy,
+                    side: const BorderSide(color: Color(0xFFDCE2F5)),
+                    minimumSize: const Size(0, 42),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                ),
-                icon: const Icon(Icons.chevron_right, size: 16),
-                label: const Text(
-                  'Lihat Detail',
-                  style: TextStyle(fontSize: 10),
+                  icon: const Icon(Icons.chevron_right, size: 17),
+                  label: const Text(
+                    'Lihat Detail',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ),
               ),
+              if (ticket.bookingRecordId.isNotEmpty &&
+                  ticket.status == 'valid') ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.push<void>(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => ManageTripPage(ticket: ticket),
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _ticketNavy,
+                      side: const BorderSide(color: Color(0xFFDCE2F5)),
+                      minimumSize: const Size(0, 42),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    icon: const Icon(Icons.edit_calendar_outlined, size: 16),
+                    label: const Text(
+                      'Kelola perjalanan',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ],
@@ -857,7 +632,7 @@ class _Badge extends StatelessWidget {
             label,
             style: TextStyle(
               color: foreground,
-              fontSize: 9,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -892,7 +667,7 @@ class _EmptyTickets extends StatelessWidget {
               isHistory ? 'Belum ada tiket selesai' : 'Belum ada tiket aktif',
               style: const TextStyle(
                 color: _ticketNavy,
-                fontSize: 14,
+                fontSize: 16,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -900,7 +675,7 @@ class _EmptyTickets extends StatelessWidget {
             const Text(
               'Tiket yang sudah dibeli akan muncul di sini.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF7C8491), fontSize: 11),
+              style: TextStyle(color: Color(0xFF7890A1), fontSize: 13),
             ),
           ],
         ),
@@ -909,191 +684,49 @@ class _EmptyTickets extends StatelessWidget {
   }
 }
 
-class _TicketHelpSection extends StatelessWidget {
-  const _TicketHelpSection();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0809233F),
-            blurRadius: 12,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.support_agent_rounded, color: _ticketBlue, size: 22),
-              SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Bantuan & Kebijakan Tiket',
-                      style: TextStyle(
-                        color: _ticketNavy,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Informasi mudah seputar tiket JemberGo',
-                      style: TextStyle(color: Color(0xFF727A88), fontSize: 10),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 11),
-          const _HelpTile(
-            icon: Icons.access_time_rounded,
-            title: 'Ketentuan Jadwal Ulang (Reschedule)',
-            content: 'Tiket yang sudah dibeli tidak dapat dijadwalkan ulang (reschedule).',
-          ),
-          const _HelpTile(
-            icon: Icons.currency_exchange_rounded,
-            title: 'Kebijakan Pengembalian Dana (Refund)',
-            content: 'Tiket yang sudah dibeli tidak dapat dikembalikan dananya (refund).',
-          ),
-          const _HelpTile(
-            icon: Icons.qr_code_scanner_rounded,
-            title: 'Kendala menggunakan e-tiket di lokasi?',
-            content: 'Tunjukkan kode booking kepada petugas loket untuk pemeriksaan manual.',
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8EEFF),
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.chat_rounded, color: _ticketBlue, size: 19),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'WhatsApp Helpdesk Dispar',
-                        style: TextStyle(
-                          color: _ticketNavy,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        'Respon cepat 08:00 - 18:00 WIB',
-                        style: TextStyle(color: Color(0xFF707988), fontSize: 9),
-                      ),
-                    ],
-                  ),
-                ),
-                FilledButton(
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Helpdesk akan tersedia setelah kontak resmi ditambahkan.',
-                      ),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _ticketNavy,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(58, 31),
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    textStyle: const TextStyle(fontSize: 9),
-                  ),
-                  child: const Text('Hubungi'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+String _ticketStatusLabel(Ticket ticket) {
+  switch (ticket.status) {
+    case 'used':
+      return 'Sudah digunakan';
+    case 'valid':
+      return 'Siap digunakan';
+    default:
+      return 'Terkonfirmasi';
   }
 }
 
-class _HelpTile extends StatelessWidget {
-  const _HelpTile({
-    required this.icon,
-    required this.title,
-    required this.content,
-  });
+Color _ticketStatusBackground(Ticket ticket) {
+  switch (ticket.status) {
+    case 'used':
+      return const Color(0xFFEAF3EE);
+    case 'valid':
+      return const Color(0xFFFFF3E2);
+    default:
+      return const Color(0xFFEAF2F8);
+  }
+}
 
-  final IconData icon;
-  final String title;
-  final String content;
+Color _ticketStatusForeground(Ticket ticket) {
+  switch (ticket.status) {
+    case 'used':
+      return const Color(0xFF13795B);
+    case 'valid':
+      return const Color(0xFF9A5200);
+    default:
+      return const Color(0xFF1D4E89);
+  }
+}
 
-  @override
-  Widget build(BuildContext context) {
-    return Theme(
-      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(horizontal: 9),
-        childrenPadding: const EdgeInsets.fromLTRB(36, 0, 12, 10),
-        leading: Icon(icon, color: _ticketBlue, size: 17),
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: _ticketNavy,
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        backgroundColor: const Color(0xFFF1F2FF),
-        collapsedBackgroundColor: const Color(0xFFF1F2FF),
-        collapsedShape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        children: [
-          Text(
-            content,
-            style: const TextStyle(
-              color: Color(0xFF697486),
-              fontSize: 10,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
-    );
+IconData _ticketStatusIcon(Ticket ticket) {
+  switch (ticket.status) {
+    case 'used':
+      return Icons.check_circle_rounded;
+    case 'valid':
+      return Icons.schedule_rounded;
+    default:
+      return Icons.info_rounded;
   }
 }
 
 String _formatPrice(int value) =>
     'Rp ${value.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (match) => '.')}';
-
-String _formatDate(DateTime date) {
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'Mei',
-    'Jun',
-    'Jul',
-    'Agu',
-    'Sep',
-    'Okt',
-    'Nov',
-    'Des',
-  ];
-  return '${date.day} ${months[date.month - 1]} ${date.year}';
-}
