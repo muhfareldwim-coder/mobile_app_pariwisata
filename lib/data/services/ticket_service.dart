@@ -1,3 +1,4 @@
+import '../../core/constants/app_constants.dart';
 import '../models/ticket.dart';
 
 import 'package:flutter/foundation.dart';
@@ -12,20 +13,44 @@ class TicketService {
   static final ValueNotifier<int> revision = ValueNotifier(0);
   final ApiService _api;
 
-  Future<void> refreshFromServer() async {
-    final response = await _api.get(
-      '/customer/pesanan',
-      token: AuthService.accessToken,
-      queryParameters: const {'per_page': '50'},
-    );
-    final data = response['data'];
-    if (data is! List<dynamic>) {
-      throw const FormatException('Daftar tiket dari server tidak valid.');
-    }
+  Future<void> refreshFromServer({String? expectedCustomerId}) async {
+    const pageSize = 50;
+    var page = 1;
+    var lastPage = 1;
+    final bookings = <Map<String, dynamic>>[];
+    do {
+      final response = await _api.get(
+        '/customer/pesanan',
+        token: AuthService.accessToken,
+        queryParameters: {'per_page': '$pageSize', 'page': '$page'},
+      );
+      final data = response['data'];
+      if (data is! List<dynamic>) {
+        throw const FormatException('Daftar tiket dari server tidak valid.');
+      }
+      bookings.addAll(data.whereType<Map<String, dynamic>>());
+      final metadata = response['meta'];
+      if (metadata == null) {
+        break;
+      }
+      if (metadata is! Map<String, dynamic> ||
+          metadata['last_page'] is! num ||
+          (metadata['last_page'] as num).toInt() < page) {
+        throw const FormatException(
+          'Informasi halaman tiket dari server tidak valid.',
+        );
+      }
+      lastPage = (metadata['last_page'] as num).toInt();
+      page++;
+    } while (page <= lastPage);
 
     final refreshedTickets = <Ticket>[];
-    for (final booking in data.whereType<Map<String, dynamic>>()) {
-      refreshedTickets.addAll(_ticketsFromBooking(booking));
+    for (final booking in bookings) {
+      refreshedTickets.add(_ticketFromBooking(booking));
+    }
+    if (expectedCustomerId != null &&
+        AuthService.currentUser?.id != expectedCustomerId) {
+      return;
     }
     tickets
       ..clear()
@@ -33,9 +58,8 @@ class TicketService {
     revision.value++;
   }
 
-  List<Ticket> _ticketsFromBooking(Map<String, dynamic> booking) {
+  Ticket _ticketFromBooking(Map<String, dynamic> booking) {
     final destination = booking['destinasi'];
-    final customer = booking['customer'];
     final leader = booking['ketua'];
     final details = booking['detail'];
     final payment = booking['pembayaran'];
@@ -47,11 +71,38 @@ class TicketService {
         destination['nama'] is! String ||
         visitDateValue is! String ||
         booking['total_harga'] is! num ||
-        issuedTickets is! List<dynamic>) {
+        issuedTickets is! List<dynamic> ||
+        booking['status'] is! String) {
       throw const FormatException('Data tiket dari server tidak lengkap.');
     }
 
     final visitDate = DateTime.parse(visitDateValue);
+    final bookingStatus = (booking['status'] as String).toUpperCase();
+    final ticketItems = issuedTickets.whereType<Map<String, dynamic>>().toList();
+    if (ticketItems.length != issuedTickets.length ||
+        ticketItems.any(
+          (ticket) =>
+              ticket['id'] == null ||
+              ticket['status'] is! String ||
+              ticket['kode_qr'] is! String,
+        )) {
+      throw const FormatException('Data tiket dari server tidak lengkap.');
+    }
+    final rawTicketStatuses = ticketItems
+        .map((ticket) => ticket['status'])
+        .whereType<String>()
+        .map((status) => status.toUpperCase())
+        .toList();
+    final hasActiveTicket = rawTicketStatuses.contains('ACTIVE');
+    final hasUsedTicket = rawTicketStatuses.contains('USED');
+    final hasExpiredTicket = rawTicketStatuses.contains('EXPIRED');
+    final status = rawTicketStatuses.isEmpty
+        ? _ticketStatusFromBooking(bookingStatus)
+        : rawTicketStatuses.every((status) => status == 'USED')
+        ? 'used'
+        : rawTicketStatuses.contains('USED')
+        ? 'partial'
+        : _ticketStatusFromBooking(rawTicketStatuses.first);
     final detailItems = details is List<dynamic>
         ? details.whereType<Map<String, dynamic>>()
         : <Map<String, dynamic>>[];
@@ -86,50 +137,68 @@ class TicketService {
       }
     }
 
-    return issuedTickets.whereType<Map<String, dynamic>>().map((ticket) {
-      final status = ticket['status'] is String
-          ? (ticket['status'] as String).toLowerCase()
-          : 'unknown';
-      final customerData = customer is Map<String, dynamic> ? customer : null;
-      final leaderData = leader is Map<String, dynamic> ? leader : null;
-      return Ticket(
-        id: ticket['id']?.toString() ?? '',
-        bookingId: booking['kode_booking'] as String,
-        bookingRecordId: booking['id']?.toString() ?? '',
-        destinationId: destination['id']?.toString() ?? '',
-        destinationName: destination['nama'] as String,
-        destinationImageUrl: destination['foto_utama'] is String
-            ? _api.resolveUrl(destination['foto_utama'] as String)
-            : null,
-        visitDate: visitDate,
-        adultCount: adultCount,
-        childCount: childCount,
-        leaderName: leaderData?['nama'] is String
-            ? leaderData!['nama'] as String
-            : (customerData?['nama'] as String? ?? ''),
-        leaderEmail: leaderData?['email'] is String
-            ? leaderData!['email'] as String
-            : (customerData?['email'] as String? ?? ''),
-        leaderPhone: leaderData?['no_hp'] is String
-            ? leaderData!['no_hp'] as String
-            : (customerData?['no_hp'] as String? ?? ''),
-        memberNames: memberNames,
-        amountPaid: (booking['total_harga'] as num).round(),
-        paymentMethod:
-            payment is Map<String, dynamic> && payment['metode'] is String
-            ? payment['metode'] as String
-            : '',
-        status: status == 'active'
-            ? 'valid'
-            : status == 'used'
-            ? 'used'
-            : status,
-        qrCodePayload: ticket['kode_qr'] is String
-            ? ticket['kode_qr'] as String
-            : null,
-      );
-    }).toList();
+    final ticket = ticketItems.isEmpty ? null : ticketItems.first;
+    final leaderData = leader is Map<String, dynamic> ? leader : null;
+    final paymentData = payment is Map<String, dynamic> ? payment : null;
+    final paymentMethod = paymentData?['metode'] is String
+        ? paymentData!['metode'] as String
+        : '';
+    final paymentStatus = paymentData?['status'] is String
+        ? (paymentData!['status'] as String).toUpperCase()
+        : bookingStatus;
+    final deadline = booking['batas_waktu_pembayaran'];
+
+    return Ticket(
+      id: ticket?['id']?.toString() ?? 'booking-${booking['id']}',
+      bookingId: booking['kode_booking'] as String,
+      bookingRecordId: booking['id']?.toString() ?? '',
+      destinationId: destination['id']?.toString() ?? '',
+      destinationName: destination['nama'] as String,
+      destinationImageUrl: destination['foto_utama'] is String
+          ? _api.resolveUrl(destination['foto_utama'] as String)
+          : null,
+      destinationLocation: destination['alamat'] is String
+          ? destination['alamat'] as String
+          : '',
+      visitDate: visitDate,
+      adultCount: adultCount,
+      childCount: childCount,
+      leaderName: leaderData?['nama'] is String
+          ? leaderData!['nama'] as String
+          : '',
+      leaderEmail: leaderData?['email'] is String
+          ? leaderData!['email'] as String
+          : '',
+      leaderPhone: leaderData?['no_hp'] is String
+          ? leaderData!['no_hp'] as String
+          : '',
+      memberNames: memberNames,
+      amountPaid: (booking['total_harga'] as num).round(),
+      paymentMethod: paymentMethod,
+      status: status,
+      qrCodePayload: ticket?['kode_qr'] is String
+          ? ticket!['kode_qr'] as String
+          : null,
+      bookingStatus: bookingStatus,
+      paymentStatus: paymentStatus,
+      paymentDeadline: deadline is String ? DateTime.tryParse(deadline) : null,
+      hasIssuedTicket: ticketItems.isNotEmpty,
+      hasActiveTicket: hasActiveTicket,
+      hasUsedTicket: hasUsedTicket,
+      hasExpiredTicket: hasExpiredTicket,
+      isReviewed: ticket?['reviewed'] == true,
+    );
   }
+
+  String _ticketStatusFromBooking(String status) => switch (status) {
+    'ACTIVE' || 'PAID' => 'valid',
+    'USED' => 'used',
+    'PARTIAL' => 'partial',
+    'EXPIRED' => 'expired',
+    'PENDING' => 'pending',
+    'FAILED' => 'failed',
+    _ => 'unknown',
+  };
 
   Future<Ticket> issueTicket({
     required String bookingId,
@@ -175,8 +244,38 @@ class TicketService {
   }
 
   static String qrPayload(Ticket ticket) =>
-      ticket.qrCodePayload ??
-      'JEMBERGO|${ticket.id}|${ticket.bookingId}|${ticket.destinationName}|${ticket.visitDate.toIso8601String()}';
+      ticket.qrCodePayload == null
+      ? 'JEMBERGO|${ticket.id}|${ticket.bookingId}|${ticket.destinationName}|${ticket.visitDate.toIso8601String()}'
+      : _ticketScanUrl(ticket.qrCodePayload!);
+
+  static String _ticketScanUrl(String qrCode) {
+    final apiUri = Uri.parse(AppConstants.apiBaseUrl);
+    final basePath = apiUri.path.replaceFirst(RegExp(r'/api/v\d+/?$'), '');
+    final routePath = '${basePath == '/' ? '' : basePath}/tiket/scan';
+    return apiUri
+            .replace(
+              path: routePath,
+              queryParameters: {'kode_qr': qrCode},
+            )
+            .toString();
+  }
+
+  Future<void> submitReview({
+    required String ticketId,
+    required int rating,
+    required String review,
+  }) async {
+    await _api.post(
+      '/customer/tiket/$ticketId/ulasan',
+      token: AuthService.accessToken,
+      body: {'rating': rating, 'ulasan': review},
+    );
+    final index = tickets.indexWhere((ticket) => ticket.id == ticketId);
+    if (index != -1) {
+      tickets[index] = tickets[index].copyWith(isReviewed: true);
+      revision.value++;
+    }
+  }
 
   static bool markAsUsed(String ticketId, String userEmail) {
     final ticketIndex = tickets.indexWhere((ticket) => ticket.id == ticketId);

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../data/models/booking.dart';
 import '../../../data/models/destination.dart';
 import '../../../data/models/payment.dart';
@@ -12,10 +13,10 @@ import '../../../data/services/payment_service.dart';
 import '../../../core/utils/date_formatters.dart';
 import '../main_navigation_page.dart';
 
-const _paymentNavy = Color(0xFF0B294A);
-const _paymentBlue = Color(0xFF0874E8);
-const _paymentOrange = Color(0xFFE98600);
-const _paymentBackground = Color(0xFFF9F8FF);
+const _paymentNavy = AppColors.navy;
+const _paymentBlue = AppColors.navy;
+const _paymentOrange = AppColors.orange;
+const _paymentBackground = Color(0xFFF6F8FB);
 
 class PaymentPage extends StatefulWidget {
   const PaymentPage({
@@ -331,7 +332,7 @@ class _PaymentProgress extends StatelessWidget {
       height: 54,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F1FF),
+        color: const Color(0xFFEEF3F8),
         borderRadius: BorderRadius.circular(12),
       ),
       child: const Row(
@@ -344,12 +345,12 @@ class _PaymentProgress extends StatelessWidget {
               complete: true,
             ),
           ),
-          Expanded(flex: 1, child: Divider(color: Color(0xFFD4DAF2))),
+          Expanded(flex: 1, child: Divider(color: Color(0xFFD8E1EA))),
           Expanded(
             flex: 2,
             child: _PaymentStep(number: '2', label: 'Pembayaran', active: true),
           ),
-          Expanded(flex: 1, child: Divider(color: Color(0xFFD4DAF2))),
+          Expanded(flex: 1, child: Divider(color: Color(0xFFD8E1EA))),
           Expanded(
             flex: 2,
             child: _PaymentStep(number: '3', label: 'E-Tiket'),
@@ -377,7 +378,7 @@ class _PaymentStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final background = active || complete
         ? _paymentNavy
-        : const Color(0xFFDCE2F5);
+        : const Color(0xFFDCE5ED);
     return Row(
       children: [
         Container(
@@ -390,8 +391,8 @@ class _PaymentStep extends StatelessWidget {
               : Text(
                   number,
                   style: TextStyle(
-                    color: active ? Colors.white : const Color(0xFF56637B),
-                    fontSize: 9,
+                    color: active ? Colors.white : const Color(0xFF68778A),
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -403,8 +404,8 @@ class _PaymentStep extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: active ? _paymentNavy : const Color(0xFF7D8493),
-              fontSize: 9,
+              color: active ? _paymentNavy : const Color(0xFF8190A5),
+              fontSize: 10,
               fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
@@ -435,14 +436,8 @@ class _AmountCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0809233F),
-            blurRadius: 12,
-            offset: Offset(0, 3),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8EDF3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -452,13 +447,13 @@ class _AmountCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   isAdditional ? 'Biaya Tambahan' : 'Total Pembayaran',
-                  style: TextStyle(color: Color(0xFF667080), fontSize: 12),
+                  style: TextStyle(color: Color(0xFF8190A5), fontSize: 13),
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF1E1),
+                  color: const Color(0xFFFFF5E8),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -472,8 +467,8 @@ class _AmountCard extends StatelessWidget {
                     Text(
                       formattedTime,
                       style: const TextStyle(
-                        color: Color(0xFF8A4D00),
-                        fontSize: 10,
+                        color: Color(0xFF9A5B0A),
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -487,12 +482,12 @@ class _AmountCard extends StatelessWidget {
             _formatPrice(total),
             style: const TextStyle(
               color: _paymentNavy,
-              fontSize: 27,
-              fontWeight: FontWeight.w800,
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFE8EAF3)),
+          const Divider(height: 1, color: Color(0xFFE8EDF3)),
           const SizedBox(height: 10),
           _InfoLine(label: 'Destinasi', value: destination.name),
           const SizedBox(height: 6),
@@ -508,7 +503,7 @@ class _AmountCard extends StatelessWidget {
             value: _formatPrice(total),
           ),
           const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFE8EAF3)),
+          const Divider(height: 1, color: Color(0xFFE8EDF3)),
           const SizedBox(height: 10),
           const Text(
             'Rincian peserta',
@@ -554,14 +549,8 @@ class _SecurePaymentCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0809233F),
-            blurRadius: 12,
-            offset: Offset(0, 3),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8EDF3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -628,14 +617,8 @@ class _PaymentQrCodeCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0809233F),
-            blurRadius: 12,
-            offset: Offset(0, 3),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8EDF3)),
       ),
       child: Column(
         children: [
@@ -723,7 +706,7 @@ class _PaymentInstructions extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF2FF),
+        color: const Color(0xFFEEF3F8),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -795,7 +778,7 @@ class _InstructionRow extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(color: Color(0xFF596579), fontSize: 10),
+              style: const TextStyle(color: Color(0xFF596579), fontSize: 12),
             ),
           ),
         ],
@@ -818,8 +801,8 @@ class _PaymentStatusNotice extends StatelessWidget {
           child: Text(
             'Pembayaran diproses dengan aman. Status transaksi diperiksa kembali ke server dan e-ticket diterbitkan setelah pembayaran dikonfirmasi.',
             style: TextStyle(
-              color: Color(0xFF727B8B),
-              fontSize: 10,
+              color: Color(0xFF8190A5),
+              fontSize: 12,
               height: 1.35,
             ),
           ),
@@ -907,7 +890,7 @@ class _ConfirmPaymentBar extends StatelessWidget {
                 children: [
                   const Text(
                     'Total Pembayaran',
-                    style: TextStyle(color: Color(0xFF6F7683), fontSize: 10),
+                    style: TextStyle(color: Color(0xFF8190A5), fontSize: 12),
                   ),
                   Text(
                     _formatPrice(total),
@@ -944,7 +927,7 @@ class _ConfirmPaymentBar extends StatelessWidget {
                       )
                     : Text(
                         isExpired
-                            ? 'Kedaluwarsa'
+                            ? 'Kadaluarsa'
                             : isRetry
                             ? 'Coba Lagi'
                             : isQrPayment
@@ -976,15 +959,15 @@ class _InfoLine extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 96,
+          width: 108,
           child: Text(
             label,
-            style: const TextStyle(color: Color(0xFF777F8E), fontSize: 10),
+            style: const TextStyle(color: Color(0xFF8190A5), fontSize: 11),
           ),
         ),
         const Text(
           ': ',
-          style: TextStyle(color: Color(0xFF777F8E), fontSize: 10),
+          style: TextStyle(color: Color(0xFF8190A5), fontSize: 11),
         ),
         Expanded(
           child: Text(
@@ -992,7 +975,7 @@ class _InfoLine extends StatelessWidget {
             textAlign: TextAlign.right,
             style: const TextStyle(
               color: _paymentNavy,
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
           ),

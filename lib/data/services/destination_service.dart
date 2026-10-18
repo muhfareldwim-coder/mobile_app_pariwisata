@@ -9,13 +9,26 @@ class DestinationService {
 
   final ApiService _api;
 
-  Future<List<Destination>> getDestinations({LatLng? origin}) async {
+  Future<List<Destination>> getDestinations({LatLng? origin}) =>
+      _getDestinations(origin: origin);
+
+  Future<List<Destination>> getMapDestinations({LatLng? origin}) =>
+      _getDestinations(origin: origin, skipMissingCoordinates: true);
+
+  Future<List<Destination>> _getDestinations({
+    LatLng? origin,
+    bool skipMissingCoordinates = false,
+  }) async {
     final firstPage = await _api.get(
       '/destinasi',
       queryParameters: const {'per_page': '50'},
     );
 
-    final destinations = _destinationsFromResponse(firstPage, origin: origin);
+    final destinations = _destinationsFromResponse(
+      firstPage,
+      origin: origin,
+      skipMissingCoordinates: skipMissingCoordinates,
+    );
     final metadata = firstPage['meta'];
     if (metadata == null) {
       return destinations;
@@ -38,7 +51,13 @@ class DestinationService {
         '/destinasi',
         queryParameters: {'per_page': '50', 'page': '$page'},
       );
-      destinations.addAll(_destinationsFromResponse(response, origin: origin));
+      destinations.addAll(
+        _destinationsFromResponse(
+          response,
+          origin: origin,
+          skipMissingCoordinates: skipMissingCoordinates,
+        ),
+      );
     }
 
     return destinations;
@@ -47,12 +66,18 @@ class DestinationService {
   List<Destination> _destinationsFromResponse(
     Map<String, dynamic> response, {
     LatLng? origin,
+    bool skipMissingCoordinates = false,
   }) {
     final data = response['data'];
     if (data is! List<dynamic>) {
       throw const FormatException('Daftar destinasi dari server tidak valid.');
     }
-    return data.map((item) {
+    return data.where((item) {
+      if (skipMissingCoordinates && item is Map<String, dynamic>) {
+        return item['latitude'] != null && item['longitude'] != null;
+      }
+      return true;
+    }).map((item) {
       if (item is! Map<String, dynamic>) {
         throw const FormatException('Data destinasi dari server tidak valid.');
       }

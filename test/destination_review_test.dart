@@ -189,13 +189,24 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Detail E-Tiket'), findsOneWidget);
-    expect(find.text('Tiket siap digunakan'), findsOneWidget);
-    expect(find.textContaining('Berlaku pada'), findsOneWidget);
-    expect(find.text('Tersedia setelah tanggal kunjungan'), findsNothing);
+    expect(find.text('Terkonfirmasi'), findsWidgets);
+    expect(find.text('Kelola perjalanan'), findsNothing);
+    expect(find.text('Konfirmasi sudah berkunjung'), findsNothing);
     expect(
-      find.text('Tunjukkan QR e-tiket kepada petugas di pintu masuk'),
+      find.text(
+        'Tunjukkan kode booking kepada petugas saat tiba di destinasi.',
+      ),
       findsOneWidget,
     );
+    expect(find.text('Kode QR booking'), findsOneWidget);
+    expect(
+      find.text('Satu kode QR untuk seluruh peserta dalam booking ini.'),
+      findsOneWidget,
+    );
+    expect(find.text('Total peserta'), findsOneWidget);
+    expect(find.text('Total dibayar'), findsOneWidget);
+    expect(find.text('Rp 50.000'), findsOneWidget);
+    expect(find.text('QR Penuh'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -240,32 +251,152 @@ void main() {
       const MaterialApp(home: MyTicketPage(isSelected: false)),
     );
 
-    expect(find.text('Lihat Detail'), findsOneWidget);
+    expect(find.text('E-ticket'), findsOneWidget);
+    expect(find.text('Kelola perjalanan'), findsOneWidget);
     expect(find.text('Tanggal Kunjungan'), findsOneWidget);
-    expect(find.text('Siap digunakan'), findsOneWidget);
+    expect(find.text('Lunas'), findsOneWidget);
     expect(find.text('QR Penuh'), findsNothing);
-    final detailButton = find.ancestor(
-      of: find.text('Lihat Detail'),
-      matching: find.byType(OutlinedButton),
-    );
-    final manageButton = find.ancestor(
-      of: find.text('Kelola perjalanan'),
-      matching: find.byType(OutlinedButton),
-    );
-    expect(tester.getSize(detailButton), tester.getSize(manageButton));
-    expect(
-      tester.getCenter(detailButton).dy,
-      closeTo(tester.getCenter(manageButton).dy, 0.1),
-    );
 
-    await tester.tap(find.text('Riwayat Selesai'));
+    await tester.tap(find.text('Riwayat tiket'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Lihat Detail'), findsOneWidget);
+    expect(find.text('E-ticket'), findsOneWidget);
+    expect(find.text('Kelola perjalanan'), findsNothing);
     expect(find.text('Tanggal Kunjungan'), findsOneWidget);
     expect(find.text('Sudah digunakan'), findsOneWidget);
     expect(find.text('QR Penuh'), findsNothing);
     expect(TicketService.findById(activeTicket.id)?.status, 'valid');
+    await tester.tap(find.text('Semua pesanan'));
+    await tester.pumpAndSettle();
+    expect(find.text('E-ticket'), findsNWidgets(2));
+    expect(find.text('Kelola perjalanan'), findsNothing);
+  });
+
+  testWidgets('mixed bookings appear in both tabs like the website', (
+    tester,
+  ) async {
+    final mixedBooking = Ticket(
+      id: 'mixed-booking',
+      bookingId: 'BOOK-MIXED',
+      destinationName: 'Pantai Papuma',
+      visitDate: DateTime.now().add(const Duration(days: 2)),
+      adultCount: 2,
+      childCount: 0,
+      leaderName: User.sample.name,
+      leaderEmail: User.sample.email,
+      leaderPhone: User.sample.phone,
+      memberNames: const [],
+      status: 'partial',
+      hasActiveTicket: true,
+      hasUsedTicket: true,
+    );
+    TicketService.tickets.add(mixedBooking);
+    TicketService.revision.value++;
+    addTearDown(() {
+      TicketService.tickets.clear();
+      TicketService.revision.value++;
+    });
+
+    await tester.pumpWidget(
+      const MaterialApp(home: MyTicketPage(isSelected: false)),
+    );
+
+    expect(find.text('E-ticket'), findsOneWidget);
+    expect(find.text('Sudah digunakan'), findsOneWidget);
+
+    await tester.tap(find.text('Riwayat tiket'));
+    await tester.pumpAndSettle();
+    expect(find.text('E-ticket'), findsOneWidget);
+    expect(find.text('Sudah digunakan'), findsOneWidget);
+
+    await tester.tap(find.text('Semua pesanan'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sudah digunakan'), findsOneWidget);
+  });
+
+  testWidgets('all orders includes pending bookings with a pay action', (
+    tester,
+  ) async {
+    final pendingBooking = Ticket(
+      id: 'booking-16',
+      bookingId: 'JGO-PENDING',
+      bookingRecordId: '16',
+      destinationId: destinations.first.id,
+      destinationName: destinations.first.name,
+      visitDate: DateTime.now().add(const Duration(days: 2)),
+      adultCount: 2,
+      childCount: 0,
+      leaderName: 'Citra Wijaya',
+      leaderEmail: 'citra@example.com',
+      leaderPhone: '081234567890',
+      memberNames: ['Siti Wijaya'],
+      amountPaid: 50000,
+      status: 'pending',
+      bookingStatus: 'PENDING',
+      paymentStatus: 'PENDING',
+      hasIssuedTicket: false,
+    );
+    TicketService.tickets.add(pendingBooking);
+    TicketService.revision.value++;
+    addTearDown(() {
+      TicketService.tickets.clear();
+      TicketService.revision.value++;
+    });
+
+    await tester.pumpWidget(
+      const MaterialApp(home: MyTicketPage(isSelected: false)),
+    );
+
+    await tester.tap(find.text('Semua pesanan'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('JGO-PENDING'), findsOneWidget);
+    expect(find.text('Menunggu pembayaran'), findsWidgets);
+    expect(find.text('Bayar'), findsOneWidget);
+    expect(find.text('E-ticket'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('expired booking without an issued ticket is labeled failed', (
+    tester,
+  ) async {
+    final expiredBooking = Ticket(
+      id: 'booking-expired',
+      bookingId: 'JGO-EXPIRED',
+      bookingRecordId: '18',
+      destinationId: destinations.first.id,
+      destinationName: destinations.first.name,
+      visitDate: DateTime(2026, 10, 17),
+      adultCount: 1,
+      childCount: 0,
+      leaderName: 'Citra Wijaya',
+      leaderEmail: 'citra@example.com',
+      leaderPhone: '081234567890',
+      memberNames: const [],
+      status: 'expired',
+      bookingStatus: 'EXPIRED',
+      paymentStatus: 'EXPIRED',
+      hasIssuedTicket: false,
+    );
+    TicketService.tickets.add(expiredBooking);
+    TicketService.revision.value++;
+    addTearDown(() {
+      TicketService.tickets.clear();
+      TicketService.revision.value++;
+    });
+
+    await tester.pumpWidget(
+      const MaterialApp(home: MyTicketPage(isSelected: false)),
+    );
+
+    await tester.tap(find.text('Semua pesanan'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('JGO-EXPIRED'), findsOneWidget);
+    expect(find.text('Gagal'), findsOneWidget);
+    expect(find.text('Kadaluarsa'), findsNothing);
+    expect(find.text('E-ticket'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('ticket total matches the booking total from the website API', (
@@ -294,12 +425,12 @@ void main() {
       const MaterialApp(home: MyTicketPage(isSelected: false)),
     );
 
-    expect(find.text('Total dibayar'), findsOneWidget);
+    expect(find.text('Total pesanan'), findsOneWidget);
     expect(find.text('Rp 125.000'), findsOneWidget);
     expect(find.text('Rp 25.000'), findsNothing);
   });
 
-  testWidgets('detail unlocks rating and review after ticket use', (
+  testWidgets('server-recorded ticket usage unlocks rating and review', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(430, 1200);
@@ -328,15 +459,17 @@ void main() {
 
     await tester.tap(find.text('Buka e-tiket'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Konfirmasi sudah berkunjung'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Saya sudah berkunjung'));
-    await tester.pumpAndSettle();
-    expect(TicketService.findById(ticket.id)?.status, 'used');
+    expect(find.text('Konfirmasi sudah berkunjung'), findsNothing);
     await tester.pageBack();
     await tester.pumpAndSettle();
+    final ticketIndex = TicketService.tickets.indexWhere(
+      (item) => item.id == ticket.id,
+    );
+    TicketService.tickets[ticketIndex] = ticket.copyWith(status: 'used');
+    TicketService.revision.value++;
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
+    expect(TicketService.findById(ticket.id)?.status, 'used');
     expect(find.text('Tulis ulasan'), findsOneWidget);
 
     await tester.ensureVisible(find.text('Tulis ulasan'));

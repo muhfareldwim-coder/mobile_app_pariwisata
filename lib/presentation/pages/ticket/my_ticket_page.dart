@@ -2,23 +2,33 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/routes/app_routes.dart';
+import '../../../data/models/booking.dart';
+import '../../../data/models/destination.dart';
 import '../../../data/models/ticket.dart';
 import '../../../data/services/api_service.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/ticket_service.dart';
 import '../../../core/utils/date_formatters.dart';
+import '../booking/payment_page.dart';
+import '../destination/explorer_page.dart';
 import 'manage_trip_page.dart';
 import 'qr_ticket_page.dart';
 
-const _ticketNavy = Color(0xFF173B60);
-const _ticketBlue = Color(0xFF0874E8);
-const _ticketOrange = Color(0xFFF58B05);
-const _ticketBackground = Color(0xFFF8FAFC);
+const _ticketNavy = Color(0xFF12304A);
+const _ticketBlue = Color(0xFF244D70);
+const _ticketBackground = Color(0xFFF6F8FB);
+const _ticketSecondaryText = Color(0xFF8190A5);
+const _ticketBorder = Color(0xFFE3EAF2);
 
 class MyTicketPage extends StatefulWidget {
-  const MyTicketPage({super.key, this.onProfileTap, this.isSelected = true});
+  const MyTicketPage({
+    super.key,
+    this.onExploreTap,
+    this.isSelected = true,
+  });
 
-  final VoidCallback? onProfileTap;
+  final VoidCallback? onExploreTap;
   final bool isSelected;
 
   @override
@@ -35,8 +45,8 @@ class _MyTicketPageState extends State<MyTicketPage> {
   void initState() {
     super.initState();
     final userId = AuthService.currentUser?.id;
+    _loadedCustomerId = userId;
     if (widget.isSelected && userId != null) {
-      _loadedCustomerId = userId;
       unawaited(_loadTickets());
     }
   }
@@ -47,19 +57,25 @@ class _MyTicketPageState extends State<MyTicketPage> {
     final userId = AuthService.currentUser?.id;
     if (userId == null) {
       _loadedCustomerId = null;
-    } else if (widget.isSelected && userId != _loadedCustomerId) {
+      _clearTickets();
+    } else if (userId != _loadedCustomerId) {
       _loadedCustomerId = userId;
+      _clearTickets();
+      if (widget.isSelected) unawaited(_loadTickets());
+    } else if (widget.isSelected && !oldWidget.isSelected) {
       unawaited(_loadTickets());
     }
   }
 
   Future<void> _loadTickets() async {
+    final customerId = AuthService.currentUser?.id;
+    if (customerId == null) return;
     setState(() {
       _isLoading = true;
       _loadError = null;
     });
     try {
-      await TicketService().refreshFromServer();
+      await TicketService().refreshFromServer(expectedCustomerId: customerId);
     } on ApiException catch (error) {
       if (mounted) setState(() => _loadError = error.message);
     } on FormatException catch (error) {
@@ -69,35 +85,46 @@ class _MyTicketPageState extends State<MyTicketPage> {
     }
   }
 
+  void _clearTickets() {
+    if (TicketService.tickets.isEmpty) return;
+    TicketService.tickets.clear();
+    TicketService.revision.value++;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _ticketBackground,
       body: SafeArea(
+        top: false,
         bottom: false,
         child: Column(
           children: [
-            _TicketHeader(onProfileTap: widget.onProfileTap),
+            const _TicketHeader(),
             Expanded(
               child: ValueListenableBuilder<int>(
                 valueListenable: TicketService.revision,
                 builder: (context, revision, child) {
                   final tickets = TicketService.tickets;
+                  final isAuthenticated = AuthService.currentUser != null;
                   final active = tickets.where(_isActive).toList();
-                  final history = tickets
-                      .where((ticket) => !_isActive(ticket))
-                      .toList();
-                  final displayed = _selectedTab == 0 ? active : history;
+                  final history = tickets.where(_isHistory).toList();
+                  final displayed = switch (_selectedTab) {
+                    0 => active,
+                    1 => history,
+                    _ => tickets,
+                  };
                   return CustomScrollView(
                     slivers: [
                       SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                         sliver: SliverList(
                           delegate: SliverChildListDelegate([
                             _TicketTabs(
                               selectedIndex: _selectedTab,
                               activeCount: active.length,
                               historyCount: history.length,
+                              allCount: tickets.length,
                               onSelected: (index) =>
                                   setState(() => _selectedTab = index),
                             ),
@@ -124,7 +151,11 @@ class _MyTicketPageState extends State<MyTicketPage> {
                               for (final ticket in displayed) ...[
                                 if (ticket != displayed.first)
                                   const SizedBox(height: 14),
-                                _CompactTicketCard(ticket: ticket),
+                                _CompactTicketCard(
+                                  ticket: ticket,
+                                  selectedTab: _selectedTab,
+                                  onPaymentReturned: _loadTickets,
+                                ),
                               ],
                           ]),
                         ),
@@ -134,14 +165,11 @@ class _MyTicketPageState extends State<MyTicketPage> {
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                           sliver: SliverFillRemaining(
                             hasScrollBody: false,
-                            child: Column(
-                              children: [
-                                Expanded(
-                                  child: _EmptyTickets(
-                                    isHistory: _selectedTab == 1,
-                                  ),
-                                ),
-                              ],
+                            child: _EmptyTickets(
+                              selectedTab: _selectedTab,
+                              requiresLogin: !isAuthenticated,
+                              onExplore: _openExplorer,
+                              onLogin: _openLogin,
                             ),
                           ),
                         )
@@ -159,78 +187,83 @@ class _MyTicketPageState extends State<MyTicketPage> {
   }
 
   bool _isActive(Ticket ticket) {
-    final today = DateTime.now();
-    final visitDay = DateTime(
-      ticket.visitDate.year,
-      ticket.visitDate.month,
-      ticket.visitDate.day,
+    return ticket.hasIssuedTicket &&
+        (ticket.hasActiveTicket || ticket.status == 'valid');
+  }
+
+  bool _isHistory(Ticket ticket) =>
+      ticket.hasIssuedTicket &&
+      (ticket.hasUsedTicket ||
+          ticket.hasExpiredTicket ||
+          const {'used', 'expired'}.contains(ticket.status));
+
+  void _openExplorer() {
+    final onExploreTap = widget.onExploreTap;
+    if (onExploreTap != null) {
+      onExploreTap();
+      return;
+    }
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(builder: (_) => const ExplorerPage()),
     );
-    return ticket.status == 'valid' &&
-        !visitDay.isBefore(DateTime(today.year, today.month, today.day));
+  }
+
+  Future<void> _openLogin() async {
+    await Navigator.pushNamed(context, AppRoutes.login);
+    if (!mounted || AuthService.currentUser == null) return;
+
+    _loadedCustomerId = AuthService.currentUser?.id;
+    _clearTickets();
+    await _loadTickets();
   }
 }
 
 class _TicketHeader extends StatelessWidget {
-  const _TicketHeader({this.onProfileTap});
-
-  final VoidCallback? onProfileTap;
+  const _TicketHeader();
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 62,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Row(
-          children: [
-            Image.asset(
-              'assets/logo_jembergonobackgroud.png',
-              width: 38,
-              height: 32,
-              fit: BoxFit.contain,
-              errorBuilder: (_, _, _) => const Icon(
-                Icons.landscape_rounded,
-                color: _ticketOrange,
-                size: 29,
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'JEMBERGO',
-                    style: TextStyle(
-                      color: _ticketOrange,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Tiket Saya',
-                    style: TextStyle(
-                      color: _ticketNavy,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            IconButton.filled(
-              onPressed: onProfileTap ?? () {},
-              tooltip: 'Profil',
-              style: IconButton.styleFrom(
-                backgroundColor: const Color(0xFF061D38),
-                foregroundColor: Colors.white,
-              ),
-              icon: const Icon(Icons.person_outline_rounded, size: 20),
-            ),
-          ],
+    return Container(
+      key: const ValueKey('ticket-header'),
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(
+        16,
+        MediaQuery.viewPaddingOf(context).top + 10,
+        16,
+        18,
+      ),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_ticketNavy, _ticketBlue],
         ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Tiket Saya',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              height: 1.15,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.2,
+            ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Kelola tiket dan pesanan perjalananmu.',
+            style: TextStyle(
+              color: Color(0xFFCCD8E5),
+              fontSize: 12,
+              height: 1.25,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -241,42 +274,50 @@ class _TicketTabs extends StatelessWidget {
     required this.selectedIndex,
     required this.activeCount,
     required this.historyCount,
+    required this.allCount,
     required this.onSelected,
   });
 
   final int selectedIndex;
   final int activeCount;
   final int historyCount;
+  final int allCount;
   final ValueChanged<int> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 44,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEAF2F8),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _TicketTabButton(
-              label: 'Tiket Aktif',
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _ticketBorder),
+        ),
+        child: Row(
+          children: [
+            _TicketTabButton(
+              label: 'Tiket aktif',
               count: activeCount,
               selected: selectedIndex == 0,
               onTap: () => onSelected(0),
             ),
-          ),
-          Expanded(
-            child: _TicketTabButton(
-              label: 'Riwayat Selesai',
+            _TicketTabButton(
+              label: 'Riwayat tiket',
               count: historyCount,
               selected: selectedIndex == 1,
               onTap: () => onSelected(1),
             ),
-          ),
-        ],
+            _TicketTabButton(
+              label: 'Semua pesanan',
+              count: allCount,
+              selected: selectedIndex == 2,
+              onTap: () => onSelected(2),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -299,12 +340,12 @@ class _TicketTabButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: selected ? _ticketNavy : Colors.transparent,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         child: SizedBox(
-          width: double.infinity,
+          width: 116,
           height: double.infinity,
           child: Center(
             child: Row(
@@ -316,8 +357,8 @@ class _TicketTabButton extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: selected ? Colors.white : const Color(0xFF454B58),
-                      fontSize: 13,
+                      color: selected ? Colors.white : _ticketSecondaryText,
+                      fontSize: 11,
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
@@ -328,13 +369,15 @@ class _TicketTabButton extends StatelessWidget {
                   height: 20,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: selected ? _ticketBlue : const Color(0xFFDCE7EE),
+                    color: selected
+                        ? const Color(0xFF3974D8)
+                        : const Color(0xFFF0F3F7),
                     shape: BoxShape.circle,
                   ),
                   child: Text(
                     '$count',
                     style: TextStyle(
-                      color: selected ? Colors.white : const Color(0xFF46526C),
+                      color: selected ? Colors.white : _ticketSecondaryText,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -411,9 +454,76 @@ class _DetailColumn extends StatelessWidget {
 }
 
 class _CompactTicketCard extends StatelessWidget {
-  const _CompactTicketCard({required this.ticket});
+  const _CompactTicketCard({
+    required this.ticket,
+    required this.selectedTab,
+    required this.onPaymentReturned,
+  });
 
   final Ticket ticket;
+  final int selectedTab;
+  final Future<void> Function() onPaymentReturned;
+
+  bool get _canManageTrip =>
+      selectedTab == 0 &&
+      ticket.canOpenEticket &&
+      ticket.hasIssuedTicket &&
+      (ticket.hasActiveTicket || ticket.status == 'valid');
+
+  void _openManageTrip(BuildContext context) {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(builder: (_) => ManageTripPage(ticket: ticket)),
+    );
+  }
+
+  Future<void> _openPayment(BuildContext context) async {
+    final booking = Booking(
+      id: ticket.bookingRecordId,
+      code: ticket.bookingId,
+      destinationId: ticket.destinationId,
+      visitDate: ticket.visitDate,
+      totalAmount: ticket.amountPaid,
+      leaderName: ticket.leaderName,
+      leaderEmail: ticket.leaderEmail,
+      leaderPhone: ticket.leaderPhone,
+      participants: [
+        BookingParticipant(
+          name: ticket.leaderName,
+          ticketTypeId: 0,
+          ticketTypeName: 'Tiket',
+          ticketPrice: 0,
+        ),
+        for (final member in ticket.memberNames)
+          BookingParticipant(
+            name: member,
+            ticketTypeId: 0,
+            ticketTypeName: 'Tiket',
+            ticketPrice: 0,
+          ),
+      ],
+      status: ticket.bookingStatus,
+      paymentDeadline: ticket.paymentDeadline,
+    );
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => PaymentPage(
+          booking: booking,
+          destination: Destination(
+            id: ticket.destinationId,
+            name: ticket.destinationName,
+            location: ticket.destinationLocation,
+            latitude: 0,
+            longitude: 0,
+            routeDistanceKm: 0,
+            imageUrl: ticket.destinationImageUrl,
+          ),
+        ),
+      ),
+    );
+    if (context.mounted) await onPaymentReturned();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -421,12 +531,13 @@ class _CompactTicketCard extends StatelessWidget {
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _ticketBorder),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0809233F),
-            blurRadius: 12,
-            offset: Offset(0, 3),
+            blurRadius: 16,
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -435,10 +546,10 @@ class _CompactTicketCard extends StatelessWidget {
           Row(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 child: SizedBox(
-                  width: 56,
-                  height: 56,
+                  width: 64,
+                  height: 64,
                   child: ticket.destinationImageUrl == null
                       ? const _TicketImageFallback()
                       : Image.network(
@@ -449,19 +560,11 @@ class _CompactTicketCard extends StatelessWidget {
                         ),
                 ),
               ),
-              const SizedBox(width: 9),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const _Badge(
-                      icon: Icons.park_outlined,
-                      label: 'Wisata',
-                      background: Color(0xFFE6EAFF),
-                      foreground: _ticketNavy,
-                      iconSize: 10,
-                    ),
-                    const SizedBox(height: 4),
                     Text(
                       ticket.destinationName,
                       maxLines: 2,
@@ -469,13 +572,13 @@ class _CompactTicketCard extends StatelessWidget {
                       style: const TextStyle(
                         color: _ticketNavy,
                         fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
                       'Jember',
                       style: const TextStyle(
-                        color: Color(0xFF7B8290),
+                        color: _ticketSecondaryText,
                         fontSize: 12,
                       ),
                     ),
@@ -483,11 +586,9 @@ class _CompactTicketCard extends StatelessWidget {
                 ),
               ),
               _Badge(
-                icon: _ticketStatusIcon(ticket),
-                label: _ticketStatusLabel(ticket),
+                label: _ticketStatusLabel(ticket, selectedTab),
                 background: _ticketStatusBackground(ticket),
                 foreground: _ticketStatusForeground(ticket),
-                iconSize: 11,
               ),
             ],
           ),
@@ -495,8 +596,8 @@ class _CompactTicketCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F2FF),
-              borderRadius: BorderRadius.circular(9),
+              color: _ticketBackground,
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
@@ -508,11 +609,10 @@ class _CompactTicketCard extends StatelessWidget {
                   ),
                 ),
                 _DetailColumn(
-                  label: 'Total dibayar',
-                  value: '${ticket.quantity} tiket',
-                  detail: ticket.amountPaid > 0
-                      ? _formatPrice(ticket.amountPaid)
-                      : 'QRIS lunas',
+                  label: 'Total pesanan',
+                  value: _formatPrice(ticket.amountPaid),
+                  detail:
+                      '${ticket.quantity} tiket · ${_paymentStatusLabel(ticket.paymentStatus)}',
                   alignEnd: true,
                 ),
               ],
@@ -521,14 +621,23 @@ class _CompactTicketCard extends StatelessWidget {
           const SizedBox(height: 9),
           Row(
             children: [
-              const Icon(Icons.tag, color: Color(0xFF838A96), size: 17),
               Expanded(
                 child: Text(
-                  ticket.bookingId,
+                  'Kode ${ticket.bookingId}',
                   style: const TextStyle(
-                    color: Color(0xFF59616E),
-                    fontSize: 12,
+                    color: _ticketSecondaryText,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
                   ),
+                ),
+              ),
+              Text(
+                ticket.paymentMethod.toUpperCase() == 'CASH'
+                    ? 'Tunai di tempat'
+                    : 'Payment Gateway',
+                style: const TextStyle(
+                  color: _ticketSecondaryText,
+                  fontSize: 11,
                 ),
               ),
             ],
@@ -536,54 +645,68 @@ class _CompactTicketCard extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.push<void>(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => QrTicketPage(ticket: ticket),
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _ticketNavy,
-                    side: const BorderSide(color: Color(0xFFDCE2F5)),
-                    minimumSize: const Size(0, 42),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  icon: const Icon(Icons.chevron_right, size: 17),
-                  label: const Text(
-                    'Lihat Detail',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ),
-              ),
-              if (ticket.bookingRecordId.isNotEmpty &&
-                  ticket.status == 'valid') ...[
-                const SizedBox(width: 8),
+              if (ticket.canOpenEticket)
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: OutlinedButton(
                     onPressed: () => Navigator.push<void>(
                       context,
                       MaterialPageRoute<void>(
-                        builder: (_) => ManageTripPage(ticket: ticket),
+                        builder: (_) => QrTicketPage(ticket: ticket),
                       ),
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _ticketNavy,
-                      side: const BorderSide(color: Color(0xFFDCE2F5)),
+                      side: const BorderSide(color: _ticketBorder),
                       minimumSize: const Size(0, 42),
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    icon: const Icon(Icons.edit_calendar_outlined, size: 16),
-                    label: const Text(
+                    child: const Text(
+                      'E-ticket',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                )
+              else if (ticket.canPay)
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => _openPayment(context),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _ticketNavy,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(0, 42),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Bayar',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ),
+              if (ticket.canOpenEticket && _canManageTrip) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _openManageTrip(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _ticketNavy,
+                      side: const BorderSide(color: _ticketBorder),
+                      minimumSize: const Size(0, 42),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
                       'Kelola perjalanan',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -602,38 +725,32 @@ class _CompactTicketCard extends StatelessWidget {
 
 class _Badge extends StatelessWidget {
   const _Badge({
-    required this.icon,
     required this.label,
     required this.background,
     required this.foreground,
-    this.iconSize = 10,
   });
 
-  final IconData icon;
   final String label;
   final Color background;
   final Color foreground;
-  final double iconSize;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: foreground, size: iconSize),
-          const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
               color: foreground,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -643,12 +760,27 @@ class _Badge extends StatelessWidget {
 }
 
 class _EmptyTickets extends StatelessWidget {
-  const _EmptyTickets({required this.isHistory});
+  const _EmptyTickets({
+    required this.selectedTab,
+    required this.requiresLogin,
+    required this.onExplore,
+    required this.onLogin,
+  });
 
-  final bool isHistory;
+  final int selectedTab;
+  final bool requiresLogin;
+  final VoidCallback onExplore;
+  final VoidCallback onLogin;
 
   @override
   Widget build(BuildContext context) {
+    final title = requiresLogin
+        ? 'Login terlebih dahulu'
+        : switch (selectedTab) {
+            0 => 'Belum ada tiket aktif',
+            1 => 'Belum ada riwayat tiket',
+            _ => 'Belum ada pesanan',
+          };
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 24),
@@ -656,26 +788,35 @@ class _EmptyTickets extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              isHistory
+              requiresLogin
+                  ? Icons.lock_outline_rounded
+                  : selectedTab == 1
                   ? Icons.history_rounded
                   : Icons.confirmation_number_outlined,
               color: const Color(0xFF9AA6B6),
-              size: 39,
+              size: 32,
             ),
             const SizedBox(height: 10),
             Text(
-              isHistory ? 'Belum ada tiket selesai' : 'Belum ada tiket aktif',
+              title,
               style: const TextStyle(
                 color: _ticketNavy,
                 fontSize: 16,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Tiket yang sudah dibeli akan muncul di sini.',
+            Text(
+              requiresLogin
+                  ? 'login untuk memulai perjalananmu.'
+                  : 'Yuk pesan tiket untuk memulai perjalananmu.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Color(0xFF7890A1), fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: requiresLogin ? onLogin : onExplore,
+              child: Text(requiresLogin ? 'Login sekarang' : 'pesan tiket sekarang'),
             ),
           ],
         ),
@@ -684,16 +825,41 @@ class _EmptyTickets extends StatelessWidget {
   }
 }
 
-String _ticketStatusLabel(Ticket ticket) {
-  switch (ticket.status) {
-    case 'used':
-      return 'Sudah digunakan';
-    case 'valid':
-      return 'Siap digunakan';
+String _ticketStatusLabel(Ticket ticket, int selectedTab) {
+  if (ticket.hasUsedTicket || ticket.status == 'used') {
+    return 'Sudah digunakan';
+  }
+  if (!ticket.hasIssuedTicket && ticket.status == 'expired') {
+    return 'Gagal';
+  }
+  if (ticket.hasExpiredTicket || ticket.status == 'expired') {
+    return 'Kadaluarsa';
+  }
+  if (selectedTab == 1 && ticket.status == 'partial') {
+    return 'Sebagian digunakan';
+  }
+
+  switch (ticket.bookingStatus) {
+    case 'PAID':
+      return 'Lunas';
+    case 'PENDING':
+      return 'Menunggu pembayaran';
+    case 'EXPIRED':
+      return 'Kadaluarsa';
+    case 'FAILED':
+      return 'Gagal';
     default:
-      return 'Terkonfirmasi';
+      return 'Belum diproses';
   }
 }
+
+String _paymentStatusLabel(String status) => switch (status) {
+  'PAID' => 'Lunas',
+  'PENDING' => 'Menunggu pembayaran',
+  'FAILED' => 'Gagal',
+  'EXPIRED' => 'Kadaluarsa',
+  _ => 'Belum dibayar',
+};
 
 Color _ticketStatusBackground(Ticket ticket) {
   switch (ticket.status) {
@@ -701,6 +867,12 @@ Color _ticketStatusBackground(Ticket ticket) {
       return const Color(0xFFEAF3EE);
     case 'valid':
       return const Color(0xFFFFF3E2);
+    case 'pending':
+    case 'failed':
+    case 'expired':
+      return const Color(0xFFFFEDEE);
+    case 'partial':
+      return const Color(0xFFEAF2F8);
     default:
       return const Color(0xFFEAF2F8);
   }
@@ -712,19 +884,14 @@ Color _ticketStatusForeground(Ticket ticket) {
       return const Color(0xFF13795B);
     case 'valid':
       return const Color(0xFF9A5200);
+    case 'pending':
+    case 'failed':
+    case 'expired':
+      return const Color(0xFF9B303A);
+    case 'partial':
+      return const Color(0xFF1D4E89);
     default:
       return const Color(0xFF1D4E89);
-  }
-}
-
-IconData _ticketStatusIcon(Ticket ticket) {
-  switch (ticket.status) {
-    case 'used':
-      return Icons.check_circle_rounded;
-    case 'valid':
-      return Icons.schedule_rounded;
-    default:
-      return Icons.info_rounded;
   }
 }
 

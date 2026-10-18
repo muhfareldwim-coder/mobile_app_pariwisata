@@ -25,9 +25,15 @@ class MainNavigationPage extends StatefulWidget {
 class _MainNavigationPageState extends State<MainNavigationPage> {
   late int _selectedIndex = widget.initialIndex;
   String _explorerCategory = 'Semua';
+  final _profilePageKey = GlobalKey<ProfilePageState>();
 
   void _selectTab(int index) {
     setState(() => _selectedIndex = index);
+    if (index == 4) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _profilePageKey.currentState?.refreshProfile();
+      });
+    }
   }
 
   void _selectExplorerCategory(String category) {
@@ -55,9 +61,9 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
           const MapPage(),
           MyTicketPage(
             isSelected: _selectedIndex == 3,
-            onProfileTap: () => _selectTab(4),
+            onExploreTap: () => _selectTab(1),
           ),
-          const ProfilePage(),
+          ProfilePage(key: _profilePageKey),
         ],
       ),
       bottomNavigationBar: AppBottomNavigation(

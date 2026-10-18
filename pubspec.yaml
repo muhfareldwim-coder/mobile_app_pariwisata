@@ -49,6 +49,7 @@ dependencies:
   http: ^1.6.0
   flutter_secure_storage: ^11.2.0
   google_sign_in: ^7.2.0
+  curved_navigation_bar_pro: ^2.2.1
 
 dev_dependencies:
   flutter_test:
@@ -72,7 +73,17 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  fonts:
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans.ttf
+    - family: Satisfy
+      fonts:
+        - asset: assets/fonts/Satisfy-Regular.ttf
+
   assets:
+    - assets/fonts/OFL.txt
+    - assets/fonts/Satisfy-LICENSE.txt
     - assets/logo-qris-transparent.png
     - assets/logo_jembergonobackgroud.png
     - assets/jembergo_home_hero.png

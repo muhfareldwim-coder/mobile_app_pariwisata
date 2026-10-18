@@ -100,6 +100,20 @@ class ApiService {
     );
   }
 
+  Future<Map<String, dynamic>> put(
+    String path, {
+    Map<String, Object?> body = const {},
+    String? token,
+  }) {
+    return _send(
+      _client.put(
+        Uri.parse('$baseUrl$path'),
+        headers: _headers(token, hasBody: true),
+        body: jsonEncode(body),
+      ),
+    );
+  }
+
   Future<Map<String, dynamic>> delete(String path, {String? token}) {
     return _send(
       _client.delete(Uri.parse('$baseUrl$path'), headers: _headers(token)),

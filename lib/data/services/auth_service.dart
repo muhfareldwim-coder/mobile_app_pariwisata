@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../core/constants/app_constants.dart';
@@ -7,18 +8,30 @@ import '../models/user.dart';
 import 'api_service.dart';
 
 class AuthService {
-  AuthService({ApiService? api, FlutterSecureStorage? storage})
+  AuthService({
+    ApiService? api,
+    FlutterSecureStorage? storage,
+    AuthSessionStorage? sessionStorage,
+  })
     : _api = api ?? ApiService(),
-      _storage = storage ?? const FlutterSecureStorage();
+      _storage =
+          sessionStorage ??
+          _FlutterSecureStorageSessionStorage(
+            storage ?? const FlutterSecureStorage(),
+          );
 
   static const _tokenKey = 'jembergo_access_token';
   static const _userKey = 'jembergo_user';
-  static User? currentUser;
+  static final ValueNotifier<User?> _currentUser = ValueNotifier(null);
+  static User? get currentUser => _currentUser.value;
+  static set currentUser(User? user) => _currentUser.value = user;
+  static ValueListenable<User?> get currentUserListenable => _currentUser;
   static String? _accessToken;
   static String? get accessToken => _accessToken;
+  static bool _rememberSession = false;
 
   final ApiService _api;
-  final FlutterSecureStorage _storage;
+  final AuthSessionStorage _storage;
 
   static Future<void> restoreSession() async {
     const storage = FlutterSecureStorage();
@@ -29,7 +42,9 @@ class AuthService {
     final token = values[0];
     final encodedUser = values[1];
     if (token == null || encodedUser == null) {
-      await _clearStoredSession(storage);
+      await _clearStoredSession(
+        _FlutterSecureStorageSessionStorage(storage),
+      );
       return;
     }
 
@@ -39,6 +54,7 @@ class AuthService {
     }
     currentUser = User.fromJson(decodedUser);
     _accessToken = token;
+    _rememberSession = true;
   }
 
   Future<User> login(
@@ -113,12 +129,59 @@ class AuthService {
     }
     await _clearStoredSession(_storage);
     _accessToken = null;
+    _rememberSession = false;
     currentUser = null;
   }
 
   static void logout() {
     _accessToken = null;
+    _rememberSession = false;
     currentUser = null;
+  }
+
+  Future<User> refreshProfile() async {
+    final token = _accessToken;
+    final current = currentUser;
+    if (token == null || current == null || current.role != 'CUSTOMER') {
+      throw const ApiException('Silakan login sebagai customer untuk memuat profil.');
+    }
+
+    final response = await _api.get('/customer/profil', token: token);
+    final updatedUser = _profileUserFromResponse(response, current.role);
+    await _updateCurrentProfile(updatedUser);
+    return updatedUser;
+  }
+
+  Future<User> updateProfile({
+    required String name,
+    required String email,
+    required String phone,
+    String? password,
+    String? passwordConfirmation,
+  }) async {
+    final token = _accessToken;
+    final current = currentUser;
+    if (token == null || current == null || current.role != 'CUSTOMER') {
+      throw const ApiException('Sesi login customer tidak tersedia. Silakan login kembali.');
+    }
+
+    final body = <String, Object?>{
+      'nama': name.trim(),
+      'email': email.trim().toLowerCase(),
+      'no_hp': phone.trim().isEmpty ? null : phone.trim(),
+      if (password != null && password.isNotEmpty) ...{
+        'password': password,
+        'password_confirmation': passwordConfirmation,
+      },
+    };
+    final response = await _api.put(
+      '/customer/profil',
+      body: body,
+      token: token,
+    );
+    final updatedUser = _profileUserFromResponse(response, current.role);
+    await _updateCurrentProfile(updatedUser);
+    return updatedUser;
   }
 
   Future<User> _setSession(
@@ -136,18 +199,67 @@ class AuthService {
     final user = User.fromJson(data['user'] as Map<String, dynamic>);
 
     if (rememberMe) {
-      await _storage.write(key: _tokenKey, value: token);
-      await _storage.write(key: _userKey, value: jsonEncode(user.toJson()));
+      await _storage.write(_tokenKey, token);
+      await _storage.write(_userKey, jsonEncode(user.toJson()));
     } else {
       await _clearStoredSession(_storage);
     }
+    _rememberSession = rememberMe;
     _accessToken = token;
     currentUser = user;
     return user;
   }
 
-  static Future<void> _clearStoredSession(FlutterSecureStorage storage) async {
-    await storage.delete(key: _tokenKey);
-    await storage.delete(key: _userKey);
+  User _profileUserFromResponse(
+    Map<String, dynamic> response,
+    String role,
+  ) {
+    final data = response['data'];
+    if (data is! Map<String, dynamic>) {
+      throw const FormatException('Respons profil dari server tidak lengkap.');
+    }
+    return User.fromJson(data).copyWith(role: role);
+  }
+
+  Future<void> _updateCurrentProfile(User user) async {
+    currentUser = user;
+    if (!_rememberSession) return;
+    try {
+      await _storage.write(_userKey, jsonEncode(user.toJson()));
+    } on Exception catch (error) {
+      throw ApiException(
+        'Profil berhasil disimpan di server, tetapi sesi lokal gagal diperbarui: $error',
+      );
+    }
+  }
+
+  static Future<void> _clearStoredSession(AuthSessionStorage storage) async {
+    await storage.delete(_tokenKey);
+    await storage.delete(_userKey);
+  }
+}
+
+abstract interface class AuthSessionStorage {
+  Future<String?> read(String key);
+  Future<void> write(String key, String value);
+  Future<void> delete(String key);
+}
+
+class _FlutterSecureStorageSessionStorage implements AuthSessionStorage {
+  const _FlutterSecureStorageSessionStorage(this._storage);
+
+  final FlutterSecureStorage _storage;
+
+  @override
+  Future<String?> read(String key) => _storage.read(key: key);
+
+  @override
+  Future<void> write(String key, String value) async {
+    await _storage.write(key: key, value: value);
+  }
+
+  @override
+  Future<void> delete(String key) async {
+    await _storage.delete(key: key);
   }
 }

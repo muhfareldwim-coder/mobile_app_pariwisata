@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_colors.dart';
 import '../../../data/models/destination.dart';
-import 'facility_chip.dart';
 
 class DestinationCard extends StatelessWidget {
   const DestinationCard({
@@ -20,190 +18,166 @@ class DestinationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const categoryColor = AppColors.ocean;
+    const navy = Color(0xFF12304A);
+    const gold = Color(0xFFFFC22F);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 3,
-      shadowColor: const Color(0x1608233F),
-      color: Colors.white,
+    return Material(
+      color: navy,
+      borderRadius: BorderRadius.circular(16),
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: InkWell(
         onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            SizedBox(
-              height: 178,
-              width: double.infinity,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (destination.imageUrl != null)
-                    Image.network(
-                      destination.imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) =>
-                          _ImageFallback(color: categoryColor),
-                    )
-                  else
-                    _ImageFallback(color: categoryColor),
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Color(0x50000000),
-                          Colors.transparent,
-                          Color(0xB8000000),
-                        ],
-                        stops: [0, .42, 1],
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 13,
-                    top: 13,
-                    child: Row(
-                      children: [
-                        _ImageBadge(
-                          label: destination.category,
-                          color: categoryColor,
-                        ),
-                        const SizedBox(width: 7),
-                        _ImageBadge(
-                          label:
-                              '${destination.distanceKm.toStringAsFixed(1)} km',
-                          color: const Color(0xAA172B3A),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Positioned(
-                    right: 12,
-                    top: 10,
-                    child: Material(
-                      color: const Color(0x77000000),
-                      shape: const CircleBorder(),
-                      child: IconButton(
-                        tooltip: isFavorite
-                            ? 'Hapus dari favorit'
-                            : 'Tambah ke favorit',
-                        visualDensity: VisualDensity.compact,
-                        onPressed: onFavoriteChanged == null
-                            ? null
-                            : () => onFavoriteChanged!(!isFavorite),
-                        icon: Icon(
-                          isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: isFavorite ? AppColors.orange : Colors.white,
-                          size: 21,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 14,
-                    right: 100,
-                    bottom: 14,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          destination.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 17,
-                            height: 1.15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.location_on,
-                              size: 13,
-                              color: Color(0xFFFFC36B),
-                            ),
-                            const SizedBox(width: 3),
-                            Expanded(
-                              child: Text(
-                                destination.location,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  Positioned(
-                    right: 12,
-                    bottom: 13,
-                    child: _ImageBadge(
-                      label:
-                          '★ ${destination.rating.toStringAsFixed(1)}  (${destination.reviewCount})',
-                      color: const Color(0xCC172B3A),
-                    ),
-                  ),
-                ],
+            if (destination.imageUrl != null)
+              Image.network(
+                destination.imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const _ImageFallback(color: navy),
+              )
+            else
+              const _ImageFallback(color: navy),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: [0.2, 1],
+                  colors: [Colors.transparent, Color(0xF0091F39)],
+                ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(13, 12, 13, 13),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+            Positioned(
+              top: 10,
+              left: 10,
+              child: _ImageBadge(
+                label: _titleCase(destination.category),
+                color: const Color(0xCC12304A),
+              ),
+            ),
+            Positioned(
+              top: 6,
+              right: 6,
+              child: Material(
+                color: const Color(0x99091F39),
+                shape: const CircleBorder(),
+                child: IconButton(
+                  tooltip: isFavorite
+                      ? 'Hapus dari favorit'
+                      : 'Tambah ke favorit',
+                  onPressed: onFavoriteChanged == null
+                      ? null
+                      : () => onFavoriteChanged!(!isFavorite),
+                  constraints: const BoxConstraints.tightFor(
+                    width: 38,
+                    height: 38,
+                  ),
+                  padding: EdgeInsets.zero,
+                  icon: Icon(
+                    isFavorite
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    color: isFavorite ? const Color(0xFFFF6B81) : Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 11,
+              right: 11,
+              bottom: 11,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Wrap(
-                      children: [
-                        for (final facility in destination.facilities)
-                          FacilityChip(label: facility),
-                      ],
+                  Row(
+                    children: [
+                      const Icon(Icons.star_rounded, color: gold, size: 14),
+                      const SizedBox(width: 3),
+                      Text(
+                        destination.rating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          color: gold,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          '(${destination.reviewCount})',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFD8E2EF),
+                            fontSize: 9,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    destination.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      height: 1.15,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(width: 7),
-                  SizedBox(
-                    width: 88,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        const Text(
-                          'Tiket Masuk',
-                          style: TextStyle(
-                            color: AppColors.secondaryText,
-                            fontSize: 9,
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on_rounded,
+                        color: gold,
+                        size: 12,
+                      ),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        child: Text(
+                          destination.location.replaceFirst(
+                            ', Kabupaten Jember',
+                            ', Jember',
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Rp ${_formatPrice(destination.ticketPrice)}',
                           maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: AppColors.orange,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const Text(
-                          '/orang',
-                          style: TextStyle(
-                            color: AppColors.secondaryText,
+                            color: Color(0xFFD8E2EF),
                             fontSize: 9,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 7),
+                  const Divider(height: 1, color: Color(0x40FFFFFF)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Mulai dari',
+                          style: TextStyle(
+                            color: Color(0xFFD8E2EF),
+                            fontSize: 9,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        'Rp ${_formatPrice(destination.ticketPrice)}',
+                        style: const TextStyle(
+                          color: gold,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -218,6 +192,9 @@ class DestinationCard extends StatelessWidget {
     RegExp(r'\B(?=(\d{3})+(?!\d))'),
     (_) => '.',
   );
+
+  String _titleCase(String value) =>
+      value.isEmpty ? value : value[0] + value.substring(1).toLowerCase();
 }
 
 class _ImageBadge extends StatelessWidget {

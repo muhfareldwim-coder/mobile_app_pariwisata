@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../data/models/booking.dart';
 import '../../../data/models/destination.dart';
 import '../../../data/services/api_service.dart';
@@ -9,12 +10,12 @@ import '../../../data/services/booking_service.dart';
 import '../../../core/utils/date_formatters.dart';
 import 'payment_page.dart';
 
-const _navy = Color(0xFF0B294A);
-const _blue = Color(0xFF0874E8);
-const _orange = Color(0xFFE98600);
-const _pageBackground = Color(0xFFF9F8FF);
-const _ink = Color(0xFF183757);
-const _softPanel = Color(0xFFF5F6FF);
+const _navy = AppColors.navy;
+const _blue = AppColors.navy;
+const _orange = AppColors.orange;
+const _pageBackground = Color(0xFFF6F8FB);
+const _ink = AppColors.navy;
+const _softPanel = Color(0xFFEEF3F8);
 
 class BookingPage extends StatefulWidget {
   const BookingPage({super.key, required this.destination});
@@ -101,6 +102,23 @@ class _BookingPageState extends State<BookingPage> {
     final initialDate = _visitDate ?? todayDate.add(const Duration(days: 7));
     final selectedDate = await showDatePicker(
       context: context,
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(context).colorScheme.copyWith(
+            primary: _navy,
+            onPrimary: Colors.white,
+            surface: Colors.white,
+            onSurface: _navy,
+          ),
+          datePickerTheme: const DatePickerThemeData(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+            headerBackgroundColor: Colors.white,
+            headerForegroundColor: _navy,
+          ),
+        ),
+        child: child!,
+      ),
       initialDate: initialDate.isBefore(todayDate) ? todayDate : initialDate,
       firstDate: todayDate,
       lastDate: DateTime(today.year, today.month + 2, today.day),
@@ -279,7 +297,6 @@ class _BookingPageState extends State<BookingPage> {
                     const _BookingProgress(),
                     const SizedBox(height: 16),
                     _BookingSection(
-                      icon: Icons.badge_outlined,
                       title: 'Data Ketua Kelompok',
                       subtitle: 'E-ticket dan bukti transaksi akan dikirimkan ke kontak penanggung jawab ini.',
                       children: [
@@ -308,7 +325,6 @@ class _BookingPageState extends State<BookingPage> {
                     ),
                     const SizedBox(height: 16),
                     _BookingSection(
-                      icon: Icons.confirmation_number_outlined,
                       title: 'Peserta dan jenis tiket',
                       subtitle:
                           'Ketua dan setiap anggota memilih satu jenis tiket.',
@@ -328,8 +344,8 @@ class _BookingPageState extends State<BookingPage> {
                                   'Peserta terisi',
                                   style: TextStyle(
                                     color: _ink,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
                                   ),
                                 ),
                               ),
@@ -337,8 +353,8 @@ class _BookingPageState extends State<BookingPage> {
                                 '$_participantCount/10 orang',
                                 style: const TextStyle(
                                   color: _blue,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
                                 ),
                               ),
                             ],
@@ -507,8 +523,8 @@ class _BookingHeader extends StatelessWidget {
                 'Pemesanan Tiket',
                 style: TextStyle(
                   color: _ink,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -575,8 +591,8 @@ class _DestinationSummary extends StatelessWidget {
                         Text(
                           '★ ${destination.rating.toStringAsFixed(1)}',
                           style: const TextStyle(
-                            color: _orange,
-                            fontSize: 12,
+                            color: _navy,
+                            fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -589,8 +605,8 @@ class _DestinationSummary extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: _ink,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -599,8 +615,8 @@ class _DestinationSummary extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(0xFF66758A),
-                        fontSize: 12,
+                        color: Color(0xFF8190A5),
+                        fontSize: 13,
                       ),
                     ),
                   ],
@@ -631,17 +647,12 @@ class _DestinationSummary extends StatelessWidget {
                         color: hasDateError
                             ? Colors.red
                             : visitDate == null
-                            ? const Color(0xFF66758A)
+                            ? const Color(0xFF8190A5)
                             : _ink,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
-                  const Icon(
-                    Icons.edit_calendar_outlined,
-                    color: Color(0xFF66758A),
-                    size: 18,
                   ),
                 ],
               ),
@@ -675,7 +686,7 @@ class _BookingProgress extends StatelessWidget {
       height: 54,
       padding: const EdgeInsets.symmetric(horizontal: 13),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F1FF),
+        color: const Color(0xFFEEF3F8),
         borderRadius: BorderRadius.circular(12),
       ),
       child: const Row(
@@ -688,12 +699,12 @@ class _BookingProgress extends StatelessWidget {
               active: true,
             ),
           ),
-          Expanded(flex: 1, child: Divider(color: Color(0xFFD4DAF2))),
+          Expanded(flex: 1, child: Divider(color: Color(0xFFD8E1EA))),
           Expanded(
             flex: 2,
             child: _StepIndicator(number: '2', label: 'Pembayaran'),
           ),
-          Expanded(flex: 1, child: Divider(color: Color(0xFFD4DAF2))),
+          Expanded(flex: 1, child: Divider(color: Color(0xFFD8E1EA))),
           Expanded(
             flex: 2,
             child: _StepIndicator(number: '3', label: 'E-Tiket'),
@@ -717,21 +728,21 @@ class _StepIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? _navy : const Color(0xFF7D8493);
+    final color = active ? _navy : const Color(0xFF8190A5);
     return Row(
       children: [
         Container(
           width: 19,
           height: 19,
           decoration: BoxDecoration(
-            color: active ? _navy : const Color(0xFFDCE2F5),
+            color: active ? _navy : const Color(0xFFDCE5ED),
             shape: BoxShape.circle,
           ),
           alignment: Alignment.center,
           child: Text(
             number,
             style: TextStyle(
-              color: active ? Colors.white : const Color(0xFF56637B),
+              color: active ? Colors.white : const Color(0xFF68778A),
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -757,13 +768,11 @@ class _StepIndicator extends StatelessWidget {
 
 class _BookingSection extends StatelessWidget {
   const _BookingSection({
-    required this.icon,
     required this.title,
     required this.subtitle,
     required this.children,
   });
 
-  final IconData icon;
   final String title;
   final String subtitle;
   final List<Widget> children;
@@ -771,49 +780,27 @@ class _BookingSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(16),
       decoration: _cardDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 35,
-                height: 35,
-                decoration: BoxDecoration(
-                  color: _blue.withValues(alpha: .1),
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Icon(icon, color: _blue, size: 19),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: _ink,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: Color(0xFF727B8B),
-                        fontSize: 12,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          Text(
+            title,
+            style: const TextStyle(
+              color: _ink,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              color: Color(0xFF8190A5),
+              fontSize: 13,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 15),
           ...children,
@@ -904,8 +891,8 @@ class _QuotaMessage extends StatelessWidget {
     return Text(
       quotaMessage,
       style: const TextStyle(
-        color: Color(0xFF66758A),
-        fontSize: 11,
+        color: Color(0xFF8190A5),
+        fontSize: 12,
         height: 1.35,
       ),
     );
@@ -936,10 +923,10 @@ class _PassengerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(9),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: _softPanel,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -967,7 +954,7 @@ class _PassengerCard extends StatelessWidget {
           const SizedBox(height: 7),
           Text(
             isLeader ? 'Nama ketua' : 'Nama anggota',
-            style: const TextStyle(color: Color(0xFF385872), fontSize: 12),
+            style: const TextStyle(color: Color(0xFF68778A), fontSize: 13),
           ),
           const SizedBox(height: 5),
           TextFormField(
@@ -992,8 +979,8 @@ class _PassengerCard extends StatelessWidget {
                 vertical: 14,
               ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(8)),
-                borderSide: BorderSide(color: Color(0xFFE0E5EF)),
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderSide: BorderSide(color: Color(0xFFE2E8F0)),
               ),
               errorStyle: TextStyle(fontSize: 11),
             ),
@@ -1001,25 +988,29 @@ class _PassengerCard extends StatelessWidget {
           const SizedBox(height: 10),
           const Text(
             'Jenis Tiket',
-            style: TextStyle(color: Color(0xFF385872), fontSize: 12),
+            style: TextStyle(color: Color(0xFF68778A), fontSize: 13),
           ),
           const SizedBox(height: 5),
           DropdownButtonFormField<int>(
             isExpanded: true,
+            style: const TextStyle(color: _ink, fontSize: 14),
             initialValue: ticketTypes.any((ticket) => ticket.id == ticketTypeId)
                 ? ticketTypeId
                 : null,
-            hint: const Text('Pilih jenis tiket'),
+            hint: const Text(
+              'Pilih jenis tiket',
+              style: TextStyle(fontSize: 14),
+            ),
             decoration: const InputDecoration(
               filled: true,
               fillColor: Colors.white,
               contentPadding: EdgeInsets.symmetric(
-                horizontal: 12,
+                horizontal: 14,
                 vertical: 12,
               ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(8)),
-                borderSide: BorderSide(color: Color(0xFFE0E5EF)),
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderSide: BorderSide(color: Color(0xFFE2E8F0)),
               ),
               errorStyle: TextStyle(fontSize: 11),
             ),
@@ -1067,19 +1058,13 @@ class _PaymentSummary extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(Icons.receipt_long_outlined, color: _blue, size: 18),
-              SizedBox(width: 7),
-              Text(
-                'Rincian Pembayaran',
-                style: TextStyle(
-                  color: _ink,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
+          const Text(
+            'Rincian Pembayaran',
+            style: TextStyle(
+              color: _ink,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 12),
           for (final ticket in ticketTypes)
@@ -1091,7 +1076,7 @@ class _PaymentSummary extends StatelessWidget {
               const SizedBox(height: 6),
             ],
           const SizedBox(height: 8),
-          const Divider(height: 1, color: Color(0xFFDDE2F1)),
+          const Divider(height: 1, color: Color(0xFFE2E8F0)),
           const SizedBox(height: 9),
           Row(
             children: [
@@ -1108,9 +1093,9 @@ class _PaymentSummary extends StatelessWidget {
               Text(
                 _formatPrice(total),
                 style: const TextStyle(
-                  color: _blue,
+                  color: _navy,
                   fontSize: 18,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -1134,14 +1119,14 @@ class _PriceLine extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(color: Color(0xFF5F6673), fontSize: 11),
+            style: const TextStyle(color: Color(0xFF68778A), fontSize: 12),
           ),
         ),
         Text(
           _formatPrice(value),
           style: const TextStyle(
             color: _ink,
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -1186,15 +1171,15 @@ class _PaymentBar extends StatelessWidget {
                 children: [
                   const Text(
                     'Total Pembayaran',
-                    style: TextStyle(color: Color(0xFF6F7683), fontSize: 10),
+                    style: TextStyle(color: Color(0xFF8190A5), fontSize: 12),
                   ),
                   const SizedBox(height: 1),
                   Text(
                     _formatPrice(total),
                     style: const TextStyle(
                       color: _navy,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
@@ -1212,7 +1197,7 @@ class _PaymentBar extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  elevation: 2,
+                  elevation: 0,
                 ),
                 icon: isLoading
                     ? const SizedBox(
@@ -1248,7 +1233,7 @@ class _Pill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
-        color: dark ? _navy : const Color(0xFFE6EAFF),
+        color: dark ? _navy : const Color(0xFFEEF3F8),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -1256,8 +1241,8 @@ class _Pill extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          color: dark ? Colors.white : _blue,
-          fontSize: 9,
+          color: dark ? Colors.white : _navy,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -1266,31 +1251,29 @@ class _Pill extends StatelessWidget {
 }
 
 InputDecoration _inputDecoration(IconData icon) => InputDecoration(
-  prefixIcon: Icon(icon, color: const Color(0xFF7A8392), size: 18),
+  prefixIcon: Icon(icon, color: const Color(0xFF8190A5), size: 18),
   filled: true,
-  fillColor: _softPanel,
-  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+  fillColor: Colors.white,
+  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
   border: OutlineInputBorder(
-    borderRadius: BorderRadius.circular(9),
-    borderSide: BorderSide.none,
+    borderRadius: BorderRadius.circular(12),
+    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
   ),
   enabledBorder: OutlineInputBorder(
-    borderRadius: BorderRadius.circular(9),
-    borderSide: BorderSide.none,
+    borderRadius: BorderRadius.circular(12),
+    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
   ),
   focusedBorder: OutlineInputBorder(
-    borderRadius: BorderRadius.circular(9),
-    borderSide: const BorderSide(color: _blue, width: 1.2),
+    borderRadius: BorderRadius.circular(12),
+    borderSide: const BorderSide(color: _navy, width: 1.4),
   ),
-  errorStyle: const TextStyle(fontSize: 9, height: .7),
+  errorStyle: const TextStyle(fontSize: 11),
 );
 
 final _cardDecoration = BoxDecoration(
   color: Colors.white,
-  borderRadius: BorderRadius.circular(15),
-  boxShadow: const [
-    BoxShadow(color: Color(0x0809233F), blurRadius: 12, offset: Offset(0, 3)),
-  ],
+  borderRadius: BorderRadius.circular(16),
+  border: Border.all(color: const Color(0xFFE8EDF3)),
 );
 
 String _formatPrice(int value) =>

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:curved_navigation_bar_pro/curved_navigation_bar_pro.dart';
 
 import '../../core/theme/app_colors.dart';
 
@@ -12,79 +13,69 @@ class AppBottomNavigation extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelected;
 
-  static const _items = [
-    (Icons.home_rounded, 'Beranda'),
-    (Icons.explore_outlined, 'Jelajah'),
-    (Icons.map_outlined, 'Peta'),
-    (Icons.confirmation_number_outlined, 'Tiket'),
-    (Icons.person_outline_rounded, 'Profil'),
+  static const _items = <CurvedNavigationItemPro>[
+    CurvedNavigationItemPro(
+      inactiveIcon: Icons.home_outlined,
+      activeIcon: Icons.home_rounded,
+      label: 'Beranda',
+    ),
+    CurvedNavigationItemPro(
+      inactiveIcon: Icons.explore_outlined,
+      activeIcon: Icons.explore_rounded,
+      label: 'Jelajah',
+    ),
+    CurvedNavigationItemPro(
+      inactiveIcon: Icons.map_outlined,
+      activeIcon: Icons.map_rounded,
+      label: 'Peta',
+    ),
+    CurvedNavigationItemPro(
+      inactiveIcon: Icons.confirmation_number_outlined,
+      activeIcon: Icons.confirmation_number_rounded,
+      label: 'Tiket',
+    ),
+    CurvedNavigationItemPro(
+      inactiveIcon: Icons.person_outline_rounded,
+      activeIcon: Icons.person_rounded,
+      label: 'Profil',
+    ),
   ];
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x1208233F),
-            blurRadius: 14,
-            offset: Offset(0, -4),
-          ),
-        ],
+    return CurvedNavigationBarPro(
+      items: _items,
+      currentIndex: selectedIndex,
+      onTap: onSelected,
+      backgroundColor: Colors.white,
+      activeColor: AppColors.orange,
+      activeIconColor: Colors.white,
+      inactiveColor: const Color(0xFF8190A5),
+      fabColor: AppColors.orange,
+      barHeight: 72,
+      fabRadius: 28,
+      fabGap: 8,
+      fabSink: 18,
+      notchShoulderRadius: 12,
+      cornerRadius: 22,
+      contentPadding: 14,
+      elevation: 12,
+      shadowColor: const Color(0x1A08233F),
+      animationDuration: const Duration(milliseconds: 400),
+      animationCurve: Curves.easeInOutCubic,
+      activeTextStyle: const TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
+        color: AppColors.navy,
       ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 62,
-          child: Row(
-            children: [
-              for (var index = 0; index < _items.length; index++)
-                Expanded(
-                  child: InkWell(
-                    onTap: () => onSelected(index),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          _items[index].$1,
-                          size: 21,
-                          color: selectedIndex == index
-                              ? AppColors.orange
-                              : const Color(0xFF9AA5B1),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          _items[index].$2,
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: selectedIndex == index
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                            color: selectedIndex == index
-                                ? AppColors.navy
-                                : const Color(0xFF9AA5B1),
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Container(
-                          width: 13,
-                          height: 2,
-                          decoration: BoxDecoration(
-                            color: selectedIndex == index
-                                ? AppColors.orange
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
+      inactiveTextStyle: const TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w500,
+        color: Color(0xFF8190A5),
       ),
+      inactiveIconSize: 21,
+      activeIconSize: 23,
+      useSafeArea: true,
     );
   }
 }

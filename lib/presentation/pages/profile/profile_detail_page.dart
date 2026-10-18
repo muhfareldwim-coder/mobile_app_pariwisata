@@ -1,128 +1,98 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../data/models/user.dart';
-import '../../../data/services/profile_photo_service.dart';
+import '../../../data/services/api_service.dart';
+import '../../../data/services/auth_service.dart';
 
-const _profileBlue = Color(0xFF1674E8);
-const _profileInk = Color(0xFF153454);
-const _profileBackground = Color(0xFFF9F8FF);
-const _avatarUrl =
-    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=320&q=85';
+const _profileNavy = Color(0xFF12304A);
+const _profileRaisedNavy = Color(0xFF244D70);
+const _profileInk = Color(0xFF173657);
+const _profileBackground = Color(0xFFF7F9FC);
 
 class ProfileDetailPage extends StatefulWidget {
-  const ProfileDetailPage({super.key, required this.user});
+  const ProfileDetailPage({super.key, required this.user, this.authService});
 
   final User user;
+  final AuthService? authService;
 
   @override
   State<ProfileDetailPage> createState() => _ProfileDetailPageState();
 }
 
 class _ProfileDetailPageState extends State<ProfileDetailPage> {
+  AuthService get _authService => widget.authService ?? AuthService();
+
   final _formKey = GlobalKey<FormState>();
   late final _nameController = TextEditingController(text: widget.user.name);
-  late final _usernameController = TextEditingController(
-    text: widget.user.username,
-  );
   late final _emailController = TextEditingController(text: widget.user.email);
   late final _phoneController = TextEditingController(text: widget.user.phone);
-  String? _photoPath;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPhoto();
-  }
+  final _passwordController = TextEditingController();
+  final _passwordConfirmationController = TextEditingController();
+  bool _showPassword = false;
+  bool _showPasswordConfirmation = false;
+  bool _isSaving = false;
 
   @override
   void dispose() {
     _nameController.dispose();
-    _usernameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _passwordController.dispose();
+    _passwordConfirmationController.dispose();
     super.dispose();
   }
 
-  void _saveProfile() {
+  Future<void> _saveProfile() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    _showPhotoMessage(
-      'Penyimpanan profil akan tersedia setelah akun terhubung.',
-    );
-  }
-
-  Future<void> _loadPhoto() async {
+    setState(() => _isSaving = true);
     try {
-      final photo = await ProfilePhotoService.getPhoto(widget.user.id);
-      if (!mounted) return;
-      setState(() => _photoPath = photo?.path);
-    } on Exception catch (error, stackTrace) {
-      if (!mounted) return;
-      debugPrint('Profile photo could not be loaded: $error');
-      debugPrintStack(stackTrace: stackTrace);
-      _showPhotoMessage('Foto profil gagal dimuat: $error');
-    }
-  }
-
-  Future<void> _changePhoto() async {
-    try {
-      final photo = await ProfilePhotoService.pickPhoto(widget.user.id);
-      if (!mounted || photo == null) return;
-      setState(() => _photoPath = photo.path);
-      _showPhotoMessage('Foto profil berhasil diperbarui.');
-    } on PlatformException catch (error, stackTrace) {
-      debugPrint(
-        'Profile photo picker failed: ${error.code}: ${error.message}',
+      final updatedUser = await _authService.updateProfile(
+        name: _nameController.text,
+        email: _emailController.text,
+        phone: _phoneController.text,
+        password: _passwordController.text,
+        passwordConfirmation: _passwordConfirmationController.text,
       );
-      debugPrintStack(stackTrace: stackTrace);
-      if (mounted) _showPhotoMessage(_photoPickerErrorMessage(error));
-    } on FileSystemException catch (error, stackTrace) {
-      debugPrint('Profile photo could not be saved: $error');
-      debugPrintStack(stackTrace: stackTrace);
-      if (mounted) {
-        _showPhotoMessage(
-          'Foto gagal disimpan ke perangkat. Periksa ruang penyimpanan.',
-        );
-      }
-    } on Exception catch (error, stackTrace) {
-      debugPrint('Profile photo update failed: $error');
-      debugPrintStack(stackTrace: stackTrace);
-      if (mounted) {
-        _showPhotoMessage(
-          'Foto gagal diperbarui (${error.runtimeType}). Tutup lalu buka kembali aplikasi dan coba lagi.',
-        );
-      }
+      if (mounted) Navigator.pop(context, updatedUser);
+    } on ApiException catch (error) {
+      if (mounted) _showMessage(error.message);
+    } on FormatException catch (error) {
+      if (mounted) _showMessage('Respons profil tidak valid: $error');
+    } on Exception catch (error) {
+      if (mounted) _showMessage('Profil gagal disimpan: $error');
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
-  String _photoPickerErrorMessage(PlatformException error) {
-    if (error.code == 'already_active') {
-      return 'Galeri masih terbuka. Tutup galeri lalu coba lagi.';
-    }
-    if (error.code == 'photo_access_denied' ||
-        error.code == 'photo_access_denied_limited') {
-      return 'Akses foto ditolak. Izinkan akses Foto untuk JemberGo di Pengaturan.';
-    }
-    return 'Galeri gagal dibuka (${error.code}). Tutup lalu buka kembali aplikasi dan coba lagi.';
-  }
-
-  Future<void> _removePhoto() async {
-    try {
-      await ProfilePhotoService.removePhoto(widget.user.id);
-      if (!mounted) return;
-      setState(() => _photoPath = null);
-      _showPhotoMessage('Foto profil berhasil dihapus.');
-    } on Exception {
-      if (mounted) _showPhotoMessage('Foto profil gagal dihapus. Coba lagi.');
-    }
-  }
-
-  void _showPhotoMessage(String message) {
+  void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
+  }
+
+  String? _optionalPassword(String? value) {
+    final password = value ?? '';
+    if (password.isEmpty && _passwordConfirmationController.text.isEmpty) {
+      return null;
+    }
+    if (password.length < 8) return 'Minimal 8 karakter';
+    if (password != _passwordConfirmationController.text) {
+      return 'Konfirmasi kata sandi tidak sama';
+    }
+    return null;
+  }
+
+  String? _optionalPasswordConfirmation(String? value) {
+    final confirmation = value ?? '';
+    if (_passwordController.text.isEmpty && confirmation.isEmpty) return null;
+    if (_passwordController.text.length < 8) {
+      return 'Kata sandi baru minimal 8 karakter';
+    }
+    if (confirmation != _passwordController.text) {
+      return 'Konfirmasi kata sandi tidak sama';
+    }
+    return null;
   }
 
   @override
@@ -130,214 +100,221 @@ class _ProfileDetailPageState extends State<ProfileDetailPage> {
     return Scaffold(
       backgroundColor: _profileBackground,
       body: SafeArea(
-        child: Column(
-          children: [
-            _DetailHeader(
-              onProfileTap: () {
-                Navigator.maybePop(context);
-              },
-            ),
-            Expanded(
-              child: Form(
-                key: _formKey,
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(24, 10, 24, 24),
+        bottom: false,
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              const _DetailHeader(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _ProfilePhoto(
-                      imagePath: _photoPath,
-                      onChange: _changePhoto,
-                      onRemove: _removePhoto,
-                    ),
-                    const SizedBox(height: 24),
                     _DetailSection(
-                      title: 'Informasi Utama',
-                      icon: Icons.badge_outlined,
+                      title: 'Informasi pribadi',
+                      subtitle: 'Pastikan data yang digunakan untuk pemesanan selalu benar.',
+                      icon: Icons.person_outline_rounded,
                       children: [
                         _ProfileInput(
-                          label: 'Nama Lengkap',
+                          label: 'Nama lengkap',
+                          hint: 'Masukkan nama lengkap',
                           controller: _nameController,
-                          icon: Icons.person_outline,
-                          validator: _required,
+                          validator: _validName,
                         ),
                         _ProfileInput(
-                          label: 'Nama Panggilan / Username',
-                          controller: _usernameController,
-                          icon: Icons.alternate_email_rounded,
-                          validator: _required,
-                        ),
-                        _ProfileInput(
-                          label: 'Alamat Email',
+                          label: 'Alamat email',
+                          hint: 'Masukkan email',
                           controller: _emailController,
-                          icon: Icons.mail_outline_rounded,
                           keyboardType: TextInputType.emailAddress,
-                          trailing: const _StatusPill(
-                            icon: Icons.verified_rounded,
-                            label: 'Terverifikasi',
-                          ),
                           validator: (value) =>
-                              value != null && value.contains('@')
+                              value != null &&
+                                  value.trim().length <= 150 &&
+                                  RegExp(
+                                    r'^[^@\s]+@gmail\.com$',
+                                    caseSensitive: false,
+                                  ).hasMatch(value.trim())
                               ? null
-                              : 'Masukkan alamat email yang valid',
+                              : 'Gunakan alamat email @gmail.com yang valid',
                         ),
                         _ProfileInput(
-                          label: 'Nomor WhatsApp / HP',
+                          label: 'Nomor WhatsApp',
+                          hint: 'Masukkan nomor telepon',
                           controller: _phoneController,
-                          icon: Icons.call_outlined,
                           keyboardType: TextInputType.phone,
-                          trailing: const _StatusPill(
-                            icon: Icons.check_circle_rounded,
-                            label: 'Terhubung',
+                          validator: _validPhone,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _DetailSection(
+                      title: 'Keamanan akun',
+                      subtitle: 'Gunakan minimal 8 karakter. Kosongkan jika tidak ingin mengubahnya.',
+                      icon: Icons.shield_outlined,
+                      children: [
+                        _ProfileInput(
+                          label: 'Password baru',
+                          hint: 'Password baru',
+                          controller: _passwordController,
+                          obscureText: !_showPassword,
+                          suffixIcon: IconButton(
+                            tooltip: _showPassword
+                                ? 'Sembunyikan password'
+                                : 'Tampilkan password',
+                            onPressed: () =>
+                                setState(() => _showPassword = !_showPassword),
+                            icon: Icon(
+                              _showPassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                            ),
                           ),
-                          validator: _required,
+                          validator: _optionalPassword,
+                        ),
+                        _ProfileInput(
+                          label: 'Konfirmasi password',
+                          hint: 'Ulangi password',
+                          controller: _passwordConfirmationController,
+                          obscureText: !_showPasswordConfirmation,
+                          suffixIcon: IconButton(
+                            tooltip: _showPasswordConfirmation
+                                ? 'Sembunyikan konfirmasi password'
+                                : 'Tampilkan konfirmasi password',
+                            onPressed: () => setState(
+                              () => _showPasswordConfirmation =
+                                  !_showPasswordConfirmation,
+                            ),
+                            icon: Icon(
+                              _showPasswordConfirmation
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                            ),
+                          ),
+                          validator: _optionalPasswordConfirmation,
                         ),
                       ],
                     ),
                     const SizedBox(height: 22),
-                    _DetailSection(
-                      title: 'Keamanan Akun',
-                      icon: Icons.shield_outlined,
-                      children: [_PasswordTile(onTap: _showChangePassword)],
-                    ),
-                    const SizedBox(height: 28),
-                    SizedBox(
-                      height: 48,
-                      child: FilledButton.icon(
-                        onPressed: _saveProfile,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _profileBlue,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 2,
-                        ),
-                        icon: const Icon(Icons.save_outlined, size: 19),
-                        label: const Text(
-                          'Simpan Perubahan',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 9),
-                    SizedBox(
-                      height: 48,
-                      child: TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: TextButton.styleFrom(
-                          backgroundColor: const Color(0xFFEDEEFF),
-                          foregroundColor: _profileInk,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 48,
+                            child: FilledButton(
+                              onPressed: _isSaving ? null : _saveProfile,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: _profileNavy,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: _isSaving
+                                  ? const SizedBox.square(
+                                      dimension: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Simpan',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                            ),
                           ),
                         ),
-                        child: const Text('Batal'),
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: SizedBox(
+                            height: 48,
+                            child: OutlinedButton(
+                              onPressed: _isSaving
+                                  ? null
+                                  : () => Navigator.pop(context),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _profileNavy,
+                                side: const BorderSide(
+                                  color: _profileNavy,
+                                  width: 1.2,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text(
+                                'Batal',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  String? _required(String? value) =>
-      value == null || value.trim().isEmpty ? 'Bagian ini wajib diisi' : null;
+  String? _validName(String? value) {
+    if (value == null || value.trim().isEmpty) return 'Nama wajib diisi';
+    if (value.trim().length > 100 ||
+        !RegExp(r'^[\p{L}\s]+$', unicode: true).hasMatch(value.trim())) {
+      return 'Nama hanya boleh berisi huruf dan spasi (maksimal 100 karakter)';
+    }
+    return null;
+  }
 
-  Future<void> _showChangePassword() async {
-    final passwordController = TextEditingController();
-    final confirmController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Ubah Kata Sandi'),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Kata sandi baru'),
-                validator: (value) => value != null && value.length >= 8
-                    ? null
-                    : 'Minimal 8 karakter',
-              ),
-              TextFormField(
-                controller: confirmController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Konfirmasi kata sandi',
-                ),
-                validator: (value) => value == passwordController.text
-                    ? null
-                    : 'Kata sandi tidak sama',
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() ?? false) {
-                Navigator.pop(context);
-                _showPhotoMessage('Kata sandi berhasil diperbarui.');
-              }
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
-      ),
-    );
-    passwordController.dispose();
-    confirmController.dispose();
+  String? _validPhone(String? value) {
+    final phone = value?.trim() ?? '';
+    if (phone.isEmpty ||
+        RegExp(r'^(?:[0-9]{10,12}|\+[0-9]{10,15})$').hasMatch(phone)) {
+      return null;
+    }
+    return 'Gunakan 10-12 digit lokal atau awali + untuk nomor internasional';
   }
 }
 
 class _DetailHeader extends StatelessWidget {
-  const _DetailHeader({required this.onProfileTap});
-
-  final VoidCallback onProfileTap;
+  const _DetailHeader();
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 64,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+    return Container(
+      key: const ValueKey('edit-profile-header'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      color: _profileBackground,
+      child: SizedBox(
+        height: 56,
         child: Row(
           children: [
             IconButton(
               onPressed: () => Navigator.maybePop(context),
               tooltip: 'Kembali',
-              icon: const Icon(Icons.arrow_back, color: _profileInk),
+              icon: const Icon(Icons.arrow_back_rounded, color: _profileInk),
             ),
             const SizedBox(width: 4),
             const Text(
-              'Detail',
+              'Edit Profil',
               style: TextStyle(
                 color: _profileInk,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.2,
               ),
-            ),
-            const Spacer(),
-            IconButton.filled(
-              onPressed: onProfileTap,
-              tooltip: 'Profil',
-              style: IconButton.styleFrom(
-                backgroundColor: const Color(0xFF061D38),
-                foregroundColor: Colors.white,
-              ),
-              icon: const Icon(Icons.person_outline_rounded, size: 19),
             ),
           ],
         ),
@@ -346,134 +323,32 @@ class _DetailHeader extends StatelessWidget {
   }
 }
 
-class _ProfilePhoto extends StatelessWidget {
-  const _ProfilePhoto({
-    required this.imagePath,
-    required this.onChange,
-    required this.onRemove,
-  });
-
-  final String? imagePath;
-  final VoidCallback onChange;
-  final VoidCallback onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              width: 112,
-              height: 112,
-              padding: const EdgeInsets.all(5),
-              decoration: const BoxDecoration(
-                color: Color(0xFFE5E7FF),
-                shape: BoxShape.circle,
-              ),
-              child: ClipOval(
-                child: imagePath == null
-                    ? Image.network(
-                        _avatarUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const _DefaultProfilePhoto(),
-                      )
-                    : Image.file(
-                        File(imagePath!),
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const _DefaultProfilePhoto(),
-                      ),
-              ),
-            ),
-            Positioned(
-              right: -2,
-              bottom: 2,
-              child: IconButton.filled(
-                onPressed: onChange,
-                tooltip: 'Ganti foto',
-                style: IconButton.styleFrom(
-                  backgroundColor: _profileBlue,
-                  foregroundColor: Colors.white,
-                ),
-                icon: const Icon(Icons.camera_alt_outlined, size: 18),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 11),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextButton(
-              onPressed: onChange,
-              style: TextButton.styleFrom(
-                backgroundColor: const Color(0xFFE9EBFF),
-                foregroundColor: _profileBlue,
-                minimumSize: const Size(84, 31),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(9),
-                ),
-              ),
-              child: const Text('Ganti Foto', style: TextStyle(fontSize: 12)),
-            ),
-            const SizedBox(width: 8),
-            TextButton(
-              onPressed: onRemove,
-              style: TextButton.styleFrom(
-                backgroundColor: const Color(0xFFFFECEE),
-                foregroundColor: const Color(0xFFDC2435),
-                minimumSize: const Size(84, 31),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(9),
-                ),
-              ),
-              child: const Text('Hapus Foto', style: TextStyle(fontSize: 12)),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _DefaultProfilePhoto extends StatelessWidget {
-  const _DefaultProfilePhoto();
-
-  @override
-  Widget build(BuildContext context) => const ColoredBox(
-    color: Color(0xFFDCE8F6),
-    child: Icon(Icons.person, size: 54, color: _profileInk),
-  );
-}
-
 class _DetailSection extends StatelessWidget {
   const _DetailSection({
     required this.title,
+    required this.subtitle,
     required this.icon,
     required this.children,
   });
 
   final String title;
+  final String subtitle;
   final IconData icon;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 17),
+      padding: const EdgeInsets.fromLTRB(16, 17, 16, 2),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: const Color(0xFFE4EAF0)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0809233F),
-            blurRadius: 12,
-            offset: Offset(0, 3),
+            blurRadius: 14,
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -482,14 +357,38 @@ class _DetailSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, color: _profileBlue, size: 19),
-              const SizedBox(width: 7),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: _profileInk,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF0F6),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(icon, color: _profileNavy, size: 20),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: _profileInk,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: Color(0xFF73829A),
+                        fontSize: 11,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -505,19 +404,21 @@ class _DetailSection extends StatelessWidget {
 class _ProfileInput extends StatelessWidget {
   const _ProfileInput({
     required this.label,
+    required this.hint,
     required this.controller,
-    required this.icon,
     required this.validator,
     this.keyboardType,
-    this.trailing,
+    this.obscureText = false,
+    this.suffixIcon,
   });
 
   final String label;
+  final String hint;
   final TextEditingController controller;
-  final IconData icon;
   final String? Function(String?) validator;
   final TextInputType? keyboardType;
-  final Widget? trailing;
+  final bool obscureText;
+  final Widget? suffixIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -526,156 +427,58 @@ class _ProfileInput extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    text: label,
-                    children: const [
-                      TextSpan(
-                        text: ' *',
-                        style: TextStyle(color: Color(0xFFE2303A)),
-                      ),
-                    ],
-                  ),
-                  style: const TextStyle(
-                    color: Color(0xFF424956),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              ?trailing,
-            ],
-          ),
-          const SizedBox(height: 6),
-          SizedBox(
-            height: 48,
-            child: TextFormField(
-              controller: controller,
-              keyboardType: keyboardType,
-              validator: validator,
-              style: const TextStyle(color: Color(0xFF273244), fontSize: 13),
-              decoration: InputDecoration(
-                prefixIcon: Icon(
-                  icon,
-                  color: const Color(0xFF7A8392),
-                  size: 19,
-                ),
-                filled: true,
-                fillColor: const Color(0xFFF1F1FE),
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: _profileBlue, width: 1.3),
-                ),
-                errorStyle: const TextStyle(fontSize: 10, height: .7),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE1EBFF),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: _profileBlue),
-          const SizedBox(width: 3),
           Text(
             label,
             style: const TextStyle(
-              color: _profileBlue,
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
+              color: Color(0xFF31516B),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: controller,
+            keyboardType: keyboardType,
+            obscureText: obscureText,
+            validator: validator,
+            style: const TextStyle(
+              color: _profileInk,
+              fontSize: 13,
+              height: 1.2,
+            ),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: const TextStyle(
+                color: Color(0xFFA1B0BA),
+                fontSize: 12,
+              ),
+              filled: true,
+              fillColor: const Color(0xFFFBFDFE),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 13,
+                vertical: 13,
+              ),
+              suffixIcon: suffixIcon,
+              suffixIconColor: const Color(0xFF7890A1),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(11),
+                borderSide: const BorderSide(color: Color(0xFFDBE6EE)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(11),
+                borderSide: const BorderSide(color: Color(0xFFDBE6EE)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(11),
+                borderSide: const BorderSide(
+                  color: _profileRaisedNavy,
+                  width: 1.3,
+                ),
+              ),
+              errorStyle: const TextStyle(fontSize: 10, height: .8),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PasswordTile extends StatelessWidget {
-  const _PasswordTile({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFFF1F1FE),
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(11),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE1E9FF),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.lock_reset_rounded,
-                  color: _profileBlue,
-                  size: 19,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Ubah Kata Sandi',
-                      style: TextStyle(
-                        color: Color(0xFF29364A),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 3),
-                    Text(
-                      'Terakhir diperbarui 2 bulan lalu',
-                      style: TextStyle(color: Color(0xFF7B8290), fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Color(0xFF77808D)),
-            ],
-          ),
-        ),
       ),
     );
   }

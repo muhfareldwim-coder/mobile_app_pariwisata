@@ -3,11 +3,12 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/article.dart';
-import '../../../data/destination_data.dart';
 import '../../../data/models/destination.dart';
 import '../../../data/services/article_service.dart';
+import '../../../data/services/auth_service.dart';
 import '../../../data/services/device_location_service.dart';
 import '../../../data/services/destination_service.dart';
+import '../../../data/services/favorite_destination_service.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../../widgets/article_card.dart';
 import '../article_list_page.dart';
@@ -18,12 +19,13 @@ import '../map/map_page.dart';
 import '../profile/profile_page.dart';
 import '../ticket/my_ticket_page.dart';
 
-const _deepNavy = Color(0xFF091F39);
-const _raisedNavy = Color(0xFF123B78);
+const _deepNavy = Color(0xFF12304A);
+const _raisedNavy = Color(0xFF244D70);
 const _softGold = Color(0xFFFFC22F);
 const _pageBackground = Color(0xFFF6F8FB);
-const _bodyText = Color(0xFF132C49);
-const _secondaryText = Color(0xFF8492A5);
+const _bodyText = Color(0xFF172B4D);
+const _secondaryText = Color(0xFF8190A5);
+const _homeBorder = Color(0xFFE3EAF2);
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -31,12 +33,14 @@ class HomePage extends StatefulWidget {
     this.onTabSelected,
     this.onCategorySelected,
     this.articleService,
+    this.destinationService,
     this.locationProvider,
   });
 
   final ValueChanged<int>? onTabSelected;
   final ValueChanged<String>? onCategorySelected;
   final ArticleService? articleService;
+  final DestinationService? destinationService;
   final Future<LatLng?> Function()? locationProvider;
 
   @override
@@ -44,11 +48,10 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late final _favoriteDestinationIds = <String>{};
   late final ArticleService _articleService;
-  final _destinationService = DestinationService();
+  late final DestinationService _destinationService;
   List<Article> _articles = const [];
-  List<Destination> _destinations = destinations;
+  List<Destination> _destinations = const [];
   String? _articleLoadError;
   String? _loadError;
   String? _locationWarning;
@@ -58,9 +61,21 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    FavoriteDestinationService.revision.addListener(_onFavoritesChanged);
     _articleService = widget.articleService ?? ArticleService();
+    _destinationService = widget.destinationService ?? DestinationService();
     _loadDestinations();
     _loadArticles();
+  }
+
+  @override
+  void dispose() {
+    FavoriteDestinationService.revision.removeListener(_onFavoritesChanged);
+    super.dispose();
+  }
+
+  void _onFavoritesChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadArticles() async {
@@ -89,6 +104,7 @@ class _HomePageState extends State<HomePage> {
       _isLoading = true;
       _loadError = null;
       _locationWarning = null;
+      _destinations = const [];
     });
 
     var origin = DeviceLocationService.jemberFallback;
@@ -100,11 +116,11 @@ class _HomePageState extends State<HomePage> {
         origin = currentLocation;
       } else {
         _locationWarning =
-            'Lokasi tidak tersedia; jarak dihitung dari Alun-alun Jember.';
+            'Lokasi tidak tersedia; jarak dihitung dari lokasi anda.';
       }
     } on Exception {
       _locationWarning =
-          'Lokasi gagal dimuat; jarak dihitung dari Alun-alun Jember.';
+          'Lokasi gagal dimuat; jarak dihitung dari lokasi anda.';
     }
     if (!mounted) return;
 
@@ -140,13 +156,13 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: _pageBackground,
       body: SafeArea(
+        top: false,
         bottom: false,
         child: Column(
           children: [
             _HomeHeader(
               key: const ValueKey('home-header'),
               onProfileTap: () => _openTab(context, 4),
-              onFavoriteTap: () => _openExplorer(context),
               onNotificationsTap: () => _openTab(context, 3),
             ),
             Expanded(
@@ -157,14 +173,9 @@ class _HomePageState extends State<HomePage> {
                 child: ListView(
                   key: const ValueKey('home-scroll'),
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 30),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
                   children: [
                     _HeroBanner(onExploreTap: () => _openExplorer(context)),
-                    if (_isLoading)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: LinearProgressIndicator(),
-                      ),
                     if (_loadError != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 12),
@@ -181,12 +192,10 @@ class _HomePageState extends State<HomePage> {
                           ],
                         ),
                       ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 26),
                     _SectionHeading(
                       title: 'Kategori Wisata',
                       subtitle: 'Pilih ragam destinasi unggulan',
-                      action: 'Semua',
-                      onAction: () => _openExplorer(context),
                     ),
                     const SizedBox(height: 10),
                     Row(
@@ -195,8 +204,8 @@ class _HomePageState extends State<HomePage> {
                           icon: Icons.forest_rounded,
                           label: 'Alam',
                           count: _categoryCount('ALAM'),
-                          color: const Color(0xFF287B61),
-                          softColor: const Color(0xFFE7F4ED),
+                          color: _raisedNavy,
+                          softColor: const Color(0xFFEAF2F8),
                           onTap: () => _openCategory(context, 'ALAM'),
                         ),
                         const SizedBox(width: 9),
@@ -204,8 +213,8 @@ class _HomePageState extends State<HomePage> {
                           icon: Icons.waves_rounded,
                           label: 'Bahari',
                           count: _categoryCount('BAHARI'),
-                          color: const Color(0xFF2676B5),
-                          softColor: const Color(0xFFE8F3FC),
+                          color: _raisedNavy,
+                          softColor: const Color(0xFFEAF2F8),
                           onTap: () => _openCategory(context, 'BAHARI'),
                         ),
                         const SizedBox(width: 9),
@@ -213,13 +222,13 @@ class _HomePageState extends State<HomePage> {
                           icon: Icons.attractions_rounded,
                           label: 'Buatan',
                           count: _categoryCount('BUATAN'),
-                          color: const Color(0xFFB76A1C),
-                          softColor: const Color(0xFFFFF1DF),
+                          color: _raisedNavy,
+                          softColor: const Color(0xFFEAF2F8),
                           onTap: () => _openCategory(context, 'BUATAN'),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 26),
                     _SectionHeading(
                       title: 'Destinasi Populer',
                       subtitle: 'Paling banyak mendapat ulasan wisatawan',
@@ -227,38 +236,54 @@ class _HomePageState extends State<HomePage> {
                       onAction: () => _openExplorer(context),
                     ),
                     const SizedBox(height: 10),
-                    SizedBox(
-                      height: 330,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: homePopularDestinations.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(width: 12),
-                        itemBuilder: (context, index) => SizedBox(
-                          width: 240,
-                          child: _DestinationCard(
-                            key: ValueKey(
-                              'popular-destination-${homePopularDestinations[index].id}',
-                            ),
-                            destination: homePopularDestinations[index],
-                            isFavorite: _favoriteDestinationIds.contains(
-                              homePopularDestinations[index].id,
-                            ),
-                            onFavoriteTap: () => setState(() {
-                              final id = homePopularDestinations[index].id;
-                              if (!_favoriteDestinationIds.add(id)) {
-                                _favoriteDestinationIds.remove(id);
-                              }
-                            }),
-                            onTap: () => _openDestinationDetail(
-                              context,
-                              homePopularDestinations[index],
-                            ),
-                          ),
+                    if (_isLoading)
+                      const SizedBox(
+                        height: 310,
+                        child: Center(
+                          child: Text('Sedang mempersiapkan wisata...'),
+                        ),
+                      )
+                    else if (homePopularDestinations.isEmpty)
+                      const SizedBox(
+                        height: 100,
+                        child: Center(child: Text('Belum ada wisata populer.')),
+                      )
+                    else
+                      SizedBox(
+                        height: 310,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: homePopularDestinations.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(width: 12),
+                          itemBuilder: (context, index) {
+                            final destination = homePopularDestinations[index];
+                            return SizedBox(
+                              width: (MediaQuery.sizeOf(context).width * 0.76)
+                                  .clamp(228.0, 280.0)
+                                  .toDouble(),
+                              child: _DestinationCard(
+                                key: ValueKey(
+                                  'popular-destination-${destination.id}',
+                                ),
+                                destination: destination,
+                                isFavorite: FavoriteDestinationService.contains(
+                                  destination.id,
+                                ),
+                                onFavoriteTap: () =>
+                                    FavoriteDestinationService.toggle(
+                                      destination,
+                                    ),
+                                onTap: () => _openDestinationDetail(
+                                  context,
+                                  destination,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 26),
                     _SectionHeading(
                       title: 'Destinasi Terdekat',
                       subtitle: _locationWarning ?? 'Pilihan wisata dengan jarak terdekat dari lokasi Anda',
@@ -266,15 +291,28 @@ class _HomePageState extends State<HomePage> {
                       onAction: () => _openExplorer(context),
                     ),
                     const SizedBox(height: 10),
-                    for (final destination in homeDestinations)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 9),
-                        child: _NearbyDestinationTile(
-                          destination: destination,
-                          onTap: () =>
-                              _openDestinationDetail(context, destination),
+                    if (_isLoading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Center(
+                          child: Text('Sedang mempersiapkan wisata...'),
                         ),
-                      ),
+                      )
+                    else if (homeDestinations.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Center(child: Text('Belum ada wisata terdekat.')),
+                      )
+                    else
+                      for (final destination in homeDestinations)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _NearbyDestinationTile(
+                            destination: destination,
+                            onTap: () =>
+                                _openDestinationDetail(context, destination),
+                          ),
+                        ),
                     const SizedBox(height: 12),
                     _ArticlesSection(
                       articles: _articles,
@@ -355,70 +393,74 @@ class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
     super.key,
     required this.onProfileTap,
-    required this.onFavoriteTap,
     required this.onNotificationsTap,
   });
 
   final VoidCallback onProfileTap;
-  final VoidCallback onFavoriteTap;
   final VoidCallback onNotificationsTap;
 
   @override
   Widget build(BuildContext context) {
+    final userName = AuthService.currentUser?.name.trim();
+    final firstName = userName == null || userName.isEmpty
+        ? 'Petualang'
+        : userName.split(RegExp(r'\s+')).first;
+    final greetingName =
+        '${firstName[0].toUpperCase()}${firstName.substring(1)}';
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        MediaQuery.viewPaddingOf(context).top + 10,
+        16,
+        14,
+      ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [_deepNavy, Color(0xFF133D62)],
+          colors: [_deepNavy, _raisedNavy],
         ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(26)),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x30091F39),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
       ),
       child: Column(
         children: [
           Row(
             children: [
-              const _BrandMark(),
-              const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '• JELAJAH JEMBER',
+                      'Selamat datang, $greetingName',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: _softGold,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFCCD8E5),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Halo, Petualang! 🌿',
-                      style: TextStyle(
-                        color: AppColors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                    const SizedBox(height: 2),
+                    const Text.rich(
+                      TextSpan(
+                        style: TextStyle(fontFamily: 'Satisfy', fontSize: 24),
+                        children: [
+                          TextSpan(
+                            text: 'Jember',
+                            style: TextStyle(color: AppColors.white),
+                          ),
+                          TextSpan(
+                            text: 'Go',
+                            style: TextStyle(color: AppColors.orange),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-              _HeaderAction(
-                icon: Icons.favorite_border_rounded,
-                tooltip: 'Favorit',
-                onTap: onFavoriteTap,
-              ),
-              const SizedBox(width: 6),
               _HeaderAction(
                 icon: Icons.notifications_none_rounded,
                 tooltip: 'Notifikasi',
@@ -432,7 +474,7 @@ class _HomeHeader extends StatelessWidget {
                   onTap: onProfileTap,
                   borderRadius: BorderRadius.circular(50),
                   child: const CircleAvatar(
-                    radius: 17,
+                    radius: 19,
                     backgroundColor: Color(0xFFFFE4B3),
                     child: Icon(
                       Icons.person_rounded,
@@ -445,27 +487,6 @@ class _HomeHeader extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _BrandMark extends StatelessWidget {
-  const _BrandMark();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 42,
-      height: 42,
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(13),
-      ),
-      child: Image.asset(
-        'assets/logo_jembergonobackgroud.png',
-        fit: BoxFit.contain,
       ),
     );
   }
@@ -495,12 +516,12 @@ class _HeaderAction extends StatelessWidget {
           onTap: onTap,
           customBorder: const CircleBorder(),
           child: SizedBox(
-            width: 34,
-            height: 34,
+            width: 40,
+            height: 40,
             child: Stack(
               alignment: Alignment.center,
               children: [
-                Icon(icon, color: AppColors.white, size: 17),
+                Icon(icon, color: AppColors.white, size: 19),
                 if (showBadge)
                   Positioned(
                     top: 5,
@@ -531,9 +552,9 @@ class _HeroBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(18),
       child: SizedBox(
-        height: 176,
+        height: 184,
         width: double.infinity,
         child: Stack(
           fit: StackFit.expand,
@@ -543,10 +564,15 @@ class _HeroBanner extends StatelessWidget {
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) => Container(
                 color: _raisedNavy,
-                child: const Icon(
-                  Icons.landscape_outlined,
-                  color: AppColors.white,
-                  size: 48,
+                child: const Center(
+                  child: Text(
+                    'JemberGo',
+                    style: TextStyle(
+                      color: AppColors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -556,86 +582,75 @@ class _HeroBanner extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Color(0x0A091F39),
-                    Color(0x55091F39),
+                    Color(0x00091F39),
+                    Color(0x4D091F39),
                     Color(0xE6091F39),
                   ],
-                  stops: [0.12, 0.50, 1],
+                  stops: [0.12, 0.48, 1],
                 ),
               ),
             ),
-            Positioned(
-              top: 12,
-              right: 12,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xB51C3E5B),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  'Kab. Jember',
-                  style: TextStyle(
-                    color: Color(0xFFE1EAF3),
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.auto_awesome_rounded,
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'PESONA KABUPATEN JEMBER',
+                      style: TextStyle(
                         color: _softGold,
-                        size: 13,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.7,
                       ),
-                      SizedBox(width: 5),
-                      Text(
-                        'EKSPLORASI EKSOTIS',
-                        style: TextStyle(
-                          color: _softGold,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Jember, selalu punya cerita',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.white,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w600,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    const Text(
+                      'Pantai, alam, dan budaya menantimu.',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Color(0xFFE2EAF2),
+                        fontSize: 12,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    FilledButton(
+                      onPressed: onExploreTap,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF9800),
+                        foregroundColor: AppColors.white,
+                        minimumSize: const Size(0, 40),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Pesona Kota Karnaval,\nTembakau & Surga Selatan',
-                    style: TextStyle(
-                      color: AppColors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      height: 1.18,
-                    ),
-                  ),
-                  const SizedBox(height: 9),
-                  FilledButton.icon(
-                    onPressed: onExploreTap,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.orange,
-                      foregroundColor: AppColors.white,
-                      minimumSize: const Size(0, 31),
-                      padding: const EdgeInsets.symmetric(horizontal: 11),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(9),
+                      child: const Text(
+                        'Jelajahi Destinasi',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                    icon: const Icon(Icons.arrow_forward_rounded, size: 13),
-                    label: const Text(
-                      'Jelajahi Sekarang',
-                      style: TextStyle(fontSize: 10),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -666,7 +681,7 @@ class _ArticlesSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final latestArticles = articles.take(3).toList();
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 30, 20, 8),
+      padding: const EdgeInsets.fromLTRB(0, 26, 0, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -698,14 +713,28 @@ class _ArticlesSection extends StatelessWidget {
               child: Text('Belum ada artikel yang dipublikasikan.'),
             )
           else
-            for (final article in latestArticles) ...[
-              ArticleCard(
-                key: ValueKey('home-article-${article.id}'),
-                article: article,
-                onTap: () => onArticleTap(article),
+            SizedBox(
+              height: 258,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: latestArticles.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final article = latestArticles[index];
+                  final cardWidth = (MediaQuery.sizeOf(context).width * 0.78)
+                      .clamp(260.0, 320.0)
+                      .toDouble();
+                  return SizedBox(
+                    width: cardWidth,
+                    child: ArticleCard(
+                      key: ValueKey('home-article-${article.id}'),
+                      article: article,
+                      onTap: () => onArticleTap(article),
+                    ),
+                  );
+                },
               ),
-              if (article != latestArticles.last) const SizedBox(height: 10),
-            ],
+            ),
         ],
       ),
     );
@@ -716,13 +745,13 @@ class _SectionHeading extends StatelessWidget {
   const _SectionHeading({
     required this.title,
     this.subtitle,
-    required this.action,
+    this.action,
     this.onAction,
   });
 
   final String title;
   final String? subtitle;
-  final String action;
+  final String? action;
   final VoidCallback? onAction;
 
   @override
@@ -737,8 +766,8 @@ class _SectionHeading extends StatelessWidget {
                 title,
                 style: const TextStyle(
                   color: _bodyText,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
                   height: 1.2,
                 ),
               ),
@@ -750,7 +779,7 @@ class _SectionHeading extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: _secondaryText,
-                    fontSize: 11,
+                    fontSize: 12,
                     height: 1.25,
                   ),
                 ),
@@ -758,28 +787,24 @@ class _SectionHeading extends StatelessWidget {
             ],
           ),
         ),
-        TextButton(
-          onPressed: onAction,
-          style: TextButton.styleFrom(
-            foregroundColor: _raisedNavy,
-            padding: EdgeInsets.zero,
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                action,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
+        if (action != null)
+          OutlinedButton(
+            onPressed: onAction,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF3974D8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              side: const BorderSide(color: Color(0xFF3974D8), width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-              const Icon(Icons.chevron_right_rounded, size: 17),
-            ],
+            ),
+            child: Text(
+              action!,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -807,54 +832,30 @@ class _CategoryItem extends StatelessWidget {
     return Expanded(
       child: Material(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(16),
           child: Container(
-            height: 112,
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 10),
+            height: 104,
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 9),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [softColor, Colors.white, Colors.white],
-              ),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: color.withValues(alpha: 0.2)),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x0A14304B),
-                  blurRadius: 14,
-                  offset: Offset(0, 6),
-                ),
-              ],
+              color: const Color(0xFFFBFCFE),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Colors.white, softColor],
-                    ),
+                    color: softColor,
                     shape: BoxShape.circle,
-                    border: Border.all(color: color.withValues(alpha: 0.13)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withValues(alpha: 0.12),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
                   ),
-                  child: Icon(icon, color: color, size: 24),
+                  child: Icon(icon, color: color, size: 21),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 7),
                 Text(
                   label,
                   maxLines: 1,
@@ -862,29 +863,19 @@ class _CategoryItem extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: _bodyText,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    count,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                    ),
+                const SizedBox(height: 3),
+                Text(
+                  count,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _secondaryText,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -940,30 +931,30 @@ class _DestinationCard extends StatelessWidget {
               ),
             ),
             Positioned(
-              top: 14,
-              left: 14,
+              top: 12,
+              left: 12,
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 7,
+                  horizontal: 10,
+                  vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xD91B4567),
-                  borderRadius: BorderRadius.circular(18),
+                  color: const Color(0xCC12304A),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Text(
                   _titleCase(destination.category),
                   style: const TextStyle(
-                    color: Color(0xFFE4F0F9),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ),
             Positioned(
-              top: 12,
-              right: 12,
+              top: 8,
+              right: 8,
               child: Material(
                 color: const Color(0x99091F39),
                 shape: const CircleBorder(),
@@ -973,8 +964,8 @@ class _DestinationCard extends StatelessWidget {
                       : 'Tambahkan ${destination.name} ke favorit',
                   onPressed: onFavoriteTap,
                   constraints: const BoxConstraints.tightFor(
-                    width: 38,
-                    height: 38,
+                    width: 42,
+                    height: 42,
                   ),
                   padding: EdgeInsets.zero,
                   icon: Icon(
@@ -1029,8 +1020,8 @@ class _DestinationCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -1107,23 +1098,23 @@ class _NearbyDestinationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.white,
-      borderRadius: BorderRadius.circular(15),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(11),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: const Color(0xFFE5EAF0)),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _homeBorder),
           ),
           child: Row(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
                 child: SizedBox(
-                  width: 66,
-                  height: 66,
+                  width: 72,
+                  height: 72,
                   child: destination.imageUrl == null
                       ? _destinationImageFallback(24)
                       : Image.network(
@@ -1134,7 +1125,7 @@ class _NearbyDestinationTile extends StatelessWidget {
                         ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1145,30 +1136,49 @@ class _NearbyDestinationTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: _bodyText,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      destination.location,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _secondaryText,
-                        fontSize: 10,
-                      ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          size: 13,
+                          color: _secondaryText,
+                        ),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                            destination.location,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: _secondaryText,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                '${destination.distanceKm.toStringAsFixed(1)} km',
-                style: const TextStyle(
-                  color: AppColors.orange,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F7FA),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${destination.distanceKm.toStringAsFixed(1)} km',
+                  style: const TextStyle(
+                    color: _raisedNavy,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],

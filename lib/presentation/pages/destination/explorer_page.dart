@@ -1,17 +1,27 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../data/destination_data.dart';
 import '../../../data/models/destination.dart';
 import '../../../data/services/destination_service.dart';
-import '../../widgets/destination/category_chip.dart';
+import '../../../data/services/favorite_destination_service.dart';
 import '../../widgets/destination/destination_card.dart';
 import 'destination_detail_page.dart';
 
+const _exploreNavy = Color(0xFF12304A);
+const _exploreRaisedNavy = Color(0xFF244D70);
+const _exploreBackground = Color(0xFFF6F8FB);
+const _exploreBodyText = Color(0xFF172B4D);
+const _exploreSecondaryText = Color(0xFF8190A5);
+
 class ExplorerPage extends StatefulWidget {
-  const ExplorerPage({super.key, this.initialCategory = 'Semua'});
+  const ExplorerPage({
+    super.key,
+    this.initialCategory = 'Semua',
+    this.destinationService,
+  });
 
   final String initialCategory;
+  final DestinationService? destinationService;
 
   @override
   State<ExplorerPage> createState() => _ExplorerPageState();
@@ -19,9 +29,8 @@ class ExplorerPage extends StatefulWidget {
 
 class _ExplorerPageState extends State<ExplorerPage> {
   final searchController = TextEditingController();
-  final favorites = <String>{};
-  final _destinationService = DestinationService();
-  List<Destination> _destinations = destinations;
+  late final DestinationService _destinationService;
+  List<Destination> _destinations = const [];
   String? _loadError;
   bool _isLoading = true;
   late String selectedCategory;
@@ -30,20 +39,28 @@ class _ExplorerPageState extends State<ExplorerPage> {
   @override
   void initState() {
     super.initState();
+    FavoriteDestinationService.revision.addListener(_onFavoritesChanged);
+    _destinationService = widget.destinationService ?? DestinationService();
     selectedCategory = widget.initialCategory;
     _loadDestinations();
   }
 
   @override
   void dispose() {
+    FavoriteDestinationService.revision.removeListener(_onFavoritesChanged);
     searchController.dispose();
     super.dispose();
+  }
+
+  void _onFavoritesChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadDestinations() async {
     setState(() {
       _isLoading = true;
       _loadError = null;
+      _destinations = const [];
     });
     try {
       final loaded = await _destinationService.getDestinations();
@@ -63,10 +80,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.pageBackground,
-      body: _exploreBody(),
-    );
+    return Scaffold(backgroundColor: _exploreBackground, body: _exploreBody());
   }
 
   Widget _exploreBody() {
@@ -89,118 +103,28 @@ class _ExplorerPageState extends State<ExplorerPage> {
       children: [
         _buildHeader(),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 18, 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          padding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Flexible(
-                          child: Text(
-                            'Daftar Wisata',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: AppColors.navy,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.lightBlue,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${filtered.length} Ditemukan',
-                            style: const TextStyle(
-                              color: AppColors.navy,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Berdasarkan lokasi & rekomendasi terbaik',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: AppColors.secondaryText,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ],
+              const Text(
+                'Daftar Wisata',
+                style: TextStyle(
+                  color: _exploreBodyText,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
                 ),
               ),
-              PopupMenuButton<String>(
-                tooltip: 'Urutkan destinasi',
-                onSelected: (sort) => setState(() => selectedSort = sort),
-                itemBuilder: (_) => [
-                  for (final sort in _sortOptions)
-                    PopupMenuItem(
-                      value: sort,
-                      child: Row(
-                        children: [
-                          if (sort == selectedSort)
-                            const Icon(
-                              Icons.check,
-                              size: 16,
-                              color: AppColors.orange,
-                            ),
-                          if (sort == selectedSort) const SizedBox(width: 7),
-                          Text(sort, style: const TextStyle(fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                ],
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.swap_vert,
-                        size: 15,
-                        color: AppColors.navy,
-                      ),
-                      const SizedBox(width: 3),
-                      Text(
-                        selectedSort == 'Terpopuler'
-                            ? 'Terpopuler'
-                            : selectedSort,
-                        style: const TextStyle(
-                          color: AppColors.navy,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const Icon(
-                        Icons.keyboard_arrow_down,
-                        size: 15,
-                        color: AppColors.secondaryText,
-                      ),
-                    ],
-                  ),
+              const SizedBox(height: 4),
+              const Text(
+                'Temukan destinasi wisata yang sesuai dengan keinginanmu',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: _exploreSecondaryText,
+                  fontSize: 12,
+                  height: 1.25,
                 ),
               ),
             ],
@@ -208,8 +132,13 @@ class _ExplorerPageState extends State<ExplorerPage> {
         ),
         if (_isLoading)
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: LinearProgressIndicator(),
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+            child: Center(
+              child: Text(
+                'Sedang mempersiapkan wisata...',
+                style: TextStyle(color: _exploreSecondaryText, fontSize: 13),
+              ),
+            ),
           )
         else if (_loadError != null)
           Padding(
@@ -219,7 +148,10 @@ class _ExplorerPageState extends State<ExplorerPage> {
                 Text(
                   _loadError!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.secondaryText),
+                  style: const TextStyle(
+                    color: _exploreSecondaryText,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton(
@@ -235,31 +167,43 @@ class _ExplorerPageState extends State<ExplorerPage> {
             child: Center(
               child: Text(
                 'Destinasi tidak ditemukan',
-                style: TextStyle(color: AppColors.secondaryText),
+                style: TextStyle(color: _exploreSecondaryText, fontSize: 13),
               ),
             ),
           ),
         if (filtered.isNotEmpty)
-          for (final destination in filtered)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: DestinationCard(
-                destination: destination,
-                isFavorite: favorites.contains(destination.id),
-                onFavoriteChanged: (favorite) => setState(() {
-                  favorite
-                      ? favorites.add(destination.id)
-                      : favorites.remove(destination.id);
-                }),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        DestinationDetailPage(destination: destination),
-                  ),
-                ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: filtered.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                mainAxisExtent: 238,
               ),
+              itemBuilder: (context, index) {
+                final destination = filtered[index];
+                return DestinationCard(
+                  destination: destination,
+                  isFavorite: FavoriteDestinationService.contains(
+                    destination.id,
+                  ),
+                  onFavoriteChanged: (_) =>
+                      FavoriteDestinationService.toggle(destination),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          DestinationDetailPage(destination: destination),
+                    ),
+                  ),
+                );
+              },
             ),
+          ),
       ],
     );
   }
@@ -269,83 +213,58 @@ class _ExplorerPageState extends State<ExplorerPage> {
       key: const ValueKey('exploreHeader'),
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
-        20,
-        MediaQuery.of(context).padding.top + 16,
-        20,
-        20,
+        16,
+        MediaQuery.viewPaddingOf(context).top + 10,
+        16,
+        18,
       ),
       decoration: const BoxDecoration(
-        color: AppColors.navy,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_exploreNavy, _exploreRaisedNavy],
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: AppColors.orange,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 7),
-                        const Text(
-                          'JEMBER, JAWA TIMUR',
-                          style: TextStyle(
-                            color: Color(0xFFC2D0DD),
-                            fontSize: 10,
-                            letterSpacing: 0.8,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Mau ke mana?',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 29,
-                        height: 1.1,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Cari pantai, alam, atau tempat seru lainnya.',
-                      style: TextStyle(
-                        color: Color(0xFFC2D0DD),
-                        fontSize: 11,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          const Text(
+            'Jelajahi Wisata',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              height: 1.15,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.2,
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 4),
+          const Text(
+            'Cari pantai, alam, atau tempat seru lainnya.',
+            style: TextStyle(
+              color: Color(0xFFCCD8E5),
+              fontSize: 12,
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 14),
           Container(
-            height: 58,
+            height: 52,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFDCE4F0)),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE3EAF2)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.search, color: AppColors.blueDeep, size: 24),
-                const SizedBox(width: 12),
+                const Icon(
+                  Icons.search_rounded,
+                  color: _exploreRaisedNavy,
+                  size: 21,
+                ),
+                const SizedBox(width: 9),
                 Expanded(
                   child: TextField(
                     controller: searchController,
@@ -354,16 +273,20 @@ class _ExplorerPageState extends State<ExplorerPage> {
                     minLines: null,
                     maxLines: null,
                     textAlignVertical: TextAlignVertical.center,
-                    style: const TextStyle(color: AppColors.navy, fontSize: 16),
+                    style: const TextStyle(
+                      color: _exploreBodyText,
+                      fontSize: 14,
+                    ),
                     cursorColor: AppColors.orange,
                     decoration: const InputDecoration(
-                      hintText: 'Cari lokasi wisata di peta...',
+                      hintText: 'Cari wisata yang anda inginkan',
                       hintStyle: TextStyle(
-                        color: Color(0xFF6B625C),
-                        fontSize: 16,
+                        color: _exploreSecondaryText,
+                        fontSize: 13,
                       ),
                       border: InputBorder.none,
                       isDense: true,
+                      filled: false,
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
@@ -382,7 +305,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                     },
                     icon: const Icon(
                       Icons.close,
-                      color: AppColors.secondaryText,
+                      color: _exploreSecondaryText,
                       size: 19,
                     ),
                   ),
@@ -393,47 +316,12 @@ class _ExplorerPageState extends State<ExplorerPage> {
                     minWidth: 36,
                     minHeight: 40,
                   ),
-                  onPressed: _showFilterSheet,
+                  onPressed: _showFilterDialog,
                   icon: const Icon(
                     Icons.tune_rounded,
-                    color: AppColors.blueDeep,
-                    size: 23,
+                    color: _exploreRaisedNavy,
+                    size: 22,
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                CategoryChip(
-                  label: 'Semua',
-                  icon: Icons.grid_view_rounded,
-                  selected: selectedCategory == 'Semua',
-                  onTap: () => setState(() => selectedCategory = 'Semua'),
-                ),
-                CategoryChip(
-                  label: 'Alam',
-                  icon: Icons.park_outlined,
-                  count: _categoryCount('ALAM'),
-                  selected: selectedCategory == 'ALAM',
-                  onTap: () => setState(() => selectedCategory = 'ALAM'),
-                ),
-                CategoryChip(
-                  label: 'Bahari',
-                  icon: Icons.waves_rounded,
-                  count: _categoryCount('BAHARI'),
-                  selected: selectedCategory == 'BAHARI',
-                  onTap: () => setState(() => selectedCategory = 'BAHARI'),
-                ),
-                CategoryChip(
-                  label: 'Buatan',
-                  icon: Icons.account_balance_outlined,
-                  count: _categoryCount('BUATAN'),
-                  selected: selectedCategory == 'BUATAN',
-                  onTap: () => setState(() => selectedCategory = 'BUATAN'),
                 ),
               ],
             ),
@@ -443,101 +331,131 @@ class _ExplorerPageState extends State<ExplorerPage> {
     );
   }
 
-  Future<void> _showFilterSheet() async {
-    final result = await showModalBottomSheet<(String, String)>(
+  Future<void> _showFilterDialog() async {
+    final result = await showDialog<(String, String)>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setSheetState) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 13, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDCE3E9),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Filter destinasi',
-                style: TextStyle(
-                  color: AppColors.navy,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Kategori',
-                style: TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
+      barrierColor: Colors.black54,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          backgroundColor: Colors.white,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final category in ['Semua', 'ALAM', 'BAHARI', 'BUATAN'])
-                    ChoiceChip(
-                      label: Text(
-                        category == 'Semua'
-                            ? category
-                            : _categoryLabel(category),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Filter destinasi',
+                          style: TextStyle(
+                            color: _exploreNavy,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                      selected: selectedCategory == category,
-                      onSelected: (_) =>
-                          setSheetState(() => selectedCategory = category),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Urutkan',
-                style: TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                children: [
-                  for (final sort in _sortOptions)
-                    ChoiceChip(
-                      label: Text(sort),
-                      selected: selectedSort == sort,
-                      onSelected: (_) =>
-                          setSheetState(() => selectedSort = sort),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 15),
-              SizedBox(
-                width: double.infinity,
-                height: 46,
-                child: FilledButton(
-                  onPressed: () =>
-                      Navigator.pop(context, (selectedCategory, selectedSort)),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.orange,
+                      IconButton(
+                        tooltip: 'Tutup filter',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => Navigator.pop(dialogContext),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: _exploreNavy,
+                        ),
+                      ),
+                    ],
                   ),
-                  child: const Text('Tampilkan destinasi'),
-                ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Kategori',
+                    style: TextStyle(
+                      color: _exploreNavy,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 2,
+                    children: [
+                      for (final category in [
+                        'Semua',
+                        'ALAM',
+                        'BAHARI',
+                        'BUATAN',
+                      ])
+                        _FilterChoiceChip(
+                          label: category == 'Semua'
+                              ? category
+                              : _categoryLabel(category),
+                          selected: selectedCategory == category,
+                          onSelected: () => setDialogState(
+                            () => selectedCategory = category,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Urutkan',
+                    style: TextStyle(
+                      color: _exploreNavy,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 2,
+                    children: [
+                      for (final sort in _sortOptions)
+                        _FilterChoiceChip(
+                          label: sort,
+                          selected: selectedSort == sort,
+                          onSelected: () =>
+                              setDialogState(() => selectedSort = sort),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(
+                        dialogContext,
+                        (selectedCategory, selectedSort),
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _exploreNavy,
+                        foregroundColor: Colors.white,
+                        textStyle: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text('Tampilkan destinasi'),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -567,9 +485,9 @@ class _ExplorerPageState extends State<ExplorerPage> {
         items.sort((a, b) => a.ticketPrice.compareTo(b.ticketPrice));
       default:
         items.sort(
-          (a, b) =>
-              _reviewValue(b.reviewCount)
-                  .compareTo(_reviewValue(a.reviewCount)),
+          (a, b) => _reviewValue(
+            b.reviewCount,
+          ).compareTo(_reviewValue(a.reviewCount)),
         );
     }
   }
@@ -579,10 +497,37 @@ class _ExplorerPageState extends State<ExplorerPage> {
             .round()
       : int.tryParse(value) ?? 0;
 
-  int _categoryCount(String category) => _destinations
-      .where((destination) => destination.category == category)
-      .length;
-
   String _categoryLabel(String category) =>
       category[0] + category.substring(1).toLowerCase();
+}
+
+class _FilterChoiceChip extends StatelessWidget {
+  const _FilterChoiceChip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      showCheckmark: false,
+      onSelected: (_) => onSelected(),
+      backgroundColor: Colors.white,
+      selectedColor: _exploreNavy,
+      side: const BorderSide(color: _exploreNavy),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      labelStyle: TextStyle(
+        color: selected ? Colors.white : _exploreNavy,
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+      ),
+    );
+  }
 }

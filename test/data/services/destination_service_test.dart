@@ -127,6 +127,39 @@ void main() {
     expect(destinations[0].distanceKm, isNot(destinations[1].distanceKm));
   });
 
+  test('map destinations skip entries without coordinates', () async {
+    final client = MockClient((request) async {
+      expect(request.url.path, '/api/v1/destinasi');
+      return http.Response(
+        jsonEncode({
+          'data': [
+            {
+              'id': 42,
+              'nama': 'Taman Botani',
+              'latitude': -8.126,
+              'longitude': 113.676,
+            },
+            {
+              'id': 43,
+              'nama': 'Destinasi tanpa koordinat',
+              'latitude': null,
+              'longitude': null,
+            },
+          ],
+        }),
+        200,
+      );
+    });
+    final service = DestinationService(
+      api: ApiService(baseUrl: 'http://localhost/api/v1', client: client),
+    );
+
+    final destinations = await service.getMapDestinations();
+
+    expect(destinations, hasLength(1));
+    expect(destinations.single.name, 'Taman Botani');
+  });
+
   test(
     'destination list loads every page for database category counts',
     () async {

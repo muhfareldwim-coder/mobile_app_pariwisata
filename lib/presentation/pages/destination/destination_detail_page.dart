@@ -11,9 +11,11 @@ import '../../../data/services/auth_service.dart';
 import '../../../data/services/device_location_service.dart';
 import '../../../data/services/destination_service.dart';
 import '../../../data/services/destination_review_service.dart';
+import '../../../data/services/favorite_destination_service.dart';
 import '../../../data/services/route_estimate_service.dart';
 import '../../../data/services/ticket_service.dart';
 import '../booking/booking_page.dart';
+import 'destination_collection_page.dart';
 import '../ticket/qr_ticket_page.dart';
 
 class DestinationDetailPage extends StatefulWidget {
@@ -26,7 +28,6 @@ class DestinationDetailPage extends StatefulWidget {
 }
 
 class _DestinationDetailPageState extends State<DestinationDetailPage> {
-  bool isFavorite = false;
   bool isDescriptionExpanded = false;
   late Destination _destination;
   final _mapController = MapController();
@@ -38,12 +39,25 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
   bool _isEstimatingRoute = false;
 
   Destination get destination => _destination;
+  bool get isFavorite => FavoriteDestinationService.contains(destination.id);
 
   @override
   void initState() {
     super.initState();
+    FavoriteDestinationService.revision.addListener(_onFavoritesChanged);
     _destination = widget.destination;
     _loadDestinationDetails();
+  }
+
+  @override
+  void dispose() {
+    FavoriteDestinationService.revision.removeListener(_onFavoritesChanged);
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  void _onFavoritesChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadDestinationDetails() async {
@@ -121,12 +135,13 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F7FC),
+      backgroundColor: const Color(0xFFF6F8FB),
       appBar: AppBar(
         backgroundColor: Colors.white,
         foregroundColor: AppColors.navy,
         elevation: 0,
-        toolbarHeight: 58,
+        scrolledUnderElevation: 0,
+        toolbarHeight: 56,
         leading: IconButton(
           tooltip: 'Kembali',
           onPressed: () => Navigator.maybePop(context),
@@ -140,13 +155,13 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
           style: const TextStyle(
             color: AppColors.navy,
             fontSize: 16,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
       body: ListView(
         key: const ValueKey('destination-detail-scroll'),
-        padding: const EdgeInsets.only(bottom: 22),
+        padding: const EdgeInsets.only(bottom: 28),
         children: [
           if (_detailError != null)
             MaterialBanner(
@@ -164,71 +179,38 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _sectionHeading(
-                  icon: Icons.verified_outlined,
-                  title: 'Tentang Destinasi',
-                ),
-                const SizedBox(height: 8),
+                const _DetailSectionHeading(title: 'Tentang Destinasi'),
+                const SizedBox(height: 10),
                 _descriptionCard(),
-                const SizedBox(height: 24),
+                const SizedBox(height: 22),
                 const _SectionTitle(title: 'Lokasi & rute'),
                 const SizedBox(height: 10),
                 _locationCard(),
-                const SizedBox(height: 24),
+                const SizedBox(height: 22),
                 const _SectionTitle(title: 'Fasilitas'),
-                const SizedBox(height: 9),
+                const SizedBox(height: 10),
                 _facilityGrid(),
-                const SizedBox(height: 20),
+                const SizedBox(height: 22),
                 const _SectionTitle(title: 'Jenis tiket'),
-                const SizedBox(height: 9),
+                const SizedBox(height: 10),
                 if (destination.ticketTypes.isEmpty)
                   const Text(
                     'Jenis tiket belum tersedia.',
-                    style: TextStyle(color: Color(0xFF737B88), fontSize: 11),
+                    style: TextStyle(color: Color(0xFF8190A5), fontSize: 13),
                   )
                 else
                   for (final ticket in destination.ticketTypes)
                     _TicketTypeRow(ticket: ticket),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Jelajahi lebih dekat',
-                            style: TextStyle(
-                              color: AppColors.orange,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: .5,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          _SectionTitle(title: 'Galeri ${destination.name}'),
-                        ],
-                      ),
-                    ),
-                    if (destination.gallery.isNotEmpty)
-                      TextButton(
-                        onPressed: _openGallery,
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFF1264CE),
-                          padding: EdgeInsets.zero,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: const Text(
-                          'Lihat Semua',
-                          style: TextStyle(fontSize: 11),
-                        ),
-                      ),
-                  ],
+                const SizedBox(height: 22),
+                _DetailSectionHeading(
+                  title: 'Galeri ${destination.name}',
+                  actionKey: const ValueKey('gallery-see-all'),
+                  action: destination.gallery.isNotEmpty ? 'Lihat Semua' : null,
+                  onAction: _openAllGallery,
                 ),
                 const SizedBox(height: 9),
                 _gallery(),
-                const SizedBox(height: 24),
+                const SizedBox(height: 22),
                 _reviewSection(),
               ],
             ),
@@ -265,6 +247,18 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
                             userEmail.trim().toLowerCase(),
                   )
                   .firstOrNull;
+        final allReviews = apiReviews.isNotEmpty
+            ? apiReviews
+            : reviews
+                  .map(
+                    (review) => DestinationReviewEntry(
+                      name: review.userName,
+                      rating: review.rating,
+                      review: review.review,
+                    ),
+                  )
+                  .toList();
+        final previewReviews = allReviews.take(2).toList();
         final reviewTicket = user == null || userReview != null
             ? null
             : TicketService.tickets
@@ -280,49 +274,37 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _SectionTitle(title: 'Ulasan pengunjung'),
-            const SizedBox(height: 8),
-            if (apiReviews.isNotEmpty) ...[
-              const SizedBox(height: 9),
-              for (final review in apiReviews) ...[
-                _ReviewCard(
-                  initial: review.name.isEmpty
-                      ? '?'
-                      : review.name[0].toUpperCase(),
-                  name: review.name,
-                  meta: 'Ulasan pengunjung',
-                  rating: review.rating,
-                  review: review.review,
-                ),
-                if (review != apiReviews.last) const SizedBox(height: 9),
-              ],
-            ] else if (reviews.isEmpty)
+            _DetailSectionHeading(
+              title: 'Ulasan pengunjung',
+              actionKey: const ValueKey('reviews-see-all'),
+              action: allReviews.isNotEmpty ? 'Lihat Semua' : null,
+              onAction: _openAllReviews,
+            ),
+            const SizedBox(height: 10),
+            if (allReviews.isEmpty)
               const Padding(
-                padding: EdgeInsets.only(top: 10),
+                padding: EdgeInsets.only(top: 2),
                 child: Text(
                   'Belum ada ulasan.',
-                  style: TextStyle(color: Color(0xFF737B88), fontSize: 11),
+                  style: TextStyle(color: Color(0xFF8190A5), fontSize: 13),
                 ),
               )
             else ...[
-              const SizedBox(height: 9),
-              for (final review in reviews) ...[
+              for (final review in previewReviews) ...[
                 _ReviewCard(
-                  initial: review.userName.isEmpty
-                      ? '?'
-                      : review.userName[0].toUpperCase(),
-                  name: review.userName,
-                  meta: 'Pembeli tiket terverifikasi',
+                  name: review.name,
+                  meta: apiReviews.isNotEmpty
+                      ? 'Ulasan pengunjung'
+                      : 'Pembeli tiket terverifikasi',
                   rating: review.rating,
                   review: review.review,
                 ),
-                if (review != reviews.last) const SizedBox(height: 9),
+                if (review != previewReviews.last) const SizedBox(height: 10),
               ],
             ],
             if (userReview != null) ...[
               const SizedBox(height: 10),
               const _ReviewEligibilityNote(
-                icon: Icons.verified_rounded,
                 message: 'Terima kasih! Ulasan Anda sudah tercatat sebagai pengunjung terverifikasi.',
               ),
             ] else if (user != null &&
@@ -347,7 +329,6 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
   }) {
     if (reviewTicket != null) {
       return _ReviewEligibilityNote(
-        icon: Icons.rate_review_outlined,
         message: 'Tiket Anda sudah digunakan. Bagikan pengalaman wisata Anda.',
         actionLabel: 'Tulis ulasan',
         onAction: () => _writeReview(reviewTicket),
@@ -355,7 +336,6 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
     }
     if (ticket != null && ticket.status == 'valid') {
       return _ReviewEligibilityNote(
-        icon: Icons.confirmation_number_outlined,
         message: 'Rating dan ulasan tersedia setelah tiket digunakan pada hari kunjungan.',
         actionLabel: 'Buka e-tiket',
         onAction: () => _openTicket(ticket),
@@ -457,7 +437,8 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
                         iconColor: isFavorite
                             ? AppColors.orange
                             : AppColors.navy,
-                        onTap: () => setState(() => isFavorite = !isFavorite),
+                        onTap: () =>
+                            FavoriteDestinationService.toggle(destination),
                       ),
                     ],
                   ),
@@ -475,28 +456,29 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
                           vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.ocean,
-                          borderRadius: BorderRadius.circular(12),
+                          color: AppColors.navy,
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           destination.category,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: .2,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 7),
+                      const SizedBox(height: 8),
                       Text(
                         destination.name,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 27,
-                          height: 1.05,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 30,
+                          height: 1.1,
+                          fontWeight: FontWeight.w700,
                           shadows: [
                             Shadow(color: Colors.black38, blurRadius: 8),
                           ],
@@ -516,14 +498,14 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
                                   vertical: 5,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0x99334956),
+                                  color: const Color(0xB30C1C2E),
                                   borderRadius: BorderRadius.circular(15),
                                 ),
                                 child: Text(
-                                  '▣ ${destination.gallery.length} Foto',
+                                  '${destination.gallery.length} foto',
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -551,31 +533,20 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 9),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8EDF3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(
-                Icons.location_on_outlined,
-                color: Color(0xFF1264CE),
-                size: 18,
-              ),
-              const SizedBox(width: 7),
-              Expanded(
-                child: Text(
-                  destination.location,
-                  style: const TextStyle(
-                    color: Color(0xFF606977),
-                    height: 1.4,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-            ],
+          Text(
+            destination.location,
+            style: const TextStyle(
+              color: Color(0xFF68778A),
+              height: 1.45,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -585,27 +556,23 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
                 ? TextOverflow.visible
                 : TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Color(0xFF4F5663),
-              height: 1.55,
-              fontSize: 12.5,
+              color: Color(0xFF465568),
+              height: 1.65,
+              fontSize: 14,
             ),
           ),
-          TextButton.icon(
+          TextButton(
             onPressed: () =>
                 setState(() => isDescriptionExpanded = !isDescriptionExpanded),
             style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF1264CE),
+              foregroundColor: AppColors.navy,
               padding: EdgeInsets.zero,
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            icon: Icon(
-              isDescriptionExpanded ? Icons.expand_less : Icons.expand_more,
-              size: 16,
-            ),
-            label: Text(
+            child: Text(
               isDescriptionExpanded ? 'Tutup' : 'Baca Selengkapnya',
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
             ),
           ),
           const Divider(height: 18),
@@ -616,19 +583,13 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    Icons.schedule_rounded,
-                    color: Color(0xFF1264CE),
-                    size: 17,
-                  ),
-                  const SizedBox(width: 7),
                   Text(
                     destination.openingHours.isEmpty
                         ? 'Jam operasional belum tersedia'
                         : destination.openingHours,
                     style: const TextStyle(
-                      color: Color(0xFF606977),
-                      fontSize: 11,
+                      color: Color(0xFF68778A),
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -639,18 +600,17 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.star_rounded,
-                      color: Color(0xFFFFA35B),
-                      size: 18,
+                    const Text(
+                      'Rating',
+                      style: TextStyle(color: Color(0xFF68778A), fontSize: 12),
                     ),
-                    const SizedBox(width: 3),
+                    const SizedBox(width: 6),
                     Text(
                       '${destination.rating.toStringAsFixed(1)} (${destination.reviewCount} ulasan)',
                       style: const TextStyle(
                         color: AppColors.navy,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -667,7 +627,7 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
     if (facilities.isEmpty) {
       return const Text(
         'Belum tersedia.',
-        style: TextStyle(color: Color(0xFF737B88), fontSize: 11),
+        style: TextStyle(color: Color(0xFF8190A5), fontSize: 13),
       );
     }
     return GridView.builder(
@@ -688,14 +648,14 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
     if (destination.gallery.isEmpty) {
       return const Text(
         'Galeri destinasi belum tersedia.',
-        style: TextStyle(color: Color(0xFF737B88), fontSize: 11),
+        style: TextStyle(color: Color(0xFF8190A5), fontSize: 13),
       );
     }
     return SizedBox(
       height: 126,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: destination.gallery.length,
+        itemCount: destination.gallery.length.clamp(0, 3),
         separatorBuilder: (_, _) => const SizedBox(width: 8),
         itemBuilder: (context, index) => ClipRRect(
           borderRadius: BorderRadius.circular(13),
@@ -750,15 +710,16 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
         ? 0
         : (route.durationSeconds / 60 / 5).ceil() * 5;
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8EDF3)),
       ),
       child: Column(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             child: SizedBox(
               height: 190,
               width: double.infinity,
@@ -828,31 +789,38 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
           const SizedBox(height: 11),
           SizedBox(
             width: double.infinity,
-            height: 42,
-            child: OutlinedButton.icon(
+            height: 46,
+            child: OutlinedButton(
               onPressed: _isEstimatingRoute ? null : _calculateRouteEstimate,
-              icon: _isEstimatingRoute
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+              child: _isEstimatingRoute
+                  ? const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: 8),
+                        Text('Menghitung rute...'),
+                      ],
                     )
-                  : const Icon(Icons.route_outlined, size: 18),
-              label: Text(
-                _isEstimatingRoute
-                    ? 'Menghitung rute...'
-                    : _routeEstimate == null
-                    ? 'Lihat estimasi jarak & waktu'
-                    : 'Perbarui estimasi rute',
-                style: const TextStyle(fontSize: 11),
-              ),
+                  : Text(
+                      _routeEstimate == null
+                          ? 'Lihat estimasi jarak & waktu'
+                          : 'Perbarui estimasi rute',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
             ),
           ),
           if (_routeError != null) ...[
             const SizedBox(height: 8),
             Text(
               _routeError!,
-              style: const TextStyle(color: AppColors.danger, fontSize: 11),
+              style: const TextStyle(color: AppColors.danger, fontSize: 12),
             ),
           ],
           if (route != null) ...[
@@ -861,20 +829,16 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
               children: [
                 Expanded(
                   child: _HighlightItem(
-                    icon: Icons.route_outlined,
                     label: 'Jarak rute',
                     value:
                         '${(route.distanceMeters / 1000).toStringAsFixed(1)} km',
-                    color: const Color(0xFF1264CE),
                   ),
                 ),
                 const _VerticalDivider(),
                 Expanded(
                   child: _HighlightItem(
-                    icon: Icons.schedule_rounded,
                     label: 'Estimasi berkendara',
                     value: _formatDuration(durationMinutes),
-                    color: AppColors.orange,
                   ),
                 ),
               ],
@@ -936,25 +900,24 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
             ),
             SizedBox(
               height: 48,
-              child: FilledButton.icon(
+              child: FilledButton(
                 onPressed: _startBooking,
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFE98600),
+                  backgroundColor: AppColors.orange,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 18),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  elevation: 2,
+                  elevation: 0,
                 ),
-                icon: const Icon(Icons.confirmation_number_outlined, size: 18),
-                label: Text(
+                child: Text(
                   AuthService.currentUser == null
                       ? 'Masuk untuk memesan'
                       : 'Pesan tiket',
                   style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -964,15 +927,6 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
       ),
     );
   }
-
-  Widget _sectionHeading({required IconData icon, required String title}) =>
-      Row(
-        children: [
-          Icon(icon, color: const Color(0xFF1264CE), size: 18),
-          const SizedBox(width: 7),
-          _SectionTitle(title: title),
-        ],
-      );
 
   Future<void> _openGallery() async {
     if (destination.gallery.isEmpty) {
@@ -1012,6 +966,30 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
     );
   }
 
+  void _openAllGallery() {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => DestinationCollectionPage(
+          destination: destination,
+          section: DestinationCollectionSection.gallery,
+        ),
+      ),
+    );
+  }
+
+  void _openAllReviews() {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => DestinationCollectionPage(
+          destination: destination,
+          section: DestinationCollectionSection.reviews,
+        ),
+      ),
+    );
+  }
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
@@ -1032,9 +1010,60 @@ class _SectionTitle extends StatelessWidget {
     title,
     style: const TextStyle(
       color: AppColors.navy,
-      fontSize: 15,
-      fontWeight: FontWeight.w800,
+      fontSize: 18,
+      height: 1.25,
+      fontWeight: FontWeight.w700,
     ),
+  );
+}
+
+class _DetailSectionHeading extends StatelessWidget {
+  const _DetailSectionHeading({
+    required this.title,
+    this.action,
+    this.onAction,
+    this.actionKey,
+  });
+
+  final String title;
+  final String? action;
+  final VoidCallback? onAction;
+  final Key? actionKey;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Text(
+          title,
+          style: const TextStyle(
+            color: AppColors.navy,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            height: 1.2,
+          ),
+        ),
+      ),
+      if (action != null)
+        OutlinedButton(
+          key: actionKey,
+          onPressed: onAction,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFF3974D8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            side: const BorderSide(color: Color(0xFF3974D8), width: 1.5),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          child: Text(
+            action!,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+    ],
   );
 }
 
@@ -1064,44 +1093,27 @@ class _HeroAction extends StatelessWidget {
 }
 
 class _HighlightItem extends StatelessWidget {
-  const _HighlightItem({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-  final IconData icon;
+  const _HighlightItem({required this.label, required this.value});
   final String label;
   final String value;
-  final Color color;
 
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      Container(
-        width: 30,
-        height: 30,
-        decoration: const BoxDecoration(
-          color: Color(0xFFF0F1FF),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: color, size: 17),
-      ),
-      const SizedBox(height: 5),
       Text(
         label,
         maxLines: 1,
-        style: const TextStyle(color: Color(0xFF707782), fontSize: 9),
+        style: const TextStyle(color: Color(0xFF8190A5), fontSize: 11),
       ),
-      const SizedBox(height: 2),
+      const SizedBox(height: 4),
       Text(
         value,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           color: AppColors.navy,
-          fontSize: 10.5,
-          fontWeight: FontWeight.w800,
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
         ),
       ),
     ],
@@ -1121,10 +1133,11 @@ class _FacilityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: const Color(0xFFE8EDF3)),
     ),
     child: Align(
       alignment: Alignment.centerLeft,
@@ -1134,7 +1147,7 @@ class _FacilityCard extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           color: AppColors.navy,
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -1155,7 +1168,8 @@ class _TicketTypeRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE8EDF3)),
       ),
       child: Row(
         children: [
@@ -1164,8 +1178,8 @@ class _TicketTypeRow extends StatelessWidget {
               ticket.name,
               style: const TextStyle(
                 color: AppColors.navy,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -1173,8 +1187,8 @@ class _TicketTypeRow extends StatelessWidget {
             'Rp ${ticket.price.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.')}',
             style: const TextStyle(
               color: AppColors.navy,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -1274,13 +1288,11 @@ class _WriteReviewDialogState extends State<_WriteReviewDialog> {
 
 class _ReviewEligibilityNote extends StatelessWidget {
   const _ReviewEligibilityNote({
-    required this.icon,
     required this.message,
     this.actionLabel,
     this.onAction,
   });
 
-  final IconData icon;
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
@@ -1290,19 +1302,17 @@ class _ReviewEligibilityNote extends StatelessWidget {
     width: double.infinity,
     padding: const EdgeInsets.all(11),
     decoration: BoxDecoration(
-      color: const Color(0xFFEFF2FF),
+      color: const Color(0xFFEEF3F8),
       borderRadius: BorderRadius.circular(12),
     ),
     child: Row(
       children: [
-        Icon(icon, color: const Color(0xFF1264CE), size: 19),
-        const SizedBox(width: 8),
         Expanded(
           child: Text(
             message,
             style: const TextStyle(
               color: AppColors.navy,
-              fontSize: 11,
+              fontSize: 13,
               height: 1.35,
             ),
           ),
@@ -1312,14 +1322,14 @@ class _ReviewEligibilityNote extends StatelessWidget {
           TextButton(
             onPressed: onAction,
             style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF1264CE),
+              foregroundColor: AppColors.navy,
               padding: const EdgeInsets.symmetric(horizontal: 7),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             child: Text(
               actionLabel!,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -1330,13 +1340,11 @@ class _ReviewEligibilityNote extends StatelessWidget {
 
 class _ReviewCard extends StatelessWidget {
   const _ReviewCard({
-    required this.initial,
     required this.name,
     required this.meta,
     required this.rating,
     required this.review,
   });
-  final String initial;
   final String name;
   final String meta;
   final int rating;
@@ -1344,29 +1352,17 @@ class _ReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(13),
+    padding: const EdgeInsets.all(15),
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: const Color(0xFFE8EDF3)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: const Color(0xFFDDE4FF),
-              child: Text(
-                initial,
-                style: const TextStyle(
-                  color: AppColors.navy,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1375,7 +1371,7 @@ class _ReviewCard extends StatelessWidget {
                     name,
                     style: const TextStyle(
                       color: AppColors.navy,
-                      fontSize: 10.5,
+                      fontSize: 13,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -1383,24 +1379,19 @@ class _ReviewCard extends StatelessWidget {
                     meta,
                     style: const TextStyle(
                       color: Color(0xFF737B88),
-                      fontSize: 9,
+                      fontSize: 11,
                     ),
                   ),
                 ],
               ),
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (var i = 0; i < 5; i++)
-                  Icon(
-                    i < rating
-                        ? Icons.star_rounded
-                        : Icons.star_outline_rounded,
-                    color: const Color(0xFFFFA35B),
-                    size: 13,
-                  ),
-              ],
+            Text(
+              '$rating/5',
+              style: const TextStyle(
+                color: AppColors.navy,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -1410,7 +1401,7 @@ class _ReviewCard extends StatelessWidget {
           style: const TextStyle(
             color: Color(0xFF59616E),
             height: 1.45,
-            fontSize: 10.5,
+            fontSize: 13,
           ),
         ),
       ],

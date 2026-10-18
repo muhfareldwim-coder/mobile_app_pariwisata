@@ -13,8 +13,7 @@ import '../../../core/utils/date_formatters.dart';
 import '../booking/payment_page.dart';
 
 const _manageNavy = Color(0xFF173B60);
-const _manageBlue = Color(0xFF0874E8);
-const _manageOrange = Color(0xFFF58B05);
+const _manageBlue = Color(0xFF315D78);
 const _manageBackground = Color(0xFFF8FAFC);
 
 class ManageTripPage extends StatefulWidget {
@@ -131,6 +130,23 @@ class _ManageTripPageState extends State<ManageTripPage> {
     );
     final selected = await showDatePicker(
       context: context,
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(context).colorScheme.copyWith(
+            primary: _manageNavy,
+            onPrimary: Colors.white,
+            surface: Colors.white,
+            onSurface: _manageNavy,
+          ),
+          datePickerTheme: const DatePickerThemeData(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+            headerBackgroundColor: Colors.white,
+            headerForegroundColor: _manageNavy,
+          ),
+        ),
+        child: child!,
+      ),
       locale: const Locale('id', 'ID'),
       initialDate: _visitDate ?? trip.booking.visitDate,
       firstDate: today,
@@ -275,30 +291,56 @@ class _ManageTripPageState extends State<ManageTripPage> {
     return await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            title: const Text('Tinjau perubahan'),
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+            title: const Text(
+              'Tinjau perubahan',
+              style: TextStyle(color: _manageNavy, fontWeight: FontWeight.w700),
+            ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Destinasi: ${trip.destination.name}'),
+                Text(
+                  'Destinasi: ${trip.destination.name}',
+                  style: const TextStyle(color: Color(0xFF617486)),
+                ),
                 const SizedBox(height: 8),
-                Text('Tanggal kunjungan: ${formatIndonesianDate(visitDate)}'),
+                Text(
+                  'Tanggal kunjungan: ${formatIndonesianDate(visitDate)}',
+                  style: const TextStyle(color: Color(0xFF617486)),
+                ),
                 if (newMembers.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  const Text('Anggota tambahan:'),
-                  for (final member in newMembers) Text('• $member'),
+                  const Text(
+                    'Anggota tambahan:',
+                    style: TextStyle(color: Color(0xFF617486)),
+                  ),
+                  for (final member in newMembers)
+                    Text(
+                      '• $member',
+                      style: const TextStyle(color: Color(0xFF617486)),
+                    ),
                 ],
                 const SizedBox(height: 8),
-                Text('Biaya tambahan: ${_formatPrice(total)}'),
+                Text(
+                  'Biaya tambahan: ${_formatPrice(total)}',
+                  style: const TextStyle(color: Color(0xFF617486)),
+                ),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
+                style: TextButton.styleFrom(foregroundColor: _manageNavy),
                 child: const Text('Periksa lagi'),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _manageNavy,
+                  foregroundColor: Colors.white,
+                ),
                 child: Text(total > 0 ? 'Lanjut bayar' : 'Konfirmasi'),
               ),
             ],
@@ -315,7 +357,8 @@ class _ManageTripPageState extends State<ManageTripPage> {
       appBar: AppBar(
         title: const Text('Kelola perjalanan'),
         foregroundColor: _manageNavy,
-        backgroundColor: _manageBackground,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
@@ -340,34 +383,32 @@ class _ManageTripPageState extends State<ManageTripPage> {
                 ],
                 const SizedBox(height: 14),
                 _ManageSection(
-                  icon: Icons.calendar_month_rounded,
-                  eyebrow: 'PERJALANAN',
                   title: 'Ubah jadwal',
                   description: 'Pilih tanggal baru untuk kunjungan Anda.',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Tanggal kunjungan baru'),
-                      const SizedBox(height: 2),
                       const Text(
-                        'Pilih tanggal yang paling sesuai untuk perjalanan.',
+                        'Tanggal kunjungan baru',
                         style: TextStyle(
-                          color: Color(0xFF7890A1),
-                          fontSize: 12,
+                          color: Color(0xFF68778A),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 9),
+                      const SizedBox(height: 6),
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton(
                           onPressed: _selectDate,
                           style: OutlinedButton.styleFrom(
                             foregroundColor: _manageNavy,
+                            backgroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
+                              horizontal: 12,
                               vertical: 14,
                             ),
-                            side: const BorderSide(color: Color(0xFFD7E2EC)),
+                            side: const BorderSide(color: Color(0xFFE2E8F0)),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -376,10 +417,10 @@ class _ManageTripPageState extends State<ManageTripPage> {
                             children: [
                               const Icon(
                                 Icons.calendar_month_rounded,
-                                color: _manageOrange,
-                                size: 22,
+                                color: Color(0xFF31516B),
+                                size: 18,
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,67 +430,16 @@ class _ManageTripPageState extends State<ManageTripPage> {
                                         _visitDate ?? trip.booking.visitDate,
                                       ),
                                       style: const TextStyle(
-                                        color: _manageNavy,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    const Text(
-                                      'Ketuk untuk memilih tanggal',
-                                      style: TextStyle(
-                                        color: Color(0xFF7890A1),
-                                        fontSize: 12,
+                                        color: Color(0xFF1F2937),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                              const Icon(
-                                Icons.chevron_right_rounded,
-                                color: Color(0xFF7890A1),
-                              ),
                             ],
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 11,
-                          vertical: 9,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(9),
-                          border: Border.all(color: const Color(0xFFE7EDF2)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.info_outline_rounded,
-                              size: 16,
-                              color: Color(0xFF7890A1),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Jadwal saat ini: ${formatIndonesianDate(trip.booking.visitDate)}',
-                                style: const TextStyle(
-                                  color: Color(0xFF617486),
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Tanggal tersedia mulai hari ini hingga 2 bulan ke depan.',
-                        style: TextStyle(
-                          color: Color(0xFF7890A1),
-                          fontSize: 12,
                         ),
                       ),
                     ],
@@ -457,13 +447,16 @@ class _ManageTripPageState extends State<ManageTripPage> {
                 ),
                 const SizedBox(height: 14),
                 _ManageSection(
-                  icon: Icons.people_alt_outlined,
-                  eyebrow: 'DATA TIKET',
                   title: 'Tambah tiket',
                   description: 'Tambahkan anggota atau tiket tambahan untuk perjalanan Anda.',
                   child: trip.remainingSlots == 0
                       ? const Text(
-                          'Jumlah peserta saat ini sudah mencapai batas 10 orang.',
+                          'Booking sudah penuh\nJumlah peserta saat ini sudah mencapai 10 orang.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0xFF617486),
+                            height: 1.5,
+                          ),
                         )
                       : Column(
                           children: [
@@ -508,20 +501,9 @@ class _ManageTripPageState extends State<ManageTripPage> {
                                     borderRadius: BorderRadius.circular(11),
                                   ),
                                 ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.person_add_alt_1_rounded,
-                                      color: _manageOrange,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    const Expanded(
-                                      child: Text(
-                                        'Tambah anggota',
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
+                                child: const Text(
+                                  'Tambah anggota',
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ),
@@ -572,7 +554,7 @@ class _ManageTripPageState extends State<ManageTripPage> {
                   children: [
                     SizedBox(
                       width: double.infinity,
-                      child: FilledButton.icon(
+                      child: FilledButton(
                         onPressed:
                             _isSubmitting ||
                                 trip.pendingChange != null ||
@@ -590,7 +572,7 @@ class _ManageTripPageState extends State<ManageTripPage> {
                                 }
                               },
                         style: FilledButton.styleFrom(
-                          backgroundColor: _manageOrange,
+                          backgroundColor: _manageNavy,
                           foregroundColor: Colors.white,
                           disabledBackgroundColor: const Color(0xFFE8EEF3),
                           disabledForegroundColor: _manageNavy,
@@ -603,29 +585,29 @@ class _ManageTripPageState extends State<ManageTripPage> {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        icon: _isSubmitting
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
+                        child: _isSubmitting
+                            ? const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  SizedBox(width: 10),
+                                  Text('Memproses perubahan...'),
+                                ],
                               )
-                            : Icon(
-                                _hasChanges
-                                    ? Icons.arrow_forward_rounded
-                                    : Icons.edit_calendar_outlined,
+                            : Text(
+                                trip.pendingChange != null
+                                    ? 'Perubahan tertunda'
+                                    : _hasChanges
+                                    ? 'Lihat perubahan'
+                                    : 'Pilih tanggal atau tambah anggota',
                               ),
-                        label: Text(
-                          _isSubmitting
-                              ? 'Memproses perubahan...'
-                              : trip.pendingChange != null
-                              ? 'Perubahan tertunda'
-                              : _hasChanges
-                              ? 'Lihat perubahan'
-                              : 'Pilih tanggal atau tambah anggota',
-                        ),
                       ),
                     ),
                     const SizedBox(height: 7),
@@ -668,26 +650,13 @@ class _BookingSummary extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE7EDF2)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0809233F),
-            blurRadius: 14,
-            offset: Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: const Color(0xFFE8EDF3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.confirmation_number_outlined,
-                color: _manageBlue,
-                size: 18,
-              ),
-              const SizedBox(width: 7),
               Expanded(
                 child: Text(
                   trip.booking.code,
@@ -695,6 +664,7 @@ class _BookingSummary extends StatelessWidget {
                     color: _manageBlue,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
+                    letterSpacing: 0.25,
                   ),
                 ),
               ),
@@ -731,13 +701,13 @@ class _BookingSummary extends StatelessWidget {
             spacing: 12,
             runSpacing: 8,
             children: [
-              _BookingSummaryItem(
-                icon: Icons.people_alt_outlined,
-                text: '${trip.booking.quantity} peserta',
+              Text(
+                '${trip.booking.quantity} peserta',
+                style: const TextStyle(color: Color(0xFF617486), fontSize: 12),
               ),
-              _BookingSummaryItem(
-                icon: Icons.payments_outlined,
-                text: '${_formatPrice(trip.booking.totalAmount)} dibayar',
+              Text(
+                '${_formatPrice(trip.booking.totalAmount)} dibayar',
+                style: const TextStyle(color: Color(0xFF617486), fontSize: 12),
               ),
             ],
           ),
@@ -745,26 +715,6 @@ class _BookingSummary extends StatelessWidget {
       ),
     );
   }
-}
-
-class _BookingSummaryItem extends StatelessWidget {
-  const _BookingSummaryItem({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Icon(icon, size: 15, color: const Color(0xFF7890A1)),
-      const SizedBox(width: 5),
-      Text(
-        text,
-        style: const TextStyle(color: Color(0xFF617486), fontSize: 12),
-      ),
-    ],
-  );
 }
 
 class _PendingChangeCard extends StatelessWidget {
@@ -783,19 +733,13 @@ class _PendingChangeCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7E8),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFF1D5A8)),
+        border: Border.all(color: const Color(0xFFDCE6ED)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.pending_actions_rounded,
-            color: Color(0xFF9A5200),
-            size: 21,
-          ),
-          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -830,15 +774,11 @@ class _PendingChangeCard extends StatelessWidget {
 
 class _ManageSection extends StatelessWidget {
   const _ManageSection({
-    required this.icon,
-    required this.eyebrow,
     required this.title,
     required this.description,
     required this.child,
   });
 
-  final IconData icon;
-  final String eyebrow;
   final String title;
   final String description;
   final Widget child;
@@ -849,65 +789,28 @@ class _ManageSection extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xFFE7EDF2)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0609233F),
-            blurRadius: 12,
-            offset: Offset(0, 3),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8EDF3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF4E5),
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: Icon(icon, color: _manageOrange, size: 20),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      eyebrow,
-                      style: const TextStyle(
-                        color: _manageOrange,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.7,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: _manageNavy,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      description,
-                      style: const TextStyle(
-                        color: Color(0xFF667080),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          Text(
+            title,
+            style: const TextStyle(
+              color: _manageNavy,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            description,
+            style: const TextStyle(
+              color: Color(0xFF8190A5),
+              fontSize: 13,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 15),
           child,
@@ -940,11 +843,10 @@ class _MemberForm extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 7, 12, 13),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
+          color: const Color(0xFFEEF3F8),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE7EDF2)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -956,6 +858,7 @@ class _MemberForm extends StatelessWidget {
                     'Anggota ${number.toString().padLeft(2, '0')}',
                     style: const TextStyle(
                       color: _manageNavy,
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -971,48 +874,93 @@ class _MemberForm extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            const Text(
+              'Nama anggota',
+              style: TextStyle(
+                color: Color(0xFF68778A),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
             TextField(
               controller: member.nameController,
               textCapitalization: TextCapitalization.words,
               onChanged: onNameChanged,
-              decoration: InputDecoration(
-                labelText: 'Nama anggota',
-                hintText: 'Masukkan nama',
+              style: const TextStyle(color: Color(0xFF1F2937), fontSize: 14),
+              decoration: const InputDecoration(
+                hintText: 'Nama lengkap peserta',
+                hintStyle: TextStyle(fontSize: 14),
                 filled: true,
                 fillColor: Colors.white,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 14,
+                ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFD7E2EC)),
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                  borderSide: BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFD7E2EC)),
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                  borderSide: BorderSide(color: Color(0xFFE2E8F0)),
                 ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                  borderSide: BorderSide(color: _manageNavy, width: 1.4),
+                ),
+                errorStyle: TextStyle(fontSize: 11),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
+            const Text(
+              'Jenis tiket',
+              style: TextStyle(
+                color: Color(0xFF68778A),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
             DropdownButtonFormField<int>(
               initialValue: member.ticketTypeId,
               isExpanded: true,
-              hint: const Text('Pilih jenis tiket'),
-              decoration: InputDecoration(
-                labelText: 'Jenis tiket',
+              hint: const Text(
+                'Pilih jenis tiket',
+                style: TextStyle(fontSize: 14),
+              ),
+              style: const TextStyle(color: Color(0xFF1F2937), fontSize: 14),
+              decoration: const InputDecoration(
                 filled: true,
                 fillColor: Colors.white,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFD7E2EC)),
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                  borderSide: BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFD7E2EC)),
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                  borderSide: BorderSide(color: Color(0xFFE2E8F0)),
                 ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                  borderSide: BorderSide(color: _manageNavy, width: 1.4),
+                ),
+                errorStyle: TextStyle(fontSize: 11),
               ),
               items: [
                 for (final type in ticketTypes)
                   DropdownMenuItem<int>(
                     value: type.id,
-                    child: Text('${type.name} · ${_formatPrice(type.price)}'),
+                    child: Text(
+                      '${type.name} · ${_formatPrice(type.price)}',
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 14),
+                    ),
                   ),
               ],
               onChanged: onTicketTypeChanged,
@@ -1042,14 +990,7 @@ class _ManageSummary extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xFFE7EDF2)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0609233F),
-            blurRadius: 12,
-            offset: Offset(0, 3),
-          ),
-        ],
+        border: Border.all(color: const Color(0xFFE8EDF3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1057,7 +998,7 @@ class _ManageSummary extends StatelessWidget {
           const Text(
             'Ringkasan pesanan',
             style: TextStyle(
-              color: _manageOrange,
+              color: _manageNavy,
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.6,
@@ -1075,28 +1016,13 @@ class _ManageSummary extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Row(
-            children: [
-              const Icon(
-                Icons.location_on_outlined,
-                color: Color(0xFF7890A1),
-                size: 15,
-              ),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  trip.destination.location,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF7890A1),
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
+          Text(
+            trip.destination.location,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Color(0xFF708496), fontSize: 12),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           _SummaryLine(
             label: 'Jadwal saat ini',
             value: formatIndonesianDate(trip.booking.visitDate),
@@ -1106,7 +1032,7 @@ class _ManageSummary extends StatelessWidget {
             label: 'Jumlah tiket',
             value: '${trip.booking.quantity} tiket',
           ),
-          const Divider(height: 22),
+          const Divider(height: 24, color: Color(0xFFE5EDF2)),
           _SummaryLine(
             label: 'Tiket tambahan',
             value: '$additionalCount tiket',
@@ -1116,18 +1042,33 @@ class _ManageSummary extends StatelessWidget {
             label: 'Subtotal tambahan',
             value: _formatPrice(additionalTotal),
           ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF7E8),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: _SummaryLine(
-              label: 'Total biaya tambahan',
-              value: _formatPrice(additionalTotal),
-              emphasize: true,
-            ),
+          const Divider(height: 28, color: Color(0xFFE5EDF2)),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const Expanded(
+                child: Text(
+                  'Total biaya tambahan',
+                  style: TextStyle(
+                    color: Color(0xFF385872),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  _formatPrice(additionalTotal),
+                  textAlign: TextAlign.end,
+                  style: const TextStyle(
+                    color: _manageNavy,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1136,22 +1077,17 @@ class _ManageSummary extends StatelessWidget {
 }
 
 class _SummaryLine extends StatelessWidget {
-  const _SummaryLine({
-    required this.label,
-    required this.value,
-    this.emphasize = false,
-  });
+  const _SummaryLine({required this.label, required this.value});
 
   final String label;
   final String value;
-  final bool emphasize;
 
   @override
   Widget build(BuildContext context) {
-    final style = TextStyle(
-      color: emphasize ? _manageNavy : const Color(0xFF667080),
-      fontWeight: emphasize ? FontWeight.w700 : FontWeight.w500,
-      fontSize: emphasize ? 15 : 13,
+    const style = TextStyle(
+      color: Color(0xFF708496),
+      fontWeight: FontWeight.w500,
+      fontSize: 13,
     );
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1182,13 +1118,13 @@ class _InlineNotice extends StatelessWidget {
     width: double.infinity,
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: const Color(0xFFFFF7E8),
+      color: const Color(0xFFEAF2F8),
       borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: const Color(0xFFF1D5A8)),
+      border: Border.all(color: const Color(0xFFDCE6ED)),
     ),
     child: Text(
       message,
-      style: const TextStyle(color: Color(0xFF80520B), fontSize: 12),
+      style: const TextStyle(color: _manageNavy, fontSize: 12),
     ),
   );
 }

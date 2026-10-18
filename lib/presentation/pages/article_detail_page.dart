@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/models/article.dart';
 
 const _articleNavy = Color(0xFF0B294A);
-const _articleOrange = Color(0xFFE98600);
-const _articleBackground = Color(0xFFF7F9FC);
+const _articleBackground = Color(0xFFFFFFFF);
 
 class ArticleDetailPage extends StatelessWidget {
   const ArticleDetailPage({super.key, required this.article});
@@ -22,14 +21,56 @@ class ArticleDetailPage extends StatelessWidget {
             backgroundColor: _articleBackground,
             foregroundColor: _articleNavy,
             surfaceTintColor: Colors.transparent,
-            title: const Text('Berita & Panduan'),
+            centerTitle: true,
+            title: const Text(
+              'Detail Artikel',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
           ),
           SliverToBoxAdapter(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        article.title,
+                        style: const TextStyle(
+                          color: Color(0xFF202B45),
+                          fontSize: 25,
+                          height: 1.25,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (article.publishedDateLabel.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          'Dipublikasikan ${article.publishedDateLabel}',
+                          style: const TextStyle(
+                            color: Color(0xFF737B88),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+                  child: Text(
+                    article.content,
+                    style: const TextStyle(
+                      color: Color(0xFF252B33),
+                      fontSize: 15,
+                      height: 1.55,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
                     child: AspectRatio(
@@ -43,51 +84,6 @@ class ArticleDetailPage extends StatelessWidget {
                                   const _ArticleImageFallback(),
                             ),
                     ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Cerita perjalanan',
-                        style: TextStyle(
-                          color: _articleOrange,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        article.title,
-                        style: const TextStyle(
-                          color: _articleNavy,
-                          fontSize: 24,
-                          height: 1.2,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 9),
-                      if (article.publishedDateLabel.isNotEmpty) ...[
-                        Text(
-                          article.publishedDateLabel,
-                          style: const TextStyle(
-                            color: Color(0xFF7A8492),
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 17),
-                      ],
-                      Text(
-                        article.content,
-                        style: const TextStyle(
-                          color: Color(0xFF40536A),
-                          fontSize: 15,
-                          height: 1.65,
-                        ),
-                      ),
-                    ],
                   ),
                 ),
               ],
