@@ -7,7 +7,6 @@ import '../../../data/services/device_location_service.dart';
 import '../../../data/services/destination_service.dart';
 import '../../../data/services/route_estimate_service.dart';
 import '../destination/destination_detail_page.dart';
-import '../profile/profile_page.dart';
 
 const _navy = Color(0xFF12304A);
 const _raisedNavy = Color(0xFF244D70);
@@ -18,13 +17,11 @@ const _mapCenter = LatLng(-8.17, 113.70);
 class MapPage extends StatefulWidget {
   const MapPage({
     super.key,
-    this.onProfileTap,
     this.destinationService,
     this.routeEstimateService,
     this.locationProvider,
   });
 
-  final VoidCallback? onProfileTap;
   final DestinationService? destinationService;
   final RouteEstimateService? routeEstimateService;
   final Future<LatLng?> Function()? locationProvider;
@@ -567,22 +564,6 @@ class _MapPageState extends State<MapPage> {
                     ),
                     icon: const Icon(Icons.refresh_rounded),
                   ),
-                  IconButton(
-                    tooltip: 'Profil',
-                    onPressed:
-                        widget.onProfileTap ??
-                        () => Navigator.push(
-                          context,
-                          MaterialPageRoute<void>(
-                            builder: (_) => const ProfilePage(),
-                          ),
-                        ),
-                    style: IconButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      backgroundColor: Colors.white.withValues(alpha: 0.12),
-                    ),
-                    icon: const Icon(Icons.person_outline),
-                  ),
                 ],
               ),
             ),
@@ -840,148 +821,207 @@ class _MapPageState extends State<MapPage> {
     final durationMinutes = estimate == null
         ? 0
         : (estimate.durationSeconds / 60 / 5).ceil() * 5;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFE8EDF3))),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'Pilih destinasi',
-            style: TextStyle(
-              color: _navy,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 6),
-          DropdownButtonFormField<String>(
-            key: const ValueKey('map-destination-selector'),
-            initialValue:
-                _visibleDestinations.any(
-                  (item) => item.id == _selectedDestinationId,
-                )
-                ? _selectedDestinationId
-                : null,
-            isExpanded: true,
-            decoration: InputDecoration(
-              hintText: 'Pilih destinasi wisata',
-              isDense: true,
-              filled: true,
-              fillColor: _pageBackground,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-              ),
-            ),
-            items: [
-              for (final item in _visibleDestinations)
-                DropdownMenuItem(
-                  value: item.id,
-                  child: Text(
-                    item.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-            ],
-            onChanged: (id) {
-              Destination? selected;
-              for (final item in _visibleDestinations) {
-                if (item.id == id) {
-                  selected = item;
-                  break;
-                }
-              }
-              if (selected != null) _selectDestination(selected);
-            },
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            height: 42,
-            child: OutlinedButton(
-              key: const ValueKey('map-estimate-route'),
-              onPressed: destination == null || _isEstimatingRoute
-                  ? null
-                  : _calculateRouteEstimate,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _navy,
-                side: const BorderSide(color: _navy),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                textStyle: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              child: _isEstimatingRoute
-                  ? const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        SizedBox(width: 8),
-                        Text('Menghitung rute...'),
-                      ],
-                    )
-                  : Text(
-                      estimate == null
-                          ? 'Lihat estimasi jarak & waktu'
-                          : 'Perbarui estimasi rute',
-                    ),
-            ),
-          ),
-          if (_routeError != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              _routeError!,
-              key: const ValueKey('map-route-error'),
-              style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12),
+    final canRestart =
+        _selectedDestinationId != null ||
+        estimate != null ||
+        _routeError != null ||
+        _isEstimatingRoute;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A12304A),
+              blurRadius: 10,
+              offset: Offset(0, 3),
             ),
           ],
-          if (estimate != null) ...[
-            const SizedBox(height: 10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
             Row(
               children: [
-                Expanded(
-                  child: _RouteEstimateValue(
-                    label: 'Jarak rute',
-                    value:
-                        '${(estimate.distanceMeters / 1000).toStringAsFixed(1)} km',
-                  ),
-                ),
-                const SizedBox(
-                  height: 30,
-                  child: VerticalDivider(width: 24, color: Color(0xFFE2E8F0)),
-                ),
-                Expanded(
-                  child: _RouteEstimateValue(
-                    label: 'Estimasi berkendara',
-                    value: _formatDuration(durationMinutes),
+                const Text(
+                  'Pilih destinasi',
+                  style: TextStyle(
+                    color: _navy,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            SizedBox(
+              height: 48,
+              child: DropdownButtonFormField<String>(
+                key: const ValueKey('map-destination-selector'),
+                initialValue:
+                    _visibleDestinations.any(
+                      (item) => item.id == _selectedDestinationId,
+                    )
+                    ? _selectedDestinationId
+                    : null,
+                isExpanded: true,
+                decoration: InputDecoration(
+                  hintText: 'Pilih destinasi wisata',
+                  isDense: true,
+                  filled: true,
+                  fillColor: _pageBackground,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                ),
+                items: [
+                  for (final item in _visibleDestinations)
+                    DropdownMenuItem(
+                      value: item.id,
+                      child: Text(
+                        item.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                onChanged: (id) {
+                  Destination? selected;
+                  for (final item in _visibleDestinations) {
+                    if (item.id == id) {
+                      selected = item;
+                      break;
+                    }
+                  }
+                  if (selected != null) _selectDestination(selected);
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: OutlinedButton(
+                      key: const ValueKey('map-estimate-route'),
+                      onPressed: destination == null || _isEstimatingRoute
+                          ? null
+                          : _calculateRouteEstimate,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _navy,
+                        side: const BorderSide(color: _navy),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: _isEstimatingRoute
+                          ? const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Text('Menghitung...'),
+                              ],
+                            )
+                          : Text(
+                              estimate == null
+                                  ? 'Lihat estimasi'
+                                  : 'Perbarui estimasi',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('map-reset-route'),
+                    onPressed: canRestart
+                        ? () {
+                            setState(_clearRouteSelection);
+                            _fitMapToDestinations();
+                          }
+                        : null,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _raisedNavy,
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    icon: const Icon(Icons.restart_alt_rounded, size: 18),
+                    label: const Text('Mulai ulang'),
+                  ),
+                ),
+              ],
+            ),
+            if (_routeError != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _routeError!,
+                key: const ValueKey('map-route-error'),
+                style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12),
+              ),
+            ],
+            if (estimate != null) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _RouteEstimateValue(
+                      label: 'Jarak rute',
+                      value:
+                          '${(estimate.distanceMeters / 1000).toStringAsFixed(1)} km',
+                    ),
+                  ),
+                  const SizedBox(
+                    height: 30,
+                    child: VerticalDivider(width: 24, color: Color(0xFFE2E8F0)),
+                  ),
+                  Expanded(
+                    child: _RouteEstimateValue(
+                      label: 'Estimasi berkendara',
+                      value: _formatDuration(durationMinutes),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

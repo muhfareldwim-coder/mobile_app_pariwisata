@@ -140,7 +140,6 @@ class _LoginPageState extends State<LoginPage> {
       form: Form(
         key: _formKey,
         child: AuthFormColumn(
-          eyebrow: 'SISTEM INFORMASI DAN LAYANAN PARIWISATA KABUPATEN JEMBER',
           description: 'Masuk untuk menikmati informasi dan layanan pariwisata Kabupaten Jember',
           isRegister: false,
           fields: [

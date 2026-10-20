@@ -72,7 +72,6 @@ class _RegisterPageState extends State<RegisterPage> {
       form: Form(
         key: _formKey,
         child: AuthFormColumn(
-          eyebrow: 'SISTEM INFORMASI DAN LAYANAN PARIWISATA KABUPATEN JEMBER',
           description: 'Daftar untuk mendapatkan akses ke layanan pariwisata Kabupaten Jember',
           isRegister: true,
           fields: [

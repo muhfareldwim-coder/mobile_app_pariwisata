@@ -7,7 +7,7 @@ import 'brand_logo.dart';
 class AuthFormColumn extends StatelessWidget {
   const AuthFormColumn({
     super.key,
-    required this.eyebrow,
+    this.eyebrow,
     required this.description,
     required this.fields,
     required this.buttonLabel,
@@ -23,7 +23,7 @@ class AuthFormColumn extends StatelessWidget {
     this.isGoogleSubmitting = false,
   });
 
-  final String eyebrow;
+  final String? eyebrow;
   final String description;
   final List<Widget> fields;
   final String buttonLabel;
@@ -43,6 +43,7 @@ class AuthFormColumn extends StatelessWidget {
     const navy = Color(0xFF173B60);
     const orange = Color(0xFFE77D00);
     const muted = Color(0xFF7890A1);
+    final eyebrowText = eyebrow;
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 360),
@@ -51,17 +52,19 @@ class AuthFormColumn extends StatelessWidget {
         children: [
           const Center(child: BrandLogo()),
           const SizedBox(height: 12),
-          Text(
-            eyebrow,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: orange,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.1,
+          if (eyebrowText != null && eyebrowText.isNotEmpty) ...[
+            Text(
+              eyebrowText,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: orange,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.1,
+              ),
             ),
-          ),
-          const SizedBox(height: 9),
+            const SizedBox(height: 9),
+          ],
           Text(
             isRegister ? 'Daftar Akun JemberGo' : 'Selamat Datang di JemberGo',
             textAlign: TextAlign.center,
@@ -257,10 +260,10 @@ class _GoogleMarkPainter extends CustomPainter {
     final rect = Rect.fromCircle(center: center, radius: radius);
     const gap = 0.08;
     final segments = [
-      (const Color(0xFF4285F4), -math.pi / 4 + gap, math.pi / 2 - gap),
-      (const Color(0xFFEA4335), -3 * math.pi / 4 + gap, math.pi / 2 - gap),
-      (const Color(0xFFFBBC05), math.pi / 4 + gap, math.pi / 2 - gap),
-      (const Color(0xFF34A853), 3 * math.pi / 4 + gap, math.pi / 2 - gap),
+      (const Color(0xFF4285F4), -math.pi / 2 + gap, math.pi / 2 - gap * 2),
+      (const Color(0xFFEA4335), -math.pi + gap, math.pi / 2 - gap * 2),
+      (const Color(0xFFFBBC05), math.pi / 2 + gap, math.pi / 2 - gap * 2),
+      (const Color(0xFF34A853), gap, math.pi / 2 - gap * 2),
     ];
 
     for (final (color, startAngle, sweepAngle) in segments) {

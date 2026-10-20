@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile_pariwisata/presentation/pages/auth/login_page.dart';
 import 'package:mobile_pariwisata/presentation/pages/auth/register_page.dart';
+import 'package:mobile_pariwisata/presentation/widgets/brand_logo.dart';
 
 void main() {
   testWidgets('mobile login and register layouts fit without overflow', (
@@ -19,6 +20,13 @@ void main() {
       await tester.pump();
 
       expect(find.byType(TextFormField), findsWidgets);
+      expect(
+        find.text('SISTEM INFORMASI DAN LAYANAN PARIWISATA KABUPATEN JEMBER'),
+        findsNothing,
+      );
+      final logoSize = tester.getSize(find.byType(BrandLogo));
+      expect(logoSize.width, greaterThan(150));
+      expect(logoSize.height, 105);
       expect(tester.takeException(), isNull);
     }
 
