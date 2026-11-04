@@ -7,6 +7,7 @@ import '../../../data/services/auth_service.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/auth_form_column.dart';
 import '../../widgets/auth_shell.dart';
+import 'otp_verification_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -84,11 +85,26 @@ class _LoginPageState extends State<LoginPage> {
         );
       }
 
-      await _authService.loginWithGoogleIdToken(
+      final result = await _authService.loginWithGoogleIdToken(
         idToken,
         rememberMe: _rememberMe,
       );
-      _completeLogin();
+      if (!mounted) return;
+      if (result is GoogleLoginSucceeded) {
+        _completeLogin();
+      } else if (result is GoogleLoginOtpRequired) {
+        final verified = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OtpVerificationPage(
+              email: result.email,
+              purpose: OtpPurpose.google,
+              rememberMe: _rememberMe,
+            ),
+          ),
+        );
+        if (verified == true) _completeLogin();
+      }
     } on GoogleSignInException catch (error) {
       if (error.code != GoogleSignInExceptionCode.canceled && mounted) {
         _showMessage(error.toString());
@@ -119,19 +135,28 @@ class _LoginPageState extends State<LoginPage> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _showPasswordRecoveryUnavailable() {
-    _showMessage('Pemulihan kata sandi belum tersedia di aplikasi.');
+  Future<void> _openPasswordRecovery() async {
+    final passwordChanged = await Navigator.pushNamed(
+      context,
+      AppRoutes.forgotPassword,
+    );
+    if (mounted && passwordChanged == true) {
+      _showMessage('Password berhasil diubah. Silakan masuk kembali.');
+    }
   }
 
   Future<void> _openRegister() async {
     final registered = await Navigator.pushNamed(context, AppRoutes.register);
-    if (!mounted ||
-        registered != true ||
-        AuthService.currentUser == null ||
-        !Navigator.canPop(context)) {
+    if (!mounted || registered != true) {
       return;
     }
-    Navigator.pop(context, true);
+    if (AuthService.currentUser == null) {
+      _showMessage('Email berhasil diverifikasi. Silakan masuk.');
+      return;
+    }
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context, true);
+    }
   }
 
   @override
@@ -193,7 +218,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ],
           ),
-          forgotAction: _showPasswordRecoveryUnavailable,
+          forgotAction: _openPasswordRecovery,
           buttonLabel: 'Masuk',
           isSubmitting: _isSubmitting,
           isGoogleSubmitting: _isGoogleSubmitting,

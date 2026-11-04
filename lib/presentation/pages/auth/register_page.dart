@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/routes/app_routes.dart';
 import '../../../data/services/auth_service.dart';
+import 'otp_verification_page.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/auth_form_column.dart';
 import '../../widgets/auth_shell.dart';
@@ -51,6 +52,16 @@ class _RegisterPageState extends State<RegisterPage> {
         _passwordController.text,
       );
       if (!mounted) return;
+      final verified = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OtpVerificationPage(
+            email: _emailController.text.trim().toLowerCase(),
+            purpose: OtpPurpose.registration,
+          ),
+        ),
+      );
+      if (!mounted || verified != true) return;
       if (Navigator.canPop(context)) {
         Navigator.pop(context, true);
       } else {

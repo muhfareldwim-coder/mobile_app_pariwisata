@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_pariwisata/presentation/pages/auth/forgot_password_page.dart';
 import 'package:mobile_pariwisata/presentation/pages/auth/login_page.dart';
+import 'package:mobile_pariwisata/presentation/pages/auth/otp_verification_page.dart';
 import 'package:mobile_pariwisata/presentation/pages/auth/register_page.dart';
 import 'package:mobile_pariwisata/presentation/widgets/brand_logo.dart';
 
@@ -11,6 +13,11 @@ void main() {
     final cases = [
       (const Size(360, 800), const LoginPage()),
       (const Size(320, 640), const RegisterPage()),
+      (const Size(320, 640), const OtpVerificationPage(
+        email: 'siti@example.com',
+        purpose: OtpPurpose.registration,
+      )),
+      (const Size(320, 640), const ForgotPasswordPage()),
     ];
 
     for (final (size, page) in cases) {

@@ -12,13 +12,12 @@ class AuthService {
     ApiService? api,
     FlutterSecureStorage? storage,
     AuthSessionStorage? sessionStorage,
-  })
-    : _api = api ?? ApiService(),
-      _storage =
-          sessionStorage ??
-          _FlutterSecureStorageSessionStorage(
-            storage ?? const FlutterSecureStorage(),
-          );
+  }) : _api = api ?? ApiService(),
+       _storage =
+           sessionStorage ??
+           _FlutterSecureStorageSessionStorage(
+             storage ?? const FlutterSecureStorage(),
+           );
 
   static const _tokenKey = 'jembergo_access_token';
   static const _userKey = 'jembergo_user';
@@ -42,9 +41,7 @@ class AuthService {
     final token = values[0];
     final encodedUser = values[1];
     if (token == null || encodedUser == null) {
-      await _clearStoredSession(
-        _FlutterSecureStorageSessionStorage(storage),
-      );
+      await _clearStoredSession(_FlutterSecureStorageSessionStorage(storage));
       return;
     }
 
@@ -84,7 +81,7 @@ class AuthService {
     return data['server_client_id'] as String;
   }
 
-  Future<User> loginWithGoogleIdToken(
+  Future<GoogleLoginResult> loginWithGoogleIdToken(
     String idToken, {
     bool rememberMe = true,
   }) async {
@@ -92,10 +89,22 @@ class AuthService {
       '/auth/google',
       body: {'id_token': idToken, 'device_name': AppConstants.appName},
     );
-    return _setSession(response, rememberMe: rememberMe);
+    final data = response['data'];
+    if (data is Map<String, dynamic> && data['purpose'] == 'google') {
+      final email = data['email'];
+      if (email is! String || email.isEmpty) {
+        throw const FormatException(
+          'Email untuk verifikasi Google tidak tersedia.',
+        );
+      }
+      return GoogleLoginOtpRequired(email);
+    }
+    return GoogleLoginSucceeded(
+      await _setSession(response, rememberMe: rememberMe),
+    );
   }
 
-  Future<User> register(
+  Future<void> register(
     String name,
     String email,
     String phone,
@@ -111,7 +120,73 @@ class AuthService {
         'device_name': AppConstants.appName,
       },
     );
-    return _setSession(response, rememberMe: true);
+    _requireOtpChallenge(response, 'registration');
+  }
+
+  Future<void> verifyRegistrationOtp(String email, String otp) async {
+    await _api.post(
+      '/auth/register/verify',
+      body: {'email': email.trim().toLowerCase(), 'otp': otp.trim()},
+    );
+  }
+
+  Future<User> verifyGoogleOtp(
+    String email,
+    String otp, {
+    bool rememberMe = true,
+  }) async {
+    final response = await _api.post(
+      '/auth/google/verify',
+      body: {
+        'email': email.trim().toLowerCase(),
+        'otp': otp.trim(),
+        'device_name': AppConstants.appName,
+      },
+    );
+    return _setSession(response, rememberMe: rememberMe);
+  }
+
+  Future<void> resendOtp(String email, String purpose) async {
+    await _api.post(
+      '/auth/otp/resend',
+      body: {'email': email.trim().toLowerCase(), 'purpose': purpose},
+    );
+  }
+
+  Future<void> requestPasswordResetOtp(String email) async {
+    await _api.post(
+      '/auth/password/otp',
+      body: {'email': email.trim().toLowerCase()},
+    );
+  }
+
+  Future<String> verifyPasswordResetOtp(String email, String otp) async {
+    final response = await _api.post(
+      '/auth/password/otp/verify',
+      body: {'email': email.trim().toLowerCase(), 'otp': otp.trim()},
+    );
+    final data = response['data'];
+    if (data is! Map<String, dynamic> || data['reset_token'] is! String) {
+      throw const FormatException('Respons verifikasi OTP tidak lengkap.');
+    }
+    return data['reset_token'] as String;
+  }
+
+  Future<void> resetPassword({
+    required String email,
+    required String resetToken,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    await _api.post(
+      '/auth/password/reset',
+      body: {
+        'email': email.trim().toLowerCase(),
+        'reset_token': resetToken,
+        'password': password,
+        'password_confirmation': passwordConfirmation,
+      },
+    );
   }
 
   Future<void> logoutFromServer() async {
@@ -143,7 +218,9 @@ class AuthService {
     final token = _accessToken;
     final current = currentUser;
     if (token == null || current == null || current.role != 'CUSTOMER') {
-      throw const ApiException('Silakan login sebagai customer untuk memuat profil.');
+      throw const ApiException(
+        'Silakan login sebagai customer untuk memuat profil.',
+      );
     }
 
     final response = await _api.get('/customer/profil', token: token);
@@ -162,7 +239,9 @@ class AuthService {
     final token = _accessToken;
     final current = currentUser;
     if (token == null || current == null || current.role != 'CUSTOMER') {
-      throw const ApiException('Sesi login customer tidak tersedia. Silakan login kembali.');
+      throw const ApiException(
+        'Sesi login customer tidak tersedia. Silakan login kembali.',
+      );
     }
 
     final body = <String, Object?>{
@@ -210,10 +289,21 @@ class AuthService {
     return user;
   }
 
-  User _profileUserFromResponse(
+  void _requireOtpChallenge(
     Map<String, dynamic> response,
-    String role,
+    String expectedPurpose,
   ) {
+    final data = response['data'];
+    if (data is! Map<String, dynamic> ||
+        data['purpose'] != expectedPurpose ||
+        data['email'] is! String) {
+      throw const FormatException(
+        'Respons verifikasi OTP dari server tidak lengkap.',
+      );
+    }
+  }
+
+  User _profileUserFromResponse(Map<String, dynamic> response, String role) {
     final data = response['data'];
     if (data is! Map<String, dynamic>) {
       throw const FormatException('Respons profil dari server tidak lengkap.');
@@ -237,6 +327,22 @@ class AuthService {
     await storage.delete(_tokenKey);
     await storage.delete(_userKey);
   }
+}
+
+sealed class GoogleLoginResult {
+  const GoogleLoginResult();
+}
+
+class GoogleLoginSucceeded extends GoogleLoginResult {
+  const GoogleLoginSucceeded(this.user);
+
+  final User user;
+}
+
+class GoogleLoginOtpRequired extends GoogleLoginResult {
+  const GoogleLoginOtpRequired(this.email);
+
+  final String email;
 }
 
 abstract interface class AuthSessionStorage {
