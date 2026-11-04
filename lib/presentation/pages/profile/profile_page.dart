@@ -1,10 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
 import '../../../core/routes/app_routes.dart';
 import '../../../data/models/destination.dart';
 import '../../../data/models/user.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/favorite_destination_service.dart';
+import '../../../data/services/language_preference_service.dart';
 import '../destination/destination_detail_page.dart';
 import 'profile_detail_page.dart';
 
@@ -121,8 +123,7 @@ class ProfilePageState extends State<ProfilePage> {
                     user: _user,
                     onEdit: _openDetails,
                     onSignIn: () => _openAuthentication(AppRoutes.login),
-                    onRegister: () =>
-                        _openAuthentication(AppRoutes.register),
+                    onRegister: () => _openAuthentication(AppRoutes.register),
                   ),
                 ),
                 Padding(
@@ -143,12 +144,17 @@ class ProfilePageState extends State<ProfilePage> {
                       const SizedBox(height: 9),
                       _SettingsGroup(
                         children: [
-                          _SettingRow(
-                            icon: Icons.language_rounded,
-                            iconBackground: const Color(0xFFF4F7FA),
-                            title: 'Pilihan Bahasa',
-                            subtitle: 'Bahasa Indonesia (ID)',
-                            onTap: _showLanguagePicker,
+                          ValueListenableBuilder<Locale>(
+                            valueListenable: LanguagePreferenceService.locale,
+                            builder: (context, locale, _) => _SettingRow(
+                              icon: Icons.language_rounded,
+                              iconBackground: const Color(0xFFF4F7FA),
+                              title: 'Pilihan Bahasa',
+                              subtitle: LanguagePreferenceService.labelFor(
+                                locale,
+                              ),
+                              onTap: _showLanguagePicker,
+                            ),
                           ),
                           _SettingRow(
                             icon: Icons.policy_outlined,
@@ -201,9 +207,46 @@ class ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _showLanguagePicker() async {
-    await _showInformationDialog(
-      title: 'Pilihan Bahasa',
-      placeholder: 'Informasi pilihan bahasa akan ditambahkan di sini.',
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => ValueListenableBuilder<Locale>(
+        valueListenable: LanguagePreferenceService.locale,
+        builder: (context, selectedLocale, _) => AlertDialog(
+          title: const Text('Pilihan Bahasa'),
+          content: RadioGroup<Locale>(
+            groupValue: selectedLocale,
+            onChanged: (value) async {
+              if (value == null) return;
+              try {
+                await LanguagePreferenceService.setLocale(value);
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
+              } on Exception catch (error) {
+                if (mounted) {
+                  _showMessage('Gagal menyimpan bahasa: $error');
+                }
+              }
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final locale in LanguagePreferenceService.supportedLocales)
+                  RadioListTile<Locale>(
+                    value: locale,
+                    title: Text(LanguagePreferenceService.labelFor(locale)),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Tutup'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -427,7 +470,7 @@ class _ProfileIdentityCard extends StatelessWidget {
               if (isSignedIn)
                 IconButton(
                   onPressed: onEdit,
-                  tooltip: 'Edit profil',
+                  tooltip: localized('Edit profil'),
                   icon: const Icon(Icons.edit_outlined),
                   color: _profileNavy,
                 ),
@@ -739,7 +782,7 @@ class _FavoriteDestinationCard extends StatelessWidget {
                 ),
               ),
               IconButton(
-                tooltip: 'Hapus dari favorit',
+                tooltip: localized('Hapus dari favorit'),
                 onPressed: () => FavoriteDestinationService.toggle(destination),
                 icon: const Icon(Icons.favorite_rounded),
                 color: _profileOrange,
@@ -776,7 +819,7 @@ class _GroupHeading extends StatelessWidget {
 class _SettingsGroup extends StatelessWidget {
   const _SettingsGroup({required this.children});
 
-  final List<_SettingRow> children;
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {

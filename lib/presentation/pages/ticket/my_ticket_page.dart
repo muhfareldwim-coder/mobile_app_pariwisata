@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
 import '../../../core/routes/app_routes.dart';
 import '../../../data/models/booking.dart';
@@ -22,11 +23,7 @@ const _ticketSecondaryText = Color(0xFF8190A5);
 const _ticketBorder = Color(0xFFE3EAF2);
 
 class MyTicketPage extends StatefulWidget {
-  const MyTicketPage({
-    super.key,
-    this.onExploreTap,
-    this.isSelected = true,
-  });
+  const MyTicketPage({super.key, this.onExploreTap, this.isSelected = true});
 
   final VoidCallback? onExploreTap;
   final bool isSelected;
@@ -622,13 +619,27 @@ class _CompactTicketCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  'Kode ${ticket.bookingId}',
-                  style: const TextStyle(
-                    color: _ticketSecondaryText,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Kode ',
+                      style: TextStyle(
+                        color: _ticketSecondaryText,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Flexible(
+                      child: Text(
+                        ticket.bookingId,
+                        style: const TextStyle(
+                          color: _ticketSecondaryText,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Text(
@@ -816,7 +827,9 @@ class _EmptyTickets extends StatelessWidget {
             const SizedBox(height: 8),
             TextButton(
               onPressed: requiresLogin ? onLogin : onExplore,
-              child: Text(requiresLogin ? 'Login sekarang' : 'pesan tiket sekarang'),
+              child: Text(
+                requiresLogin ? 'Login sekarang' : 'pesan tiket sekarang',
+              ),
             ),
           ],
         ),

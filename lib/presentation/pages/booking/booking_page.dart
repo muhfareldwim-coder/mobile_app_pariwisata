@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -122,9 +123,9 @@ class _BookingPageState extends State<BookingPage> {
       initialDate: initialDate.isBefore(todayDate) ? todayDate : initialDate,
       firstDate: todayDate,
       lastDate: DateTime(today.year, today.month + 2, today.day),
-      helpText: 'Pilih tanggal kunjungan',
-      cancelText: 'Batal',
-      confirmText: 'Pilih',
+      helpText: localized('Pilih tanggal kunjungan'),
+      cancelText: localized('Batal'),
+      confirmText: localized('Pilih'),
     );
     if (selectedDate != null && mounted) {
       setState(() {
@@ -451,7 +452,9 @@ class _BookingPageState extends State<BookingPage> {
 
   String? _validName(String? value) {
     if (_required(value) != null) return _required(value);
-    if (value!.length > 150) return 'Nama maksimal 150 karakter.';
+    if (value!.length > 150) {
+      return localized('Nama maksimal 150 karakter.');
+    }
     return RegExp(r'^[\p{L}\s]+$', unicode: true).hasMatch(value.trim())
         ? null
         : 'Nama lengkap hanya boleh berisi huruf dan spasi.';
@@ -468,7 +471,9 @@ class _BookingPageState extends State<BookingPage> {
   String? _validPhone(String? value) {
     if (_required(value) != null) return _required(value);
     if (value!.length > 16) {
-      return 'Gunakan 10-12 digit lokal atau awali + untuk nomor internasional (maksimal 15 digit).';
+      return localized(
+        'Gunakan 10-12 digit lokal atau awali + untuk nomor internasional (maksimal 15 digit).',
+      );
     }
     return RegExp(r'^(?:[0-9]{10,12}|\+[0-9]{10,15})$').hasMatch(value.trim())
         ? null
@@ -487,7 +492,7 @@ class _BookingPageState extends State<BookingPage> {
         email.startsWith('.') ||
         email.contains('..') ||
         (atIndex > 0 && email.substring(0, atIndex).endsWith('.'))) {
-      return 'Email harus menggunakan alamat @gmail.com.';
+      return localized('Email harus menggunakan alamat @gmail.com.');
     }
     return null;
   }
@@ -515,7 +520,7 @@ class _BookingHeader extends StatelessWidget {
           children: [
             IconButton(
               onPressed: onBack,
-              tooltip: 'Kembali',
+              tooltip: localized('Kembali'),
               icon: const Icon(Icons.arrow_back, color: _ink),
             ),
             const Expanded(
@@ -829,6 +834,11 @@ class _BookingInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String? validate(String? value) {
+      final message = validator(value);
+      return message == null ? null : localized(message);
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -846,7 +856,7 @@ class _BookingInput extends StatelessWidget {
           TextFormField(
             controller: controller,
             keyboardType: keyboardType,
-            validator: validator,
+            validator: validate,
             maxLength: maxLength,
             maxLengthEnforcement: MaxLengthEnforcement.enforced,
             buildCounter: (
@@ -922,6 +932,11 @@ class _PassengerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String? validateName(String? value) {
+      final message = requiredValidator(value);
+      return message == null ? null : localized(message);
+    }
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -940,7 +955,7 @@ class _PassengerCard extends StatelessWidget {
               else
                 IconButton(
                   onPressed: onRemove,
-                  tooltip: 'Hapus peserta $index',
+                  tooltip: localized('Hapus peserta $index'),
                   visualDensity: VisualDensity.compact,
                   constraints: const BoxConstraints.tightFor(
                     width: 28,
@@ -960,7 +975,7 @@ class _PassengerCard extends StatelessWidget {
           TextFormField(
             controller: nameController,
             readOnly: isLeader,
-            validator: isLeader ? null : requiredValidator,
+            validator: isLeader ? null : validateName,
             style: const TextStyle(color: _ink, fontSize: 14),
             maxLength: 150,
             maxLengthEnforcement: MaxLengthEnforcement.enforced,
@@ -970,8 +985,8 @@ class _PassengerCard extends StatelessWidget {
               required isFocused,
               maxLength,
             }) => null,
-            decoration: const InputDecoration(
-              hintText: 'Nama lengkap peserta',
+            decoration: InputDecoration(
+              hintText: localized('Nama lengkap peserta'),
               filled: true,
               fillColor: Colors.white,
               contentPadding: EdgeInsets.symmetric(
@@ -1031,7 +1046,7 @@ class _PassengerCard extends StatelessWidget {
                     if (ticketId != null) onTypeChanged(ticketId);
                   },
             validator: (ticketId) =>
-                ticketId == null ? 'Pilih jenis tiket.' : null,
+                ticketId == null ? localized('Pilih jenis tiket.') : null,
           ),
         ],
       ),

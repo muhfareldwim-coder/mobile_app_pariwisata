@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
 import '../../../data/services/auth_service.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/auth_shell.dart';
+import '../../widgets/brand_logo.dart';
 
 enum OtpPurpose { registration, google }
 
@@ -91,6 +93,8 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const Center(child: BrandLogo()),
+            const SizedBox(height: 12),
             const Icon(
               Icons.mark_email_read_outlined,
               size: 48,

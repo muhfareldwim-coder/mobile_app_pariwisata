@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -142,7 +143,7 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
         scrolledUnderElevation: 0,
         toolbarHeight: 56,
         leading: IconButton(
-          tooltip: 'Kembali',
+          tooltip: localized('Kembali'),
           onPressed: () => Navigator.maybePop(context),
           icon: const Icon(Icons.arrow_back),
         ),
@@ -412,9 +413,9 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
                         icon: isFavorite
                             ? Icons.favorite
                             : Icons.favorite_border,
-                        tooltip: isFavorite
-                            ? 'Hapus favorit'
-                            : 'Simpan favorit',
+                        tooltip: localized(
+                          isFavorite ? 'Hapus favorit' : 'Simpan favorit',
+                        ),
                         iconColor: isFavorite
                             ? AppColors.orange
                             : AppColors.navy,
@@ -939,7 +940,7 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
             IconButton(
               onPressed: () => Navigator.pop(context),
               icon: const Icon(Icons.close, color: Colors.white),
-              tooltip: 'Tutup galeri',
+              tooltip: localized('Tutup galeri'),
             ),
           ],
         ),
@@ -1066,7 +1067,7 @@ class _HeroAction extends StatelessWidget {
     shape: const CircleBorder(),
     child: IconButton(
       onPressed: onTap,
-      tooltip: tooltip,
+      tooltip: localized(tooltip),
       icon: Icon(icon, color: iconColor, size: 20),
       visualDensity: VisualDensity.compact,
     ),
@@ -1213,7 +1214,7 @@ class _WriteReviewDialogState extends State<_WriteReviewDialog> {
             children: [
               for (var star = 1; star <= 5; star++)
                 IconButton(
-                  tooltip: '$star bintang',
+                  tooltip: localized('$star bintang'),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
                     minWidth: 36,
@@ -1234,8 +1235,8 @@ class _WriteReviewDialogState extends State<_WriteReviewDialog> {
             minLines: 3,
             maxLines: 5,
             maxLength: 500,
-            decoration: const InputDecoration(
-              labelText: 'Ceritakan pengalaman Anda',
+            decoration: InputDecoration(
+              labelText: localized('Ceritakan pengalaman Anda'),
               alignLabelWithHint: true,
               border: OutlineInputBorder(),
             ),

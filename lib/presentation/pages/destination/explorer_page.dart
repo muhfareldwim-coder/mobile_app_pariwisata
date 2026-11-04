@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/destination.dart';
@@ -278,8 +279,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
                       fontSize: 14,
                     ),
                     cursorColor: AppColors.orange,
-                    decoration: const InputDecoration(
-                      hintText: 'Cari wisata yang anda inginkan',
+                    decoration: InputDecoration(
+                      hintText: localized('Cari wisata yang anda inginkan'),
                       hintStyle: TextStyle(
                         color: _exploreSecondaryText,
                         fontSize: 13,
@@ -293,7 +294,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                 ),
                 if (searchController.text.isNotEmpty)
                   IconButton(
-                    tooltip: 'Hapus pencarian',
+                    tooltip: localized('Hapus pencarian'),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(
                       minWidth: 36,
@@ -310,7 +311,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                     ),
                   ),
                 IconButton(
-                  tooltip: 'Filter destinasi',
+                  tooltip: localized('Filter destinasi'),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
                     minWidth: 36,
@@ -366,7 +367,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                         ),
                       ),
                       IconButton(
-                        tooltip: 'Tutup filter',
+                        tooltip: localized('Tutup filter'),
                         visualDensity: VisualDensity.compact,
                         onPressed: () => Navigator.pop(dialogContext),
                         icon: const Icon(
@@ -401,9 +402,8 @@ class _ExplorerPageState extends State<ExplorerPage> {
                               ? category
                               : _categoryLabel(category),
                           selected: selectedCategory == category,
-                          onSelected: () => setDialogState(
-                            () => selectedCategory = category,
-                          ),
+                          onSelected: () =>
+                              setDialogState(() => selectedCategory = category),
                         ),
                     ],
                   ),
@@ -435,10 +435,10 @@ class _ExplorerPageState extends State<ExplorerPage> {
                     width: double.infinity,
                     height: 46,
                     child: FilledButton(
-                      onPressed: () => Navigator.pop(
-                        dialogContext,
-                        (selectedCategory, selectedSort),
-                      ),
+                      onPressed: () => Navigator.pop(dialogContext, (
+                        selectedCategory,
+                        selectedSort,
+                      )),
                       style: FilledButton.styleFrom(
                         backgroundColor: _exploreNavy,
                         foregroundColor: Colors.white,
@@ -485,9 +485,9 @@ class _ExplorerPageState extends State<ExplorerPage> {
         items.sort((a, b) => a.ticketPrice.compareTo(b.ticketPrice));
       default:
         items.sort(
-          (a, b) => _reviewValue(
-            b.reviewCount,
-          ).compareTo(_reviewValue(a.reviewCount)),
+          (a, b) =>
+              _reviewValue(b.reviewCount)
+                  .compareTo(_reviewValue(a.reviewCount)),
         );
     }
   }

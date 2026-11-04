@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
 import '../../../data/models/destination.dart';
 import '../../../data/models/trip_management.dart';
@@ -864,7 +865,7 @@ class _MemberForm extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Hapus anggota',
+                  tooltip: localized('Hapus anggota'),
                   onPressed: onRemove,
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(
@@ -889,8 +890,8 @@ class _MemberForm extends StatelessWidget {
               textCapitalization: TextCapitalization.words,
               onChanged: onNameChanged,
               style: const TextStyle(color: Color(0xFF1F2937), fontSize: 14),
-              decoration: const InputDecoration(
-                hintText: 'Nama lengkap peserta',
+              decoration: InputDecoration(
+                hintText: localized('Nama lengkap peserta'),
                 hintStyle: TextStyle(fontSize: 14),
                 filled: true,
                 fillColor: Colors.white,

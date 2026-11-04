@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -18,13 +17,17 @@ class LanguagePreferenceService {
   }
 
   static Future<void> setLocale(Locale newLocale) async {
-    final supportedLocale = supportedLocales.cast<Locale?>().firstWhere(
+    final supportedLocale = supportedLocales.firstWhere(
       (supportedLocale) =>
-          supportedLocale?.languageCode == newLocale.languageCode,
-      orElse: () => null,
+          supportedLocale.languageCode == newLocale.languageCode,
+      orElse: () => _defaultLocale,
     );
-    if (supportedLocale == null) {
-      throw ArgumentError.value(newLocale, 'newLocale', 'Bahasa tidak didukung');
+    if (supportedLocale.languageCode != newLocale.languageCode) {
+      throw ArgumentError.value(
+        newLocale,
+        'newLocale',
+        'Bahasa tidak didukung',
+      );
     }
 
     final preferences = await SharedPreferences.getInstance();

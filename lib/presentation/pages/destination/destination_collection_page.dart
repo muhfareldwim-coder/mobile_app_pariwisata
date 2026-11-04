@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/destination.dart';
@@ -208,7 +209,7 @@ class _GalleryViewerState extends State<_GalleryViewer> {
           ),
         ),
         IconButton(
-          tooltip: 'Tutup galeri',
+          tooltip: localized('Tutup galeri'),
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.close, color: Colors.white),
         ),

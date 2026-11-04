@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
 import 'package:curved_navigation_bar_pro/curved_navigation_bar_pro.dart';
 
+import '../../core/localization/app_translations.dart';
 import '../../core/theme/app_colors.dart';
 
 class AppBottomNavigation extends StatelessWidget {
@@ -13,31 +14,31 @@ class AppBottomNavigation extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelected;
 
-  static const _items = <CurvedNavigationItemPro>[
+  static List<CurvedNavigationItemPro> get _items => [
     CurvedNavigationItemPro(
       inactiveIcon: Icons.home_outlined,
       activeIcon: Icons.home_rounded,
-      label: 'Beranda',
+      label: AppTranslations.translate('Beranda'),
     ),
     CurvedNavigationItemPro(
       inactiveIcon: Icons.explore_outlined,
       activeIcon: Icons.explore_rounded,
-      label: 'Jelajah',
+      label: AppTranslations.translate('Jelajah'),
     ),
     CurvedNavigationItemPro(
       inactiveIcon: Icons.map_outlined,
       activeIcon: Icons.map_rounded,
-      label: 'Peta',
+      label: AppTranslations.translate('Peta'),
     ),
     CurvedNavigationItemPro(
       inactiveIcon: Icons.confirmation_number_outlined,
       activeIcon: Icons.confirmation_number_rounded,
-      label: 'Tiket',
+      label: AppTranslations.translate('Tiket'),
     ),
     CurvedNavigationItemPro(
       inactiveIcon: Icons.person_outline_rounded,
       activeIcon: Icons.person_rounded,
-      label: 'Profil',
+      label: AppTranslations.translate('Profil'),
     ),
   ];
 

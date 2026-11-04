@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
 class AppTextField extends StatelessWidget {
   const AppTextField({
@@ -24,6 +25,11 @@ class AppTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String? validate(String? value) {
+      final message = validator?.call(value);
+      return message == null ? null : localized(message);
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -38,11 +44,11 @@ class AppTextField extends StatelessWidget {
         const SizedBox(height: 5),
         TextFormField(
           controller: controller,
-          validator: validator,
+          validator: validator == null ? null : validate,
           keyboardType: keyboardType,
           obscureText: obscureText,
           decoration: InputDecoration(
-            hintText: hint,
+            hintText: localized(hint),
             hintStyle: const TextStyle(color: Color(0xFF8B9AA6), fontSize: 14),
             prefixIcon: prefixIcon == null
                 ? null

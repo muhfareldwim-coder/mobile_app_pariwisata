@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -303,7 +304,7 @@ class _PaymentHeader extends StatelessWidget {
           children: [
             IconButton(
               onPressed: onBack,
-              tooltip: 'Kembali',
+              tooltip: localized('Kembali'),
               icon: const Icon(Icons.arrow_back, color: _paymentNavy),
             ),
             const Expanded(

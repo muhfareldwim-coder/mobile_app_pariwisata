@@ -1,9 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
 import '../../../data/services/api_service.dart';
 import '../../../data/services/auth_service.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/auth_shell.dart';
+import '../../widgets/brand_logo.dart';
 
 enum _ResetStage { email, otp, password }
 
@@ -119,6 +121,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const Center(child: BrandLogo()),
+            const SizedBox(height: 12),
             IconButton(
               alignment: Alignment.centerLeft,
               onPressed: () => Navigator.pop(context),

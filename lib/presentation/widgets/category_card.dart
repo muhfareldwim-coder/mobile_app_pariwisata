@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
 class CategoryCard extends StatelessWidget {
   const CategoryCard({super.key, required this.title, required this.icon});

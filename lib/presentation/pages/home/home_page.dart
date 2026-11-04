@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -301,7 +302,9 @@ class _HomePageState extends State<HomePage> {
                     else if (homeDestinations.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 24),
-                        child: Center(child: Text('Belum ada wisata terdekat.')),
+                        child: Center(
+                          child: Text('Belum ada wisata terdekat.'),
+                        ),
                       )
                     else
                       for (final destination in homeDestinations)
@@ -463,7 +466,7 @@ class _HomeHeader extends StatelessWidget {
               ),
               _HeaderAction(
                 icon: Icons.notifications_none_rounded,
-                tooltip: 'Notifikasi',
+                tooltip: localized('Notifikasi'),
                 showBadge: true,
                 onTap: onNotificationsTap,
               ),
@@ -959,9 +962,11 @@ class _DestinationCard extends StatelessWidget {
                 color: const Color(0x99091F39),
                 shape: const CircleBorder(),
                 child: IconButton(
-                  tooltip: isFavorite
-                      ? 'Hapus ${destination.name} dari favorit'
-                      : 'Tambahkan ${destination.name} ke favorit',
+                  tooltip: localized(
+                    isFavorite
+                        ? 'Hapus ${destination.name} dari favorit'
+                        : 'Tambahkan ${destination.name} ke favorit',
+                  ),
                   onPressed: onFavoriteTap,
                   constraints: const BoxConstraints.tightFor(
                     width: 42,

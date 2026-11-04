@@ -1,3 +1,5 @@
+import '../../data/services/language_preference_service.dart';
+
 const _indonesianWeekdays = [
   'Senin',
   'Selasa',
@@ -23,6 +25,34 @@ const _indonesianMonths = [
   'Desember',
 ];
 
-String formatIndonesianDate(DateTime date) =>
-    '${_indonesianWeekdays[date.weekday - 1]}, '
-    '${date.day} ${_indonesianMonths[date.month - 1]} ${date.year}';
+String formatIndonesianDate(DateTime date) {
+  if (LanguagePreferenceService.locale.value.languageCode == 'en') {
+    const weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return '${weekdays[date.weekday - 1]}, '
+        '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+  return '${_indonesianWeekdays[date.weekday - 1]}, '
+      '${date.day} ${_indonesianMonths[date.month - 1]} ${date.year}';
+}

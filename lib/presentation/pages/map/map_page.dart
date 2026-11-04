@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -208,7 +209,7 @@ class _MapPageState extends State<MapPage> {
                         ),
                       ),
                       IconButton(
-                        tooltip: 'Tutup filter',
+                        tooltip: localized('Tutup filter'),
                         visualDensity: VisualDensity.compact,
                         onPressed: () => Navigator.pop(dialogContext),
                         icon: const Icon(Icons.close_rounded, color: _navy),
@@ -556,7 +557,7 @@ class _MapPageState extends State<MapPage> {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Muat ulang destinasi',
+                    tooltip: localized('Muat ulang destinasi'),
                     onPressed: _isLoading ? null : _loadDestinations,
                     style: IconButton.styleFrom(
                       foregroundColor: Colors.white,
@@ -594,8 +595,10 @@ class _MapPageState extends State<MapPage> {
                           color: Color(0xFF172B4D),
                           fontSize: 14,
                         ),
-                        decoration: const InputDecoration(
-                          hintText: 'Cari destinasi yang anda inginkan',
+                        decoration: InputDecoration(
+                          hintText: localized(
+                            'Cari destinasi yang anda inginkan',
+                          ),
                           hintStyle: TextStyle(color: _muted, fontSize: 13),
                           border: InputBorder.none,
                           isDense: true,
@@ -605,7 +608,7 @@ class _MapPageState extends State<MapPage> {
                     ),
                     if (_query.isNotEmpty)
                       IconButton(
-                        tooltip: 'Hapus pencarian',
+                        tooltip: localized('Hapus pencarian'),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(
                           minWidth: 36,
@@ -623,7 +626,7 @@ class _MapPageState extends State<MapPage> {
                       ),
                     IconButton(
                       key: const ValueKey('map-open-filter'),
-                      tooltip: 'Filter destinasi',
+                      tooltip: localized('Filter destinasi'),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(
                         minWidth: 36,
@@ -872,7 +875,7 @@ class _MapPageState extends State<MapPage> {
                     : null,
                 isExpanded: true,
                 decoration: InputDecoration(
-                  hintText: 'Pilih destinasi wisata',
+                  hintText: localized('Pilih destinasi wisata'),
                   isDense: true,
                   filled: true,
                   fillColor: _pageBackground,

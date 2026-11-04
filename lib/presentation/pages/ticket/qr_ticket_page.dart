@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -112,12 +113,12 @@ class QrTicketPage extends StatelessWidget {
                   controller: reviewController,
                   maxLength: 1000,
                   maxLines: 4,
-                  decoration: const InputDecoration(
-                    hintText: 'Tulis ulasanmu',
+                  decoration: InputDecoration(
+                    hintText: localized('Tulis ulasanmu'),
                     border: OutlineInputBorder(),
                   ),
                   validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Ulasan tidak boleh kosong.'
+                      ? localized('Ulasan tidak boleh kosong.')
                       : null,
                 ),
               ],
@@ -552,7 +553,7 @@ class _BookingCodePanel extends StatelessWidget {
           ),
           IconButton(
             onPressed: onCopy,
-            tooltip: 'Salin kode booking',
+            tooltip: localized('Salin kode booking'),
             style: IconButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: _ticketNavy,

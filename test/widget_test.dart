@@ -16,6 +16,7 @@ import 'package:mobile_pariwisata/data/services/article_service.dart';
 import 'package:mobile_pariwisata/data/services/auth_service.dart';
 import 'package:mobile_pariwisata/data/services/destination_service.dart';
 import 'package:mobile_pariwisata/data/services/favorite_destination_service.dart';
+import 'package:mobile_pariwisata/data/services/language_preference_service.dart';
 import 'package:mobile_pariwisata/data/services/ticket_service.dart';
 import 'package:mobile_pariwisata/main.dart';
 import 'package:mobile_pariwisata/presentation/pages/auth/login_page.dart';
@@ -29,6 +30,7 @@ import 'package:mobile_pariwisata/presentation/pages/map/map_page.dart';
 import 'package:mobile_pariwisata/presentation/pages/profile/profile_page.dart';
 import 'package:mobile_pariwisata/presentation/pages/profile/profile_detail_page.dart';
 import 'package:mobile_pariwisata/presentation/pages/ticket/my_ticket_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   testWidgets('aplikasi membuka halaman home', (tester) async {
@@ -136,6 +138,8 @@ void main() {
   testWidgets('profil tamu menampilkan manfaat dan pusat informasi', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues({});
+    await LanguagePreferenceService.restore();
     tester.view.physicalSize = const Size(430, 640);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -188,15 +192,13 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Pilihan Bahasa'));
     await tester.pumpAndSettle();
-    expect(
-      find.text('Informasi pilihan bahasa akan ditambahkan di sini.'),
-      findsOneWidget,
-    );
-    expect(
-      tester.widget<Dialog>(find.byType(Dialog)).backgroundColor,
-      Colors.white,
-    );
-    await tester.tap(find.text('Tutup'));
+    expect(find.text('English (US)'), findsOneWidget);
+    await tester.tap(find.text('English (US)'));
+    await tester.pumpAndSettle();
+    expect(LanguagePreferenceService.locale.value, const Locale('en', 'US'));
+    final preferences = await SharedPreferences.getInstance();
+    expect(preferences.getString('jembergo_language'), 'en');
+    await LanguagePreferenceService.setLocale(const Locale('id', 'ID'));
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(

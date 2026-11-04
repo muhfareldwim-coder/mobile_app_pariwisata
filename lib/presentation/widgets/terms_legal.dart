@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
 class TermsLegal extends StatelessWidget {
   const TermsLegal({super.key, required this.value, required this.onChanged});

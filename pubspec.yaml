@@ -47,6 +47,7 @@ dependencies:
   pdf: ^3.13.1
   file_picker: ^13.1.0
   http: ^1.6.0
+  flutter_secure_storage: ^11.2.0
   google_sign_in: ^7.2.0
   curved_navigation_bar_pro: ^2.2.1
   shared_preferences: ^2.5.6

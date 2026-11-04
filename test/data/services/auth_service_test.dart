@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile_pariwisata/data/services/api_service.dart';
 import 'package:mobile_pariwisata/data/services/auth_service.dart';
 
@@ -11,10 +10,11 @@ void main() {
   setUp(AuthService.logout);
 
   test(
-    'persists and restores a remembered session with shared preferences',
+    'writes a remembered session to the configured session storage',
     () async {
-      SharedPreferences.setMockInitialValues({});
+      final storage = _MemoryAuthSessionStorage();
       final service = AuthService(
+        sessionStorage: storage,
         api: ApiService(
           baseUrl: 'https://jembergo.test/api/v1',
           client: MockClient(
@@ -38,13 +38,8 @@ void main() {
       );
 
       await service.login('siti@gmail.com', 'password');
-      final preferences = await SharedPreferences.getInstance();
-      expect(preferences.getString('jembergo_access_token'), 'stored-token');
-      expect(preferences.getString('jembergo_user'), isNotNull);
-
-      AuthService.logout();
-      await AuthService.restoreSession();
-
+      expect(storage.values['jembergo_access_token'], 'stored-token');
+      expect(storage.values['jembergo_user'], isNotNull);
       expect(AuthService.accessToken, 'stored-token');
       expect(AuthService.currentUser?.id, '42');
       expect(AuthService.currentUser?.name, 'Siti Aminah');

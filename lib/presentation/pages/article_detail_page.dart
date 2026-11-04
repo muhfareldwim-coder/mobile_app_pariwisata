@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
 import '../../data/models/article.dart';
 
@@ -103,11 +104,7 @@ class _ArticleImageFallback extends StatelessWidget {
     return const ColoredBox(
       color: Color(0xFFE5EEF4),
       child: Center(
-        child: Icon(
-          Icons.article_outlined,
-          color: _articleNavy,
-          size: 48,
-        ),
+        child: Icon(Icons.article_outlined, color: _articleNavy, size: 48),
       ),
     );
   }

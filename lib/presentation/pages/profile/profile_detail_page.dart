@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
 import '../../../data/models/user.dart';
 import '../../../data/services/api_service.dart';
@@ -303,7 +304,7 @@ class _DetailHeader extends StatelessWidget {
           children: [
             IconButton(
               onPressed: () => Navigator.maybePop(context),
-              tooltip: 'Kembali',
+              tooltip: localized('Kembali'),
               icon: const Icon(Icons.arrow_back_rounded, color: _profileInk),
             ),
             const SizedBox(width: 4),
@@ -440,14 +441,17 @@ class _ProfileInput extends StatelessWidget {
             controller: controller,
             keyboardType: keyboardType,
             obscureText: obscureText,
-            validator: validator,
+            validator: (value) {
+              final message = validator(value);
+              return message == null ? null : localized(message);
+            },
             style: const TextStyle(
               color: _profileInk,
               fontSize: 13,
               height: 1.2,
             ),
             decoration: InputDecoration(
-              hintText: hint,
+              hintText: localized(hint),
               hintStyle: const TextStyle(
                 color: Color(0xFFA1B0BA),
                 fontSize: 12,

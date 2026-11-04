@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Text;
+import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
 import '../../../data/models/destination.dart';
 
@@ -63,9 +64,9 @@ class DestinationCard extends StatelessWidget {
                 color: const Color(0x99091F39),
                 shape: const CircleBorder(),
                 child: IconButton(
-                  tooltip: isFavorite
-                      ? 'Hapus dari favorit'
-                      : 'Tambah ke favorit',
+                  tooltip: localized(
+                    isFavorite ? 'Hapus dari favorit' : 'Tambah ke favorit',
+                  ),
                   onPressed: onFavoriteChanged == null
                       ? null
                       : () => onFavoriteChanged!(!isFavorite),
