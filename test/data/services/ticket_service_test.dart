@@ -222,6 +222,98 @@ void main() {
   });
 
   test(
+    'ticket review is submitted to the website and marks ticket reviewed',
+    () async {
+      final ticket = Ticket(
+        id: 'used-ticket',
+        bookingId: 'BOOK-REVIEW',
+        destinationId: '42',
+        destinationName: 'Pantai Papuma',
+        visitDate: DateTime(2026, 10, 18),
+        adultCount: 1,
+        childCount: 0,
+        leaderName: User.sample.name,
+        leaderEmail: User.sample.email,
+        leaderPhone: User.sample.phone,
+        memberNames: const [],
+        status: 'used',
+      );
+      TicketService.tickets.add(ticket);
+      final service = TicketService(
+        api: ApiService(
+          baseUrl: 'http://localhost/api/v1',
+          client: MockClient((request) async {
+            expect(request.method, 'POST');
+            expect(
+              request.url.path,
+              '/api/v1/customer/tiket/used-ticket/ulasan',
+            );
+            expect(jsonDecode(request.body), {
+              'rating': 4,
+              'ulasan': 'Tempatnya bersih dan nyaman.',
+            });
+            return http.Response(
+              jsonEncode({'message': 'Ulasan berhasil dikirim.'}),
+              200,
+            );
+          }),
+        ),
+      );
+
+      await service.submitReview(
+        ticketId: ticket.id,
+        rating: 4,
+        review: 'Tempatnya bersih dan nyaman.',
+      );
+
+      expect(TicketService.findById(ticket.id)?.isReviewed, isTrue);
+    },
+  );
+
+  test(
+    'failed website review submission does not mark ticket reviewed',
+    () async {
+      final ticket = Ticket(
+        id: 'failed-review-ticket',
+        bookingId: 'BOOK-FAILED-REVIEW',
+        destinationId: '42',
+        destinationName: 'Pantai Papuma',
+        visitDate: DateTime(2026, 10, 18),
+        adultCount: 1,
+        childCount: 0,
+        leaderName: User.sample.name,
+        leaderEmail: User.sample.email,
+        leaderPhone: User.sample.phone,
+        memberNames: const [],
+        status: 'used',
+      );
+      TicketService.tickets.add(ticket);
+      final service = TicketService(
+        api: ApiService(
+          baseUrl: 'http://localhost/api/v1',
+          client: MockClient(
+            (_) async => http.Response(
+              jsonEncode({'message': 'Tiket tidak valid untuk ulasan.'}),
+              422,
+            ),
+          ),
+        ),
+      );
+
+      await expectLater(
+        service.submitReview(
+          ticketId: ticket.id,
+          rating: 4,
+          review: 'Tempatnya bersih dan nyaman.',
+        ),
+        throwsA(isA<ApiException>()),
+      );
+
+      expect(TicketService.findById(ticket.id)?.isReviewed, isFalse);
+    },
+  );
+
+  test(
     'stale account response cannot replace the current ticket list',
     () async {
       AuthService.currentUser = User.sample;

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/destination.dart';
-import '../../../data/services/destination_review_service.dart';
 
 enum DestinationCollectionSection { gallery, reviews }
 
@@ -121,56 +120,32 @@ class DestinationCollectionPage extends StatelessWidget {
     );
   }
 
-  Widget _reviews() => ValueListenableBuilder<int>(
-    valueListenable: DestinationReviewService.revision,
-    builder: (context, _, _) {
-      final reviews = destination.reviews.isNotEmpty
-          ? destination.reviews
-                .map(
-                  (review) => (
-                    name: review.name,
-                    meta: 'Ulasan pengunjung',
-                    rating: review.rating,
-                    text: review.review,
-                  ),
-                )
-                .toList()
-          : DestinationReviewService.forDestination(destination.id)
-                .map(
-                  (review) => (
-                    name: review.userName,
-                    meta: 'Pembeli tiket terverifikasi',
-                    rating: review.rating,
-                    text: review.review,
-                  ),
-                )
-                .toList();
-
-      if (reviews.isEmpty) {
-        return const Center(
-          child: Text(
-            'Belum ada ulasan.',
-            style: TextStyle(color: Color(0xFF8190A5), fontSize: 14),
-          ),
-        );
-      }
-
-      return ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: reviews.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          final review = reviews[index];
-          return _ReviewCard(
-            name: review.name,
-            meta: review.meta,
-            rating: review.rating,
-            review: review.text,
-          );
-        },
+  Widget _reviews() {
+    final reviews = destination.reviews;
+    if (reviews.isEmpty) {
+      return const Center(
+        child: Text(
+          'Belum ada ulasan.',
+          style: TextStyle(color: Color(0xFF8190A5), fontSize: 14),
+        ),
       );
-    },
-  );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: reviews.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final review = reviews[index];
+        return _ReviewCard(
+          name: review.name,
+          meta: 'Ulasan pengunjung',
+          rating: review.rating,
+          review: review.review,
+        );
+      },
+    );
+  }
 
   Future<void> _openGallery(BuildContext context, int initialIndex) =>
       showDialog<void>(

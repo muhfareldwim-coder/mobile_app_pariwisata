@@ -6,17 +6,16 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/destination.dart';
 import '../../../data/models/ticket.dart';
-import '../../../data/models/user.dart';
+import '../../../data/services/api_service.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/device_location_service.dart';
 import '../../../data/services/destination_service.dart';
-import '../../../data/services/destination_review_service.dart';
 import '../../../data/services/favorite_destination_service.dart';
 import '../../../data/services/route_estimate_service.dart';
 import '../../../data/services/ticket_service.dart';
 import '../booking/booking_page.dart';
-import 'destination_collection_page.dart';
 import '../ticket/qr_ticket_page.dart';
+import 'destination_collection_page.dart';
 
 class DestinationDetailPage extends StatefulWidget {
   const DestinationDetailPage({super.key, required this.destination});
@@ -223,107 +222,89 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
 
   Widget _reviewSection() => ValueListenableBuilder<int>(
     valueListenable: TicketService.revision,
-    builder: (context, ticketRevision, child) => ValueListenableBuilder<int>(
-      valueListenable: DestinationReviewService.revision,
-      builder: (context, reviewRevision, child) {
-        final user = AuthService.currentUser;
-        final userEmail = user?.email ?? '';
-        final reviews = DestinationReviewService.forDestination(destination.id);
-        final apiReviews = destination.reviews;
-        final userReview = user == null
-            ? null
-            : DestinationReviewService.byUserForDestination(
-                destination.id,
-                userEmail,
-              );
-        final ticket = user == null
-            ? null
-            : TicketService.tickets
-                  .where(
-                    (item) =>
-                        item.destinationId == destination.id &&
-                        item.status == 'valid' &&
-                        item.leaderEmail.trim().toLowerCase() ==
-                            userEmail.trim().toLowerCase(),
-                  )
-                  .firstOrNull;
-        final allReviews = apiReviews.isNotEmpty
-            ? apiReviews
-            : reviews
-                  .map(
-                    (review) => DestinationReviewEntry(
-                      name: review.userName,
-                      rating: review.rating,
-                      review: review.review,
-                    ),
-                  )
-                  .toList();
-        final previewReviews = allReviews.take(2).toList();
-        final reviewTicket = user == null || userReview != null
-            ? null
-            : TicketService.tickets
-                  .where(
-                    (item) =>
-                        item.destinationId == destination.id &&
-                        item.status == 'used' &&
-                        item.leaderEmail.trim().toLowerCase() ==
-                            userEmail.trim().toLowerCase(),
-                  )
-                  .firstOrNull;
+    builder: (context, _, _) {
+      final user = AuthService.currentUser;
+      final userEmail = user?.email ?? '';
+      final reviews = destination.reviews;
+      final hasReviewed =
+          user != null &&
+          TicketService.tickets.any(
+            (ticket) =>
+                ticket.destinationId == destination.id &&
+                ticket.isReviewed &&
+                ticket.leaderEmail.trim().toLowerCase() ==
+                    userEmail.trim().toLowerCase(),
+          );
+      final ticket = user == null
+          ? null
+          : TicketService.tickets
+                .where(
+                  (item) =>
+                      item.destinationId == destination.id &&
+                      item.status == 'valid' &&
+                      item.leaderEmail.trim().toLowerCase() ==
+                          userEmail.trim().toLowerCase(),
+                )
+                .firstOrNull;
+      final previewReviews = reviews.take(2).toList();
+      final reviewTicket = user == null
+          ? null
+          : TicketService.tickets
+                .where(
+                  (item) =>
+                      item.destinationId == destination.id &&
+                      item.status == 'used' &&
+                      !item.isReviewed &&
+                      item.leaderEmail.trim().toLowerCase() ==
+                          userEmail.trim().toLowerCase(),
+                )
+                .firstOrNull;
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _DetailSectionHeading(
-              title: 'Ulasan pengunjung',
-              actionKey: const ValueKey('reviews-see-all'),
-              action: allReviews.isNotEmpty ? 'Lihat Semua' : null,
-              onAction: _openAllReviews,
-            ),
-            const SizedBox(height: 10),
-            if (allReviews.isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(top: 2),
-                child: Text(
-                  'Belum ada ulasan.',
-                  style: TextStyle(color: Color(0xFF8190A5), fontSize: 13),
-                ),
-              )
-            else ...[
-              for (final review in previewReviews) ...[
-                _ReviewCard(
-                  name: review.name,
-                  meta: apiReviews.isNotEmpty
-                      ? 'Ulasan pengunjung'
-                      : 'Pembeli tiket terverifikasi',
-                  rating: review.rating,
-                  review: review.review,
-                ),
-                if (review != previewReviews.last) const SizedBox(height: 10),
-              ],
-            ],
-            if (userReview != null) ...[
-              const SizedBox(height: 10),
-              const _ReviewEligibilityNote(
-                message: 'Terima kasih! Ulasan Anda sudah tercatat sebagai pengunjung terverifikasi.',
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _DetailSectionHeading(
+            title: 'Ulasan pengunjung',
+            actionKey: const ValueKey('reviews-see-all'),
+            action: reviews.isNotEmpty ? 'Lihat Semua' : null,
+            onAction: _openAllReviews,
+          ),
+          const SizedBox(height: 10),
+          if (reviews.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: Text(
+                'Belum ada ulasan.',
+                style: TextStyle(color: Color(0xFF8190A5), fontSize: 13),
               ),
-            ] else if (user != null &&
-                (reviewTicket != null || ticket?.status == 'valid')) ...[
-              const SizedBox(height: 10),
-              _reviewEligibilityPanel(
-                user: user,
-                ticket: ticket,
-                reviewTicket: reviewTicket,
+            )
+          else ...[
+            for (final review in previewReviews) ...[
+              _ReviewCard(
+                name: review.name,
+                meta: 'Ulasan pengunjung',
+                rating: review.rating,
+                review: review.review,
               ),
+              if (review != previewReviews.last) const SizedBox(height: 10),
             ],
           ],
-        );
-      },
-    ),
+          if (hasReviewed) ...[
+            const SizedBox(height: 10),
+            const _ReviewEligibilityNote(
+              message: 'Terima kasih! Ulasan Anda sudah tercatat sebagai pengunjung terverifikasi.',
+            ),
+          ] else if (user != null &&
+              (reviewTicket != null || ticket?.status == 'valid')) ...[
+            const SizedBox(height: 10),
+            _reviewEligibilityPanel(ticket: ticket, reviewTicket: reviewTicket),
+          ],
+        ],
+      );
+    },
   );
 
   Widget _reviewEligibilityPanel({
-    required User user,
     required Ticket? ticket,
     required Ticket? reviewTicket,
   }) {
@@ -370,18 +351,18 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
 
     if (result == null || !mounted) return;
     try {
-      DestinationReviewService.submit(
-        destinationId: destination.id,
+      await TicketService().submitReview(
         ticketId: ticket.id,
-        userEmail: user.email,
-        userName: user.name,
         rating: result.$1,
         review: result.$2,
       );
-    } on StateError {
-      _showMessage(
-        'Ulasan hanya dapat dikirim dengan tiket yang sudah digunakan.',
-      );
+      if (!mounted) return;
+      _showMessage('Terima kasih! Ulasan Anda berhasil dikirim.');
+      await _loadDestinationDetails();
+    } on ApiException catch (error) {
+      if (mounted) _showMessage(error.message);
+    } on FormatException catch (error) {
+      if (mounted) _showMessage(error.message);
     }
   }
 

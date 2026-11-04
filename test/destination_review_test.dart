@@ -8,7 +8,6 @@ import 'package:mobile_pariwisata/data/destination_data.dart';
 import 'package:mobile_pariwisata/data/models/ticket.dart';
 import 'package:mobile_pariwisata/data/services/api_service.dart';
 import 'package:mobile_pariwisata/data/services/auth_service.dart';
-import 'package:mobile_pariwisata/data/services/destination_review_service.dart';
 import 'package:mobile_pariwisata/data/services/ticket_service.dart';
 import 'package:mobile_pariwisata/data/services/ticket_pdf_service.dart';
 import 'package:mobile_pariwisata/data/models/user.dart';
@@ -21,75 +20,12 @@ void main() {
     AuthService.currentUser = User.sample;
     TicketService.tickets.clear();
     TicketService.revision.value++;
-    DestinationReviewService.reviews.clear();
-    DestinationReviewService.revision.value++;
   });
 
   tearDown(() {
     AuthService.logout();
     TicketService.tickets.clear();
     TicketService.revision.value++;
-    DestinationReviewService.reviews.clear();
-    DestinationReviewService.revision.value++;
-  });
-
-  test('only an owned used ticket can submit a destination review', () async {
-    final destination = destinations.first;
-    final ticket = await TicketService().issueTicket(
-      bookingId: 'BOOK-1',
-      destinationId: destination.id,
-      destinationName: destination.name,
-      visitDate: DateTime.now().subtract(const Duration(days: 1)),
-      adultCount: 1,
-      childCount: 0,
-      leaderName: User.sample.name,
-      leaderEmail: User.sample.email,
-      leaderPhone: User.sample.phone,
-      memberNames: [User.sample.name],
-    );
-
-    expect(
-      DestinationReviewService.canReview(
-        destinationId: destination.id,
-        userEmail: User.sample.email,
-      ),
-      isFalse,
-    );
-    expect(
-      () => DestinationReviewService.submit(
-        destinationId: destination.id,
-        ticketId: ticket.id,
-        userEmail: User.sample.email,
-        userName: User.sample.name,
-        rating: 5,
-        review: 'Pengalaman menyenangkan.',
-      ),
-      throwsStateError,
-    );
-
-    expect(TicketService.markAsUsed(ticket.id, User.sample.email), isTrue);
-    expect(
-      DestinationReviewService.canReview(
-        destinationId: destination.id,
-        userEmail: User.sample.email,
-      ),
-      isTrue,
-    );
-    DestinationReviewService.submit(
-      destinationId: destination.id,
-      ticketId: ticket.id,
-      userEmail: User.sample.email,
-      userName: User.sample.name,
-      rating: 5,
-      review: 'Pengalaman menyenangkan.',
-    );
-    expect(
-      DestinationReviewService.canReview(
-        destinationId: destination.id,
-        userEmail: User.sample.email,
-      ),
-      isFalse,
-    );
   });
 
   test('cannot mark another user or a future ticket as used', () async {
@@ -430,7 +366,7 @@ void main() {
     expect(find.text('Rp 25.000'), findsNothing);
   });
 
-  testWidgets('server-recorded ticket usage unlocks rating and review', (
+  testWidgets('used ticket unlocks the API-backed review action', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(430, 1200);
@@ -471,23 +407,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(TicketService.findById(ticket.id)?.status, 'used');
     expect(find.text('Tulis ulasan'), findsOneWidget);
-
-    await tester.ensureVisible(find.text('Tulis ulasan'));
-    await tester.pumpAndSettle();
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Tulis ulasan'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('4 bintang'));
-    await tester.enterText(
-      find.byType(TextField).last,
-      'Tempatnya bersih dan nyaman.',
-    );
-    await tester.tap(find.text('Kirim ulasan'));
-    await tester.pumpAndSettle();
-
-    expect(DestinationReviewService.reviews, hasLength(1));
-    expect(find.textContaining('Tempatnya bersih dan nyaman.'), findsOneWidget);
-    expect(find.text('Tulis ulasan'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }
