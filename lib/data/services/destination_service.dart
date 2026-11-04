@@ -72,17 +72,22 @@ class DestinationService {
     if (data is! List<dynamic>) {
       throw const FormatException('Daftar destinasi dari server tidak valid.');
     }
-    return data.where((item) {
-      if (skipMissingCoordinates && item is Map<String, dynamic>) {
-        return item['latitude'] != null && item['longitude'] != null;
-      }
-      return true;
-    }).map((item) {
-      if (item is! Map<String, dynamic>) {
-        throw const FormatException('Data destinasi dari server tidak valid.');
-      }
-      return _destinationFromJson(item, origin: origin);
-    }).toList();
+    return data
+        .where((item) {
+          if (skipMissingCoordinates && item is Map<String, dynamic>) {
+            return item['latitude'] != null && item['longitude'] != null;
+          }
+          return true;
+        })
+        .map((item) {
+          if (item is! Map<String, dynamic>) {
+            throw const FormatException(
+              'Data destinasi dari server tidak valid.',
+            );
+          }
+          return _destinationFromJson(item, origin: origin);
+        })
+        .toList();
   }
 
   Future<Destination> getDestination(String id) async {

@@ -1,13 +1,14 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../models/user.dart';
 import 'api_service.dart';
 
 class AuthService {
+<<<<<<< Updated upstream
   AuthService({
     ApiService? api,
     FlutterSecureStorage? storage,
@@ -18,6 +19,11 @@ class AuthService {
            _FlutterSecureStorageSessionStorage(
              storage ?? const FlutterSecureStorage(),
            );
+=======
+  AuthService({ApiService? api, AuthSessionStorage? sessionStorage})
+    : _api = api ?? ApiService(),
+      _storage = sessionStorage ?? const _SharedPreferencesAuthSessionStorage();
+>>>>>>> Stashed changes
 
   static const _tokenKey = 'jembergo_access_token';
   static const _userKey = 'jembergo_user';
@@ -33,15 +39,19 @@ class AuthService {
   final AuthSessionStorage _storage;
 
   static Future<void> restoreSession() async {
-    const storage = FlutterSecureStorage();
+    const storage = _SharedPreferencesAuthSessionStorage();
     final values = await Future.wait([
-      storage.read(key: _tokenKey),
-      storage.read(key: _userKey),
+      storage.read(_tokenKey),
+      storage.read(_userKey),
     ]);
     final token = values[0];
     final encodedUser = values[1];
     if (token == null || encodedUser == null) {
+<<<<<<< Updated upstream
       await _clearStoredSession(_FlutterSecureStorageSessionStorage(storage));
+=======
+      await _clearStoredSession(storage);
+>>>>>>> Stashed changes
       return;
     }
 
@@ -289,10 +299,14 @@ class AuthService {
     return user;
   }
 
+<<<<<<< Updated upstream
   void _requireOtpChallenge(
     Map<String, dynamic> response,
     String expectedPurpose,
   ) {
+=======
+  User _profileUserFromResponse(Map<String, dynamic> response, String role) {
+>>>>>>> Stashed changes
     final data = response['data'];
     if (data is! Map<String, dynamic> ||
         data['purpose'] != expectedPurpose ||
@@ -351,21 +365,26 @@ abstract interface class AuthSessionStorage {
   Future<void> delete(String key);
 }
 
-class _FlutterSecureStorageSessionStorage implements AuthSessionStorage {
-  const _FlutterSecureStorageSessionStorage(this._storage);
-
-  final FlutterSecureStorage _storage;
+class _SharedPreferencesAuthSessionStorage implements AuthSessionStorage {
+  const _SharedPreferencesAuthSessionStorage();
 
   @override
-  Future<String?> read(String key) => _storage.read(key: key);
+  Future<String?> read(String key) async =>
+      (await SharedPreferences.getInstance()).getString(key);
 
   @override
   Future<void> write(String key, String value) async {
-    await _storage.write(key: key, value: value);
+    final saved = await (await SharedPreferences.getInstance()).setString(
+      key,
+      value,
+    );
+    if (!saved) {
+      throw StateError('Gagal menyimpan data sesi lokal.');
+    }
   }
 
   @override
   Future<void> delete(String key) async {
-    await _storage.delete(key: key);
+    await (await SharedPreferences.getInstance()).remove(key);
   }
 }

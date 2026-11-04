@@ -3,11 +3,55 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile_pariwisata/data/services/api_service.dart';
 import 'package:mobile_pariwisata/data/services/auth_service.dart';
 
 void main() {
   setUp(AuthService.logout);
+
+  test(
+    'persists and restores a remembered session with shared preferences',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = AuthService(
+        api: ApiService(
+          baseUrl: 'https://jembergo.test/api/v1',
+          client: MockClient(
+            (_) async => http.Response(
+              jsonEncode({
+                'data': {
+                  'token': 'stored-token',
+                  'user': {
+                    'id': 42,
+                    'nama': 'Siti Aminah',
+                    'email': 'siti@gmail.com',
+                    'no_hp': '081234567890',
+                    'role': 'CUSTOMER',
+                  },
+                },
+              }),
+              200,
+            ),
+          ),
+        ),
+      );
+
+      await service.login('siti@gmail.com', 'password');
+      final preferences = await SharedPreferences.getInstance();
+      expect(preferences.getString('jembergo_access_token'), 'stored-token');
+      expect(preferences.getString('jembergo_user'), isNotNull);
+
+      AuthService.logout();
+      await AuthService.restoreSession();
+
+      expect(AuthService.accessToken, 'stored-token');
+      expect(AuthService.currentUser?.id, '42');
+      expect(AuthService.currentUser?.name, 'Siti Aminah');
+      expect(AuthService.currentUser?.email, 'siti@gmail.com');
+      expect(AuthService.currentUser?.phone, '081234567890');
+    },
+  );
 
   test('reads the public Google server client ID from the API', () async {
     final client = MockClient((request) async {
