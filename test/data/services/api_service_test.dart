@@ -60,5 +60,66 @@ void main() {
         ),
       );
     });
+
+    test(
+      'turns Laravel default validation messages into clear Indonesian',
+      () async {
+        final client = MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'message': 'The given data was invalid.',
+              'errors': {
+                'email': ['The email has already been taken.'],
+              },
+            }),
+            422,
+          ),
+        );
+        final api = ApiService(
+          baseUrl: 'http://localhost/api/v1',
+          client: client,
+        );
+
+        await expectLater(
+          api.post('/auth/register'),
+          throwsA(
+            isA<ApiException>().having(
+              (error) => error.message,
+              'message',
+              'Alamat email tersebut sudah terdaftar.',
+            ),
+          ),
+        );
+      },
+    );
+
+    test('translates required validation errors for known fields', () async {
+      final client = MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'message': 'The given data was invalid.',
+            'errors': {
+              'no_hp': ['The no hp field is required.'],
+            },
+          }),
+          422,
+        ),
+      );
+      final api = ApiService(
+        baseUrl: 'http://localhost/api/v1',
+        client: client,
+      );
+
+      await expectLater(
+        api.post('/auth/register'),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.message,
+            'message',
+            'Nomor telepon wajib diisi.',
+          ),
+        ),
+      );
+    });
   });
 }

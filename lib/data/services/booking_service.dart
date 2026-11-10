@@ -27,7 +27,9 @@ class BookingService {
       queryParameters: {'date': _formatDate(visitDate)},
     );
     if (response['enabled'] is! bool) {
-      throw const FormatException('Respons kuota tiket dari server tidak valid.');
+      throw const FormatException(
+        'Respons kuota tiket dari server tidak valid.',
+      );
     }
     final remaining = response['remaining'];
     if (response['enabled'] == true && remaining is! num) {
@@ -80,9 +82,7 @@ class BookingService {
         data['id'] == null ||
         data['kode_booking'] is! String ||
         data['total_harga'] is! num) {
-      throw const FormatException(
-        'Respons pemesanan dari server tidak valid.',
-      );
+      throw const FormatException('Respons pemesanan dari server tidak valid.');
     }
 
     final paymentDeadline = data['batas_waktu_pembayaran'];
@@ -105,6 +105,13 @@ class BookingService {
       paymentDeadline: paymentDeadline is String
           ? DateTime.tryParse(paymentDeadline)
           : null,
+    );
+  }
+
+  Future<void> cancelBooking(String bookingId) async {
+    await _api.post(
+      '/customer/pesanan/$bookingId/batal',
+      token: _tokenProvider(),
     );
   }
 

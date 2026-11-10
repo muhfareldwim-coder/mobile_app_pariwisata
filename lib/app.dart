@@ -31,6 +31,20 @@ class PariwisataApp extends StatelessWidget {
           scaffoldBackgroundColor: AppColors.bg,
           colorScheme: ColorScheme.fromSeed(seedColor: AppColors.orange),
           fontFamily: 'PlusJakartaSans',
+          snackBarTheme: SnackBarThemeData(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.navy,
+            contentTextStyle: const TextStyle(
+              color: AppColors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            insetPadding: const EdgeInsets.all(16),
+            elevation: 4,
+          ),
           textTheme: const TextTheme(
             headlineLarge: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
             headlineMedium: TextStyle(

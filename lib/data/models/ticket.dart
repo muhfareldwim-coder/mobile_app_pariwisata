@@ -26,6 +26,7 @@ class Ticket {
     this.hasUsedTicket = false,
     this.hasExpiredTicket = false,
     this.isReviewed = false,
+    this.canCancelBooking = false,
   });
 
   final String id;
@@ -54,6 +55,7 @@ class Ticket {
   final bool hasUsedTicket;
   final bool hasExpiredTicket;
   final bool isReviewed;
+  final bool canCancelBooking;
 
   int get quantity => adultCount + childCount;
   bool get canOpenEticket =>
@@ -67,6 +69,7 @@ class Ticket {
     bool? hasUsedTicket,
     bool? hasExpiredTicket,
     bool? isReviewed,
+    bool? canCancelBooking,
   }) => Ticket(
     id: id,
     bookingId: bookingId,
@@ -94,5 +97,6 @@ class Ticket {
     hasUsedTicket: hasUsedTicket ?? this.hasUsedTicket,
     hasExpiredTicket: hasExpiredTicket ?? this.hasExpiredTicket,
     isReviewed: isReviewed ?? this.isReviewed,
+    canCancelBooking: canCancelBooking ?? this.canCancelBooking,
   );
 }

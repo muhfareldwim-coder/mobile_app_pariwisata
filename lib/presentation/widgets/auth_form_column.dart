@@ -66,17 +66,19 @@ class AuthFormColumn extends StatelessWidget {
             ),
             const SizedBox(height: 9),
           ],
-          Text(
-            isRegister ? 'Daftar Akun JemberGo' : 'Selamat Datang di JemberGo',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: navy,
-              fontSize: 23,
-              fontWeight: FontWeight.w700,
-              height: 1.15,
+          if (!isRegister) ...[
+            const Text(
+              'Selamat Datang di JemberGo',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: navy,
+                fontSize: 23,
+                fontWeight: FontWeight.w700,
+                height: 1.15,
+              ),
             ),
-          ),
-          const SizedBox(height: 7),
+            const SizedBox(height: 7),
+          ],
           Text(
             description,
             textAlign: TextAlign.center,
@@ -118,8 +120,10 @@ class AuthFormColumn extends StatelessWidget {
                           buttonLabel,
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
-                        const SizedBox(width: 9),
-                        const Icon(Icons.arrow_forward, size: 18),
+                        if (!isRegister) ...[
+                          const SizedBox(width: 9),
+                          const Icon(Icons.arrow_forward, size: 18),
+                        ],
                       ],
                     ),
             ),

@@ -121,6 +121,7 @@ void main() {
                     'kode_booking': 'JGO-20261011-PENDING',
                     'tanggal_kunjungan': '2026-10-20',
                     'status': 'PENDING',
+                    'can_cancel': true,
                     'total_harga': 50000,
                     'ketua': {
                       'nama': 'Citra Wijaya',
@@ -152,6 +153,7 @@ void main() {
       expect(booking.status, 'pending');
       expect(booking.hasIssuedTicket, isFalse);
       expect(booking.canPay, isTrue);
+      expect(booking.canCancelBooking, isTrue);
       expect(booking.canOpenEticket, isFalse);
       expect(booking.quantity, 2);
     },
@@ -184,42 +186,45 @@ void main() {
     expect(TicketService.tickets, isEmpty);
   });
 
-  test('ticket service preserves active and history statuses in mixed bookings', () async {
-    final service = TicketService(
-      api: ApiService(
-        baseUrl: 'http://localhost/api/v1',
-        client: MockClient(
-          (_) async => http.Response(
-            jsonEncode({
-              'data': [
-                {
-                  'id': 17,
-                  'kode_booking': 'JGO-MIXED',
-                  'tanggal_kunjungan': '2026-10-20',
-                  'status': 'PAID',
-                  'total_harga': 100000,
-                  'destinasi': {'id': 42, 'nama': 'Pantai Papuma'},
-                  'tiket': [
-                    {'id': 81, 'kode_qr': 'active-qr', 'status': 'ACTIVE'},
-                    {'id': 82, 'kode_qr': 'used-qr', 'status': 'USED'},
-                  ],
-                },
-              ],
-            }),
-            200,
+  test(
+    'ticket service preserves active and history statuses in mixed bookings',
+    () async {
+      final service = TicketService(
+        api: ApiService(
+          baseUrl: 'http://localhost/api/v1',
+          client: MockClient(
+            (_) async => http.Response(
+              jsonEncode({
+                'data': [
+                  {
+                    'id': 17,
+                    'kode_booking': 'JGO-MIXED',
+                    'tanggal_kunjungan': '2026-10-20',
+                    'status': 'PAID',
+                    'total_harga': 100000,
+                    'destinasi': {'id': 42, 'nama': 'Pantai Papuma'},
+                    'tiket': [
+                      {'id': 81, 'kode_qr': 'active-qr', 'status': 'ACTIVE'},
+                      {'id': 82, 'kode_qr': 'used-qr', 'status': 'USED'},
+                    ],
+                  },
+                ],
+              }),
+              200,
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    await service.refreshFromServer();
+      await service.refreshFromServer();
 
-    final booking = TicketService.tickets.single;
-    expect(booking.status, 'partial');
-    expect(booking.hasActiveTicket, isTrue);
-    expect(booking.hasUsedTicket, isTrue);
-    expect(booking.hasExpiredTicket, isFalse);
-  });
+      final booking = TicketService.tickets.single;
+      expect(booking.status, 'partial');
+      expect(booking.hasActiveTicket, isTrue);
+      expect(booking.hasUsedTicket, isTrue);
+      expect(booking.hasExpiredTicket, isFalse);
+    },
+  );
 
   test(
     'ticket review is submitted to the website and marks ticket reviewed',

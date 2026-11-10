@@ -405,11 +405,13 @@ class AppTranslations {
     'Pilihan wisata dengan jarak terdekat dari lokasi Anda':
         'Destinations closest to your location',
     'Pemesanan Tiket Wisata Lebih Praktis': 'Easier Tourist Ticket Booking',
+    'Mode Tamu': 'Guest Mode',
     'Pesan tiket destinasi wisata di Kabupaten Jember secara online dengan mudah dan nyaman, kapan saja.': 'Book Jember Regency destination tickets online, easily and conveniently, anytime.',
     'Pembayaran QRIS yang Mudah dan Transparan':
         'Easy and Transparent QRIS Payments',
     'Selesaikan pembayaran dengan QRIS serta pantau status transaksi Anda secara praktis.':
         'Pay with QRIS and conveniently track your transaction status.',
+    'E-Ticket Digital yang Siap Digunakan': 'Ready-to-Use Digital E-Ticket',
     'Dapatkan tiket digital dengan kode QR untuk memudahkan proses verifikasi saat tiba di destinasi wisata.': 'Get a digital ticket with a QR code for easy verification when you arrive at a destination.',
     'Riwayat Pemesanan Tersimpan Rapi': 'Your Booking History, Organized',
     'Akses kembali riwayat transaksi, detail pemesanan, dan informasi tiket Anda dalam satu akun.': 'Access your transaction history, booking details, and ticket information in one account.',
@@ -472,6 +474,21 @@ class AppTranslations {
     'Server tidak mengirim file PDF.': 'The server did not return a PDF file.',
     'Permintaan gagal. Silakan coba lagi.':
         'The request failed. Please try again.',
+    'Periksa kembali data yang Anda masukkan.':
+        'Please check the information you entered.',
+    'Pendaftaran belum berhasil': 'Registration was unsuccessful',
+    'Mengerti': 'Got it',
+    'Nama lengkap wajib diisi.': 'Full name is required.',
+    'Email wajib diisi.': 'Email is required.',
+    'Nomor telepon wajib diisi.': 'Phone number is required.',
+    'Kata sandi wajib diisi.': 'Password is required.',
+    'Kode OTP wajib diisi.': 'OTP code is required.',
+    'Alamat email tersebut sudah terdaftar.':
+        'This email address is already registered.',
+    'Nomor telepon tersebut sudah terdaftar.':
+        'This phone number is already registered.',
+    'Masukkan nomor telepon dengan format yang valid.':
+        'Enter a valid phone number.',
     'Sembunyikan password': 'Hide Password',
     'Tampilkan password': 'Show Password',
     'Ulangi password': 'Repeat Password',

@@ -78,7 +78,9 @@ class TicketService {
 
     final visitDate = DateTime.parse(visitDateValue);
     final bookingStatus = (booking['status'] as String).toUpperCase();
-    final ticketItems = issuedTickets.whereType<Map<String, dynamic>>().toList();
+    final ticketItems = issuedTickets
+        .whereType<Map<String, dynamic>>()
+        .toList();
     if (ticketItems.length != issuedTickets.length ||
         ticketItems.any(
           (ticket) =>
@@ -187,6 +189,7 @@ class TicketService {
       hasUsedTicket: hasUsedTicket,
       hasExpiredTicket: hasExpiredTicket,
       isReviewed: ticket?['reviewed'] == true,
+      canCancelBooking: booking['can_cancel'] == true,
     );
   }
 
@@ -243,8 +246,7 @@ class TicketService {
     return null;
   }
 
-  static String qrPayload(Ticket ticket) =>
-      ticket.qrCodePayload == null
+  static String qrPayload(Ticket ticket) => ticket.qrCodePayload == null
       ? 'JEMBERGO|${ticket.id}|${ticket.bookingId}|${ticket.destinationName}|${ticket.visitDate.toIso8601String()}'
       : _ticketScanUrl(ticket.qrCodePayload!);
 
@@ -253,11 +255,8 @@ class TicketService {
     final basePath = apiUri.path.replaceFirst(RegExp(r'/api/v\d+/?$'), '');
     final routePath = '${basePath == '/' ? '' : basePath}/tiket/scan';
     return apiUri
-            .replace(
-              path: routePath,
-              queryParameters: {'kode_qr': qrCode},
-            )
-            .toString();
+        .replace(path: routePath, queryParameters: {'kode_qr': qrCode})
+        .toString();
   }
 
   Future<void> submitReview({

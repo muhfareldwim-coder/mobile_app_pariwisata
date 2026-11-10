@@ -174,11 +174,89 @@ class ApiService {
             .expand((messages) => messages)
             .whereType<String>()
             .firstOrNull;
-        if (firstError != null) return firstError;
+        if (firstError != null) return _friendlyValidationMessage(firstError);
       }
-      return message;
+      return _friendlyValidationMessage(message);
     }
     return 'Permintaan gagal. Silakan coba lagi.';
+  }
+
+  String _friendlyValidationMessage(String message) {
+    if (message == 'The given data was invalid.') {
+      return 'Periksa kembali data yang Anda masukkan.';
+    }
+
+    final required = RegExp(
+      r'^The (.+) field is required\.$',
+      caseSensitive: false,
+    ).firstMatch(message);
+    if (required != null) {
+      final label = _validationFieldLabel(required.group(1)!);
+      if (label != null) return '$label wajib diisi.';
+    }
+
+    final validEmail = RegExp(
+      r'^The (.+) field must be a valid email address\.$',
+      caseSensitive: false,
+    ).firstMatch(message);
+    if (validEmail != null &&
+        _validationFieldLabel(validEmail.group(1)!) == 'Email') {
+      return 'Masukkan email yang valid.';
+    }
+
+    final taken = RegExp(
+      r'^The (.+) has already been taken\.$',
+      caseSensitive: false,
+    ).firstMatch(message);
+    if (taken != null) {
+      return switch (_validationFieldLabel(taken.group(1)!)) {
+        'Email' => 'Alamat email tersebut sudah terdaftar.',
+        'Nomor telepon' => 'Nomor telepon tersebut sudah terdaftar.',
+        _ => message,
+      };
+    }
+
+    final invalidFormat = RegExp(
+      r'^The (.+) field format is invalid\.$',
+      caseSensitive: false,
+    ).firstMatch(message);
+    if (invalidFormat != null &&
+        _validationFieldLabel(invalidFormat.group(1)!) == 'Nomor telepon') {
+      return 'Masukkan nomor telepon dengan format yang valid.';
+    }
+
+    final minLength = RegExp(
+      r'^The (.+) field must be at least (\d+) characters\.$',
+      caseSensitive: false,
+    ).firstMatch(message);
+    if (minLength != null &&
+        _validationFieldLabel(minLength.group(1)!) == 'Kata sandi' &&
+        minLength.group(2) == '8') {
+      return 'Password minimal 8 karakter.';
+    }
+
+    final digits = RegExp(
+      r'^The (.+) field must be (\d+) digits\.$',
+      caseSensitive: false,
+    ).firstMatch(message);
+    if (digits != null &&
+        _validationFieldLabel(digits.group(1)!) == 'Kode OTP' &&
+        digits.group(2) == '6') {
+      return 'Masukkan kode OTP 6 digit.';
+    }
+
+    return message;
+  }
+
+  String? _validationFieldLabel(String attribute) {
+    return switch (attribute.toLowerCase().replaceAll('_', ' ').trim()) {
+      'nama' || 'name' => 'Nama lengkap',
+      'email' => 'Email',
+      'no hp' || 'phone' || 'phone number' => 'Nomor telepon',
+      'password' => 'Kata sandi',
+      'otp' => 'Kode OTP',
+      _ => null,
+    };
   }
 }
 

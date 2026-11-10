@@ -9,7 +9,7 @@ import '../../../data/services/api_service.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/booking_service.dart';
 import '../../../core/utils/date_formatters.dart';
-import 'payment_page.dart';
+import 'checkout_page.dart';
 
 const _navy = AppColors.navy;
 const _blue = AppColors.navy;
@@ -242,11 +242,14 @@ class _BookingPageState extends State<BookingPage> {
         participants: participants,
       );
       if (!mounted) return;
-      await Navigator.push<void>(
+      await Navigator.push<bool>(
         context,
-        MaterialPageRoute<void>(
-          builder: (_) =>
-              PaymentPage(booking: booking, destination: widget.destination),
+        MaterialPageRoute<bool>(
+          builder: (_) => CheckoutPage(
+            booking: booking,
+            destination: widget.destination,
+            canCancelBooking: true,
+          ),
         ),
       );
     } on ApiException catch (error) {

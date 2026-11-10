@@ -11,7 +11,7 @@ import '../../../data/services/api_service.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/ticket_service.dart';
 import '../../../core/utils/date_formatters.dart';
-import '../booking/payment_page.dart';
+import '../booking/checkout_page.dart';
 import '../destination/explorer_page.dart';
 import 'manage_trip_page.dart';
 import 'qr_ticket_page.dart';
@@ -502,10 +502,10 @@ class _CompactTicketCard extends StatelessWidget {
       status: ticket.bookingStatus,
       paymentDeadline: ticket.paymentDeadline,
     );
-    await Navigator.push<void>(
+    await Navigator.push<bool>(
       context,
-      MaterialPageRoute<void>(
-        builder: (_) => PaymentPage(
+      MaterialPageRoute<bool>(
+        builder: (_) => CheckoutPage(
           booking: booking,
           destination: Destination(
             id: ticket.destinationId,
@@ -516,6 +516,7 @@ class _CompactTicketCard extends StatelessWidget {
             routeDistanceKm: 0,
             imageUrl: ticket.destinationImageUrl,
           ),
+          canCancelBooking: ticket.canCancelBooking,
         ),
       ),
     );

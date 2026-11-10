@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:mobile_pariwisata/core/utils/date_formatters.dart';
 import 'package:mobile_pariwisata/core/routes/app_routes.dart';
+import 'package:mobile_pariwisata/core/localization/app_translations.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mobile_pariwisata/data/destination_data.dart';
@@ -196,6 +197,11 @@ void main() {
     await tester.tap(find.text('English (US)'));
     await tester.pumpAndSettle();
     expect(LanguagePreferenceService.locale.value, const Locale('en', 'US'));
+    expect(AppTranslations.translate('Mode Tamu'), 'Guest Mode');
+    expect(
+      AppTranslations.translate('E-Ticket Digital yang Siap Digunakan'),
+      'Ready-to-Use Digital E-Ticket',
+    );
     final preferences = await SharedPreferences.getInstance();
     expect(preferences.getString('jembergo_language'), 'en');
     await LanguagePreferenceService.setLocale(const Locale('id', 'ID'));
