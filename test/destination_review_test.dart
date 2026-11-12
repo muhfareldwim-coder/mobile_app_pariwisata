@@ -407,6 +407,106 @@ void main() {
     await tester.pumpAndSettle();
     expect(TicketService.findById(ticket.id)?.status, 'used');
     expect(find.text('Tulis ulasan'), findsOneWidget);
+
+    TicketService.tickets[ticketIndex] = TicketService.tickets[ticketIndex]
+        .copyWith(isReviewed: true);
+    TicketService.revision.value++;
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Terima kasih! Ulasan Anda sudah tercatat sebagai pengunjung terverifikasi.',
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('submitting a review does not trigger a Flutter framework error', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    final destination = destinations.first;
+    final ticket = Ticket(
+      id: 'review-ticket',
+      bookingId: 'BOOK-REVIEW',
+      destinationId: destination.id,
+      destinationName: destination.name,
+      visitDate: DateTime.now().subtract(const Duration(days: 1)),
+      adultCount: 1,
+      childCount: 0,
+      leaderName: User.sample.name,
+      leaderEmail: User.sample.email,
+      leaderPhone: User.sample.phone,
+      memberNames: [User.sample.name],
+      status: 'used',
+    );
+    TicketService.tickets.add(ticket);
+    final api = ApiService(
+      baseUrl: 'http://localhost/api/v1',
+      client: MockClient((request) async {
+        if (request.method == 'GET') {
+          expect(request.url.path, '/api/v1/destinasi/${destination.id}');
+          return http.Response(
+            jsonEncode({
+              'data': {
+                'id': int.parse(destination.id),
+                'nama': destination.name,
+                'latitude': destination.latitude,
+                'longitude': destination.longitude,
+                'ulasan': [
+                  {
+                    'nama_customer': User.sample.name,
+                    'rating': 5,
+                    'ulasan': 'Tempat wisata yang nyaman.',
+                  },
+                ],
+                'ulasan_count': 1,
+              },
+            }),
+            200,
+          );
+        }
+
+        expect(request.method, 'POST');
+        expect(
+          request.url.path,
+          '/api/v1/customer/tiket/${ticket.id}/ulasan',
+        );
+        expect(jsonDecode(request.body), {
+          'rating': 5,
+          'ulasan': 'Pengalaman yang menyenangkan.',
+        });
+        return http.Response(
+          jsonEncode({'message': 'Ulasan berhasil disimpan.'}),
+          201,
+        );
+      }),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DestinationDetailPage(destination: destination, api: api),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tulis ulasan'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextField),
+      'Pengalaman yang menyenangkan.',
+    );
+    await tester.tap(find.text('Kirim ulasan'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Terima kasih! Ulasan Anda sudah tercatat sebagai pengunjung terverifikasi.',
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 }

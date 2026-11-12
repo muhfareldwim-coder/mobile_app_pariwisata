@@ -19,9 +19,14 @@ import '../ticket/qr_ticket_page.dart';
 import 'destination_collection_page.dart';
 
 class DestinationDetailPage extends StatefulWidget {
-  const DestinationDetailPage({super.key, required this.destination});
+  const DestinationDetailPage({
+    super.key,
+    required this.destination,
+    this.api,
+  });
 
   final Destination destination;
+  final ApiService? api;
 
   @override
   State<DestinationDetailPage> createState() => _DestinationDetailPageState();
@@ -31,7 +36,8 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
   bool isDescriptionExpanded = false;
   late Destination _destination;
   final _mapController = MapController();
-  final _destinationService = DestinationService();
+  late final DestinationService _destinationService;
+  late final TicketService _ticketService;
   final _routeEstimateService = RouteEstimateService();
   RouteEstimate? _routeEstimate;
   String? _routeError;
@@ -45,6 +51,8 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
   void initState() {
     super.initState();
     FavoriteDestinationService.revision.addListener(_onFavoritesChanged);
+    _destinationService = DestinationService(api: widget.api);
+    _ticketService = TicketService(api: widget.api);
     _destination = widget.destination;
     _loadDestinationDetails();
   }
@@ -60,11 +68,18 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _loadDestinationDetails() async {
+  Future<void> _loadDestinationDetails({
+    bool refreshReviewsOnly = false,
+  }) async {
     if (int.tryParse(destination.id) == null) return;
     try {
       final details = await _destinationService.getDestination(destination.id);
       if (!mounted) return;
+      if (refreshReviewsOnly) {
+        _destination = details;
+        TicketService.revision.value++;
+        return;
+      }
       setState(() {
         _destination = details;
         _detailError = null;
@@ -352,14 +367,14 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
 
     if (result == null || !mounted) return;
     try {
-      await TicketService().submitReview(
+      await _ticketService.submitReview(
         ticketId: ticket.id,
         rating: result.$1,
         review: result.$2,
       );
       if (!mounted) return;
       _showMessage('Terima kasih! Ulasan Anda berhasil dikirim.');
-      await _loadDestinationDetails();
+      await _loadDestinationDetails(refreshReviewsOnly: true);
     } on ApiException catch (error) {
       if (mounted) _showMessage(error.message);
     } on FormatException catch (error) {

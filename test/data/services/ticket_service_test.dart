@@ -100,9 +100,7 @@ void main() {
       expect(ticket.amountPaid, 125000);
       expect(ticket.status, 'valid');
       expect(ticket.canOpenEticket, isTrue);
-      final qrUri = Uri.parse(TicketService.qrPayload(ticket));
-      expect(qrUri.path, '/tiket/scan');
-      expect(qrUri.queryParameters['kode_qr'], 'encrypted-server-qr-payload');
+      expect(TicketService.qrPayload(ticket), 'JGO-20261011-ABCDE');
     },
   );
 
@@ -259,9 +257,49 @@ void main() {
             });
             return http.Response(
               jsonEncode({'message': 'Ulasan berhasil dikirim.'}),
-              200,
+              201,
             );
           }),
+        ),
+      );
+
+      await service.submitReview(
+        ticketId: ticket.id,
+        rating: 4,
+        review: 'Tempatnya bersih dan nyaman.',
+      );
+
+      expect(TicketService.findById(ticket.id)?.isReviewed, isTrue);
+    },
+  );
+
+  test(
+    'already-submitted review is treated as success and marks ticket reviewed',
+    () async {
+      final ticket = Ticket(
+        id: 'existing-review-ticket',
+        bookingId: 'BOOK-EXISTING-REVIEW',
+        destinationId: '42',
+        destinationName: 'Pantai Papuma',
+        visitDate: DateTime(2026, 10, 18),
+        adultCount: 1,
+        childCount: 0,
+        leaderName: User.sample.name,
+        leaderEmail: User.sample.email,
+        leaderPhone: User.sample.phone,
+        memberNames: const [],
+        status: 'used',
+      );
+      TicketService.tickets.add(ticket);
+      final service = TicketService(
+        api: ApiService(
+          baseUrl: 'http://localhost/api/v1',
+          client: MockClient(
+            (_) async => http.Response(
+              jsonEncode({'message': 'Tiket ini sudah memiliki ulasan.'}),
+              422,
+            ),
+          ),
         ),
       );
 

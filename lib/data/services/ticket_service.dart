@@ -1,4 +1,3 @@
-import '../../core/constants/app_constants.dart';
 import '../models/ticket.dart';
 
 import 'package:flutter/foundation.dart';
@@ -246,29 +245,26 @@ class TicketService {
     return null;
   }
 
-  static String qrPayload(Ticket ticket) => ticket.qrCodePayload == null
-      ? 'JEMBERGO|${ticket.id}|${ticket.bookingId}|${ticket.destinationName}|${ticket.visitDate.toIso8601String()}'
-      : _ticketScanUrl(ticket.qrCodePayload!);
-
-  static String _ticketScanUrl(String qrCode) {
-    final apiUri = Uri.parse(AppConstants.apiBaseUrl);
-    final basePath = apiUri.path.replaceFirst(RegExp(r'/api/v\d+/?$'), '');
-    final routePath = '${basePath == '/' ? '' : basePath}/tiket/scan';
-    return apiUri
-        .replace(path: routePath, queryParameters: {'kode_qr': qrCode})
-        .toString();
-  }
+  static String qrPayload(Ticket ticket) => ticket.bookingId;
 
   Future<void> submitReview({
     required String ticketId,
     required int rating,
     required String review,
   }) async {
-    await _api.post(
-      '/customer/tiket/$ticketId/ulasan',
-      token: AuthService.accessToken,
-      body: {'rating': rating, 'ulasan': review},
-    );
+    try {
+      await _api.post(
+        '/customer/tiket/$ticketId/ulasan',
+        token: AuthService.accessToken,
+        body: {'rating': rating, 'ulasan': review},
+      );
+    } on ApiException catch (error) {
+      if (error.statusCode != 422 ||
+          error.message != 'Tiket ini sudah memiliki ulasan.') {
+        rethrow;
+      }
+    }
+
     final index = tickets.indexWhere((ticket) => ticket.id == ticketId);
     if (index != -1) {
       tickets[index] = tickets[index].copyWith(isReviewed: true);

@@ -107,8 +107,22 @@ class _LoginPageState extends State<LoginPage> {
         if (verified == true) _completeLogin();
       }
     } on GoogleSignInException catch (error) {
-      if (error.code != GoogleSignInExceptionCode.canceled && mounted) {
-        _showMessage(error.toString());
+      if (mounted) {
+        if (error.code == GoogleSignInExceptionCode.canceled) {
+          final platformConfiguration = switch (defaultTargetPlatform) {
+            TargetPlatform.android =>
+              'nama paket aplikasi, SHA-1 signing key, dan Server Client ID',
+            TargetPlatform.iOS =>
+              'iOS Client ID, URL scheme, dan Server Client ID',
+            _ => 'konfigurasi OAuth platform',
+          };
+          _showMessage(
+            'Login Google dibatalkan. Jika Anda sudah memilih akun, periksa '
+            '$platformConfiguration.',
+          );
+        } else {
+          _showMessage(error.toString());
+        }
       }
     } on Exception catch (error) {
       if (mounted) _showMessage(error.toString());
