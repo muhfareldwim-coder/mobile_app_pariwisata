@@ -324,11 +324,17 @@ class _HomePageState extends State<HomePage> {
                       onRetry: _loadArticles,
                       onExploreTap: () => _openPage(
                         context,
-                        ArticleListPage(articles: _articles),
+                        ArticleListPage(
+                          articles: _articles,
+                          articleService: _articleService,
+                        ),
                       ),
                       onArticleTap: (article) => _openPage(
                         context,
-                        ArticleDetailPage(article: article),
+                        ArticleDetailPage(
+                          article: article,
+                          articleService: _articleService,
+                        ),
                       ),
                     ),
                   ],

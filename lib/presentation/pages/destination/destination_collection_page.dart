@@ -3,22 +3,55 @@ import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/destination.dart';
+import '../../../data/services/destination_service.dart';
 
 enum DestinationCollectionSection { gallery, reviews }
 
-class DestinationCollectionPage extends StatelessWidget {
+class DestinationCollectionPage extends StatefulWidget {
   const DestinationCollectionPage({
     super.key,
     required this.destination,
     required this.section,
+    this.destinationService,
   });
 
   final Destination destination;
   final DestinationCollectionSection section;
+  final DestinationService? destinationService;
+
+  @override
+  State<DestinationCollectionPage> createState() =>
+      _DestinationCollectionPageState();
+}
+
+class _DestinationCollectionPageState extends State<DestinationCollectionPage> {
+  late Destination _destination;
+  late final DestinationService _destinationService;
+
+  @override
+  void initState() {
+    super.initState();
+    _destination = widget.destination;
+    _destinationService = widget.destinationService ?? DestinationService();
+  }
+
+  Future<void> _refreshDestination() async {
+    try {
+      final destination = await _destinationService.getDestination(
+        _destination.id,
+      );
+      if (mounted) setState(() => _destination = destination);
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Destinasi gagal diperbarui: $error')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isGallery = section == DestinationCollectionSection.gallery;
+    final isGallery = widget.section == DestinationCollectionSection.gallery;
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FB),
       appBar: AppBar(
@@ -27,7 +60,7 @@ class DestinationCollectionPage extends StatelessWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
         title: Text(
-          isGallery ? 'Galeri ${destination.name}' : 'Ulasan pengunjung',
+          isGallery ? 'Galeri ${_destination.name}' : 'Ulasan pengunjung',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
@@ -37,23 +70,22 @@ class DestinationCollectionPage extends StatelessWidget {
           ),
         ),
       ),
-      body: isGallery ? _gallery() : _reviews(),
+      body: RefreshIndicator(
+        onRefresh: _refreshDestination,
+        child: isGallery ? _gallery() : _reviews(),
+      ),
     );
   }
 
   Widget _gallery() {
-    if (destination.gallery.isEmpty) {
-      return const Center(
-        child: Text(
-          'Galeri destinasi belum tersedia.',
-          style: TextStyle(color: Color(0xFF8190A5), fontSize: 14),
-        ),
-      );
+    if (_destination.gallery.isEmpty) {
+      return _emptyContent('Galeri destinasi belum tersedia.');
     }
 
     return GridView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
-      itemCount: destination.gallery.length,
+      itemCount: _destination.gallery.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 10,
@@ -61,7 +93,7 @@ class DestinationCollectionPage extends StatelessWidget {
         childAspectRatio: 1.05,
       ),
       itemBuilder: (context, index) {
-        final photo = destination.gallery[index];
+        final photo = _destination.gallery[index];
         final caption = photo.caption?.trim().isNotEmpty == true
             ? photo.caption!.trim()
             : 'Foto destinasi';
@@ -122,17 +154,13 @@ class DestinationCollectionPage extends StatelessWidget {
   }
 
   Widget _reviews() {
-    final reviews = destination.reviews;
+    final reviews = _destination.reviews;
     if (reviews.isEmpty) {
-      return const Center(
-        child: Text(
-          'Belum ada ulasan.',
-          style: TextStyle(color: Color(0xFF8190A5), fontSize: 14),
-        ),
-      );
+      return _emptyContent('Belum ada ulasan.');
     }
 
     return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: reviews.length,
       separatorBuilder: (_, _) => const SizedBox(height: 10),
@@ -148,11 +176,26 @@ class DestinationCollectionPage extends StatelessWidget {
     );
   }
 
+  Widget _emptyContent(String message) => ListView(
+    physics: const AlwaysScrollableScrollPhysics(),
+    children: [
+      SizedBox(
+        height: MediaQuery.sizeOf(context).height * .65,
+        child: Center(
+          child: Text(
+            message,
+            style: const TextStyle(color: Color(0xFF8190A5), fontSize: 14),
+          ),
+        ),
+      ),
+    ],
+  );
+
   Future<void> _openGallery(BuildContext context, int initialIndex) =>
       showDialog<void>(
         context: context,
         builder: (_) => _GalleryViewer(
-          photos: destination.gallery,
+          photos: _destination.gallery,
           initialIndex: initialIndex,
         ),
       );

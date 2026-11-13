@@ -87,6 +87,28 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('peta refreshes destinations when pulled down on its header', (
+    tester,
+  ) async {
+    await _setTestViewport(tester);
+    final service = _TestDestinationService(destinations);
+    await tester.pumpWidget(
+      MaterialApp(home: MapPage(destinationService: service)),
+    );
+    await tester.pumpAndSettle();
+    expect(service.requestCount, 1);
+
+    final headerScroll = find.descendant(
+      of: find.byType(RefreshIndicator),
+      matching: find.byType(ListView),
+    );
+    await tester.drag(headerScroll, const Offset(0, 250));
+    await tester.pumpAndSettle();
+
+    expect(service.requestCount, 2);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('pencarian dan kategori memfilter marker dan hitungan', (
     tester,
   ) async {
@@ -224,10 +246,13 @@ class _TestDestinationService extends DestinationService {
   _TestDestinationService(this.destinations);
 
   final List<Destination> destinations;
+  var requestCount = 0;
 
   @override
-  Future<List<Destination>> getMapDestinations({LatLng? origin}) async =>
-      destinations;
+  Future<List<Destination>> getMapDestinations({LatLng? origin}) async {
+    requestCount++;
+    return destinations;
+  }
 }
 
 class _TestRouteEstimateService extends RouteEstimateService {

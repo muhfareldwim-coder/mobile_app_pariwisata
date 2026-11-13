@@ -199,6 +199,7 @@ class TicketService {
     'EXPIRED' => 'expired',
     'PENDING' => 'pending',
     'FAILED' => 'failed',
+    'CANCELLED' => 'cancelled',
     _ => 'unknown',
   };
 

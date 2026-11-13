@@ -370,175 +370,180 @@ class _ManageTripPageState extends State<ManageTripPage> {
               message: _error ?? 'Data perjalanan tidak tersedia.',
               onRetry: _loadTrip,
             )
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-              children: [
-                _BookingSummary(trip: trip),
-                if (trip.pendingChange != null) ...[
+          : RefreshIndicator(
+              onRefresh: _loadTrip,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+                children: [
+                  _BookingSummary(trip: trip),
+                  if (trip.pendingChange != null) ...[
+                    const SizedBox(height: 14),
+                    _PendingChangeCard(
+                      change: trip.pendingChange!,
+                      isProcessing: _isSubmitting,
+                      onContinue: _continuePendingChange,
+                    ),
+                  ],
                   const SizedBox(height: 14),
-                  _PendingChangeCard(
-                    change: trip.pendingChange!,
-                    isProcessing: _isSubmitting,
-                    onContinue: _continuePendingChange,
-                  ),
-                ],
-                const SizedBox(height: 14),
-                _ManageSection(
-                  title: 'Ubah jadwal',
-                  description: 'Pilih tanggal baru untuk kunjungan Anda.',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Tanggal kunjungan baru',
-                        style: TextStyle(
-                          color: Color(0xFF68778A),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                  _ManageSection(
+                    title: 'Ubah jadwal',
+                    description: 'Pilih tanggal baru untuk kunjungan Anda.',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Tanggal kunjungan baru',
+                          style: TextStyle(
+                            color: Color(0xFF68778A),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          onPressed: _selectDate,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: _manageNavy,
-                            backgroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 14,
+                        const SizedBox(height: 6),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: _selectDate,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _manageNavy,
+                              backgroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 14,
+                              ),
+                              side: const BorderSide(color: Color(0xFFE2E8F0)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
-                            side: const BorderSide(color: Color(0xFFE2E8F0)),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.calendar_month_rounded,
+                                  color: Color(0xFF31516B),
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        formatIndonesianDate(
+                                          _visitDate ?? trip.booking.visitDate,
+                                        ),
+                                        style: const TextStyle(
+                                          color: Color(0xFF1F2937),
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          child: Row(
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _ManageSection(
+                    title: 'Tambah tiket',
+                    description: 'Tambahkan anggota atau tiket tambahan untuk perjalanan Anda.',
+                    child: trip.remainingSlots == 0
+                        ? const Text(
+                            'Booking sudah penuh\nJumlah peserta saat ini sudah mencapai 10 orang.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Color(0xFF617486),
+                              height: 1.5,
+                            ),
+                          )
+                        : Column(
                             children: [
-                              const Icon(
-                                Icons.calendar_month_rounded,
-                                color: Color(0xFF31516B),
-                                size: 18,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      formatIndonesianDate(
-                                        _visitDate ?? trip.booking.visitDate,
-                                      ),
-                                      style: const TextStyle(
-                                        color: Color(0xFF1F2937),
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                              for (
+                                var index = 0;
+                                index < _newMembers.length;
+                                index++
+                              )
+                                _MemberForm(
+                                  key: ValueKey(_newMembers[index]),
+                                  number: index + 1,
+                                  member: _newMembers[index],
+                                  ticketTypes: trip.ticketTypes,
+                                  onRemove: () => _removeMember(index),
+                                  onNameChanged: (_) {
+                                    setState(() {});
+                                  },
+                                  onTicketTypeChanged: (ticketTypeId) {
+                                    setState(
+                                      () => _newMembers[index].ticketTypeId =
+                                          ticketTypeId,
+                                    );
+                                  },
+                                ),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton(
+                                  onPressed:
+                                      _newMembers.length >= trip.remainingSlots
+                                      ? null
+                                      : _addMember,
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: _manageNavy,
+                                    side: const BorderSide(
+                                      color: Color(0xFFD7E2EC),
                                     ),
-                                  ],
+                                    minimumSize: const Size.fromHeight(46),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(11),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Tambah anggota',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  '${trip.remainingSlots} slot tiket tersedia · maksimal 10 orang per pemesanan.',
+                                  style: const TextStyle(
+                                    color: Color(0xFF7890A1),
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ),
-                    ],
                   ),
-                ),
-                const SizedBox(height: 14),
-                _ManageSection(
-                  title: 'Tambah tiket',
-                  description: 'Tambahkan anggota atau tiket tambahan untuk perjalanan Anda.',
-                  child: trip.remainingSlots == 0
-                      ? const Text(
-                          'Booking sudah penuh\nJumlah peserta saat ini sudah mencapai 10 orang.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Color(0xFF617486),
-                            height: 1.5,
-                          ),
-                        )
-                      : Column(
-                          children: [
-                            for (
-                              var index = 0;
-                              index < _newMembers.length;
-                              index++
-                            )
-                              _MemberForm(
-                                key: ValueKey(_newMembers[index]),
-                                number: index + 1,
-                                member: _newMembers[index],
-                                ticketTypes: trip.ticketTypes,
-                                onRemove: () => _removeMember(index),
-                                onNameChanged: (_) {
-                                  setState(() {});
-                                },
-                                onTicketTypeChanged: (ticketTypeId) {
-                                  setState(
-                                    () => _newMembers[index].ticketTypeId =
-                                        ticketTypeId,
-                                  );
-                                },
-                              ),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton(
-                                onPressed:
-                                    _newMembers.length >= trip.remainingSlots
-                                    ? null
-                                    : _addMember,
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: _manageNavy,
-                                  side: const BorderSide(
-                                    color: Color(0xFFD7E2EC),
-                                  ),
-                                  minimumSize: const Size.fromHeight(46),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(11),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Tambah anggota',
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                '${trip.remainingSlots} slot tiket tersedia · maksimal 10 orang per pemesanan.',
-                                style: const TextStyle(
-                                  color: Color(0xFF7890A1),
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
-                const SizedBox(height: 14),
-                _ManageSummary(
-                  trip: trip,
-                  additionalCount: _completeMembers.length,
-                  additionalTotal: _additionalTotal,
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 12),
-                  _InlineError(message: _error!),
+                  const SizedBox(height: 14),
+                  _ManageSummary(
+                    trip: trip,
+                    additionalCount: _completeMembers.length,
+                    additionalTotal: _additionalTotal,
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    _InlineError(message: _error!),
+                  ],
+                  const SizedBox(height: 14),
+                  if (trip.pendingChange != null)
+                    const _InlineNotice(
+                      message: 'Selesaikan perubahan yang tertunda sebelum membuat perubahan baru.',
+                    ),
+                  if (trip.pendingChange != null) const SizedBox(height: 10),
                 ],
-                const SizedBox(height: 14),
-                if (trip.pendingChange != null)
-                  const _InlineNotice(
-                    message: 'Selesaikan perubahan yang tertunda sebelum membuat perubahan baru.',
-                  ),
-                if (trip.pendingChange != null) const SizedBox(height: 10),
-              ],
+              ),
             ),
       bottomNavigationBar: _isLoading || trip == null
           ? null

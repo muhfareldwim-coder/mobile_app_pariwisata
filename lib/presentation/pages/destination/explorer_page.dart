@@ -81,7 +81,13 @@ class _ExplorerPageState extends State<ExplorerPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(backgroundColor: _exploreBackground, body: _exploreBody());
+    return Scaffold(
+      backgroundColor: _exploreBackground,
+      body: RefreshIndicator(
+        onRefresh: _loadDestinations,
+        child: _exploreBody(),
+      ),
+    );
   }
 
   Widget _exploreBody() {
@@ -100,6 +106,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
 
     return ListView(
       key: const ValueKey('exploreList'),
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.zero,
       children: [
         _buildHeader(),

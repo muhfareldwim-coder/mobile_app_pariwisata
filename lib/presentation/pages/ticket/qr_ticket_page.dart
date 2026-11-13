@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../data/models/ticket.dart';
 import '../../../data/services/api_service.dart';
+import '../../../data/services/auth_service.dart';
 import '../../../data/services/ticket_service.dart';
 import '../../../data/services/ticket_pdf_service.dart';
 
@@ -31,39 +32,59 @@ class QrTicketPage extends StatelessWidget {
           centerTitle: false,
           surfaceTintColor: Colors.white,
         ),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          children: [
-            _TicketPass(
-              ticket: currentTicket,
-              qrData: currentQrData,
-              onCopy: () => _copyBookingCode(context),
-            ),
-            const SizedBox(height: 12),
-            if ((currentTicket.hasUsedTicket ||
-                    currentTicket.status == 'used' ||
-                    currentTicket.status == 'partial') &&
-                !currentTicket.isReviewed)
-              SizedBox(
-                width: double.infinity,
-                height: 46,
-                child: FilledButton(
-                  onPressed: () => _writeReview(context, currentTicket),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFF58B05),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(9),
-                    ),
-                  ),
-                  child: const Text('Beri Review'),
-                ),
+        body: RefreshIndicator(
+          onRefresh: () => _refreshTickets(context),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            children: [
+              _TicketPass(
+                ticket: currentTicket,
+                qrData: currentQrData,
+                onCopy: () => _copyBookingCode(context),
               ),
-          ],
+              const SizedBox(height: 12),
+              if ((currentTicket.hasUsedTicket ||
+                      currentTicket.status == 'used' ||
+                      currentTicket.status == 'partial') &&
+                  !currentTicket.isReviewed)
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: FilledButton(
+                    onPressed: () => _writeReview(context, currentTicket),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFF58B05),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                    ),
+                    child: const Text('Beri Review'),
+                  ),
+                ),
+            ],
+          ),
         ),
       );
     },
   );
+
+  Future<void> _refreshTickets(BuildContext context) async {
+    final customerId = AuthService.currentUser?.id;
+    if (customerId == null) return;
+    try {
+      await TicketService().refreshFromServer(expectedCustomerId: customerId);
+    } on ApiException catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
+    } on FormatException catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
 
   Future<void> _copyBookingCode(BuildContext context) async {
     await Clipboard.setData(ClipboardData(text: ticket.bookingId));
@@ -77,74 +98,10 @@ class QrTicketPage extends StatelessWidget {
   }
 
   Future<void> _writeReview(BuildContext context, Ticket currentTicket) async {
-    final formKey = GlobalKey<FormState>();
-    final reviewController = TextEditingController();
-    var rating = 5;
     final review = await showDialog<(int, String)>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Beri Review'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Bagaimana pengalamanmu di destinasi ini?'),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    5,
-                    (index) => IconButton(
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () => setDialogState(() => rating = index + 1),
-                      icon: Icon(
-                        index < rating
-                            ? Icons.star_rounded
-                            : Icons.star_border_rounded,
-                        color: const Color(0xFFF58B05),
-                      ),
-                    ),
-                  ),
-                ),
-                TextFormField(
-                  controller: reviewController,
-                  maxLength: 1000,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    hintText: localized('Tulis ulasanmu'),
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? localized('Ulasan tidak boleh kosong.')
-                      : null,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Batal'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (formKey.currentState?.validate() ?? false) {
-                  Navigator.pop(dialogContext, (
-                    rating,
-                    reviewController.text.trim(),
-                  ));
-                }
-              },
-              child: const Text('Kirim'),
-            ),
-          ],
-        ),
-      ),
+      builder: (_) => const _TicketReviewDialog(),
     );
-    reviewController.dispose();
     if (review == null || !context.mounted) return;
     try {
       await TicketService().submitReview(
@@ -166,6 +123,84 @@ class QrTicketPage extends StatelessWidget {
           .showSnackBar(SnackBar(content: Text(error.message)));
     }
   }
+}
+
+class _TicketReviewDialog extends StatefulWidget {
+  const _TicketReviewDialog();
+
+  @override
+  State<_TicketReviewDialog> createState() => _TicketReviewDialogState();
+}
+
+class _TicketReviewDialogState extends State<_TicketReviewDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _reviewController = TextEditingController();
+  var _rating = 5;
+
+  @override
+  void dispose() {
+    _reviewController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    scrollable: true,
+    title: const Text('Beri Review'),
+    content: Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Bagaimana pengalamanmu di destinasi ini?'),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              5,
+              (index) => IconButton(
+                visualDensity: VisualDensity.compact,
+                onPressed: () => setState(() => _rating = index + 1),
+                icon: Icon(
+                  index < _rating
+                      ? Icons.star_rounded
+                      : Icons.star_border_rounded,
+                  color: const Color(0xFFF58B05),
+                ),
+              ),
+            ),
+          ),
+          TextFormField(
+            controller: _reviewController,
+            maxLength: 1000,
+            maxLines: 4,
+            decoration: InputDecoration(
+              hintText: localized('Tulis ulasanmu'),
+              border: OutlineInputBorder(),
+            ),
+            validator: (value) => value == null || value.trim().isEmpty
+                ? localized('Ulasan tidak boleh kosong.')
+                : null,
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Batal'),
+      ),
+      FilledButton(
+        onPressed: () {
+          if (_formKey.currentState?.validate() ?? false) {
+            Navigator.pop(context, (_rating, _reviewController.text.trim()));
+          }
+        },
+        child: const Text('Kirim'),
+      ),
+    ],
+  );
 }
 
 Future<void> downloadTicketPdf(BuildContext context, Ticket ticket) async {

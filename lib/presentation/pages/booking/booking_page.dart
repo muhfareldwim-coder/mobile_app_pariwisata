@@ -8,8 +8,9 @@ import '../../../data/models/destination.dart';
 import '../../../data/services/api_service.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/booking_service.dart';
+import '../../../data/services/payment_service.dart';
 import '../../../core/utils/date_formatters.dart';
-import 'checkout_page.dart';
+import 'payment_page.dart';
 
 const _navy = AppColors.navy;
 const _blue = AppColors.navy;
@@ -19,9 +20,16 @@ const _ink = AppColors.navy;
 const _softPanel = Color(0xFFEEF3F8);
 
 class BookingPage extends StatefulWidget {
-  const BookingPage({super.key, required this.destination});
+  const BookingPage({
+    super.key,
+    required this.destination,
+    this.bookingService,
+    this.paymentService,
+  });
 
   final Destination destination;
+  final BookingService? bookingService;
+  final PaymentService? paymentService;
 
   @override
   State<BookingPage> createState() => _BookingPageState();
@@ -43,6 +51,9 @@ class _BookingPageState extends State<BookingPage> {
   int _quotaRequestId = 0;
   bool _isSubmitting = false;
   bool _hasDateError = false;
+
+  BookingService get _bookingService =>
+      widget.bookingService ?? BookingService();
 
   List<DestinationTicketType> get _ticketTypes =>
       widget.destination.ticketTypes;
@@ -141,7 +152,7 @@ class _BookingPageState extends State<BookingPage> {
     final requestId = ++_quotaRequestId;
     setState(() => _isCheckingQuota = true);
     try {
-      final availability = await BookingService().getQuotaAvailability(
+      final availability = await _bookingService.getQuotaAvailability(
         destinationId: widget.destination.id,
         visitDate: visitDate,
       );
@@ -233,7 +244,7 @@ class _BookingPageState extends State<BookingPage> {
               ticketPrice: ticket.price,
             ),
       ];
-      final booking = await BookingService().createBooking(
+      final booking = await _bookingService.createBooking(
         destinationId: widget.destination.id,
         visitDate: _visitDate!,
         leaderName: _leaderNameController.text.trim(),
@@ -242,13 +253,13 @@ class _BookingPageState extends State<BookingPage> {
         participants: participants,
       );
       if (!mounted) return;
-      await Navigator.push<bool>(
+      await Navigator.push<void>(
         context,
-        MaterialPageRoute<bool>(
-          builder: (_) => CheckoutPage(
+        MaterialPageRoute<void>(
+          builder: (_) => PaymentPage(
             booking: booking,
             destination: widget.destination,
-            canCancelBooking: true,
+            paymentService: widget.paymentService,
           ),
         ),
       );
@@ -709,7 +720,7 @@ class _BookingProgress extends StatelessWidget {
           ),
           Expanded(flex: 1, child: Divider(color: Color(0xFFD8E1EA))),
           Expanded(
-            flex: 2,
+            flex: 4,
             child: _StepIndicator(number: '2', label: 'Pembayaran'),
           ),
           Expanded(flex: 1, child: Divider(color: Color(0xFFD8E1EA))),
@@ -764,7 +775,7 @@ class _StepIndicator extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: color,
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
@@ -1206,7 +1217,7 @@ class _PaymentBar extends StatelessWidget {
             const SizedBox(width: 12),
             SizedBox(
               height: 48,
-              child: FilledButton.icon(
+              child: FilledButton(
                 onPressed: isLoading ? null : onContinue,
                 style: FilledButton.styleFrom(
                   backgroundColor: _orange,
@@ -1217,19 +1228,28 @@ class _PaymentBar extends StatelessWidget {
                   ),
                   elevation: 0,
                 ),
-                icon: isLoading
-                    ? const SizedBox(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isLoading) ...[
+                      const SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           color: Colors.white,
                         ),
-                      )
-                    : const Icon(Icons.arrow_forward_rounded, size: 17),
-                label: const Text(
-                  'Lanjut Bayar',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    const Text(
+                      'Lanjut Bayar',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

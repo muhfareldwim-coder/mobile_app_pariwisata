@@ -91,6 +91,19 @@ void main() {
     expect(find.text('Jumat, 23 Oktober 2026'), findsOneWidget);
     expect(find.text('Citra Wijaya (Ketua)'), findsOneWidget);
     expect(find.text('Siti Wijaya'), findsOneWidget);
+    expect(find.text('Data Peserta'), findsOneWidget);
+    final paymentStep = find.text('Pembayaran').last;
+    final paymentStepText = tester.widget<Text>(paymentStep);
+    final paymentStepPainter = TextPainter(
+      text: TextSpan(
+        text: paymentStepText.data,
+        style: paymentStepText.style,
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: paymentStepText.maxLines,
+      textScaler: paymentStepText.textScaler ?? TextScaler.noScaling,
+    )..layout(maxWidth: tester.getSize(paymentStep).width);
+    expect(paymentStepPainter.computeLineMetrics(), hasLength(1));
     await tester.dragUntilVisible(
       find.text('Pindai kode pembayaran yang tampil di atas.'),
       find.byType(ListView),
@@ -98,10 +111,11 @@ void main() {
     );
     await tester.pump();
     expect(find.text('Selesaikan pembayaran'), findsOneWidget);
-    expect(
-      find.image(const AssetImage('assets/logo-qris-transparent.png')),
-      findsOneWidget,
+    final qrisLogo = find.image(
+      const AssetImage('assets/logo-qris-transparent.png'),
     );
+    expect(qrisLogo, findsOneWidget);
+    expect(tester.getSize(qrisLogo).height, greaterThan(48));
     expect(
       find.text('Pindai kode pembayaran yang tampil di atas.'),
       findsOneWidget,

@@ -9,9 +9,10 @@ import '../../../data/models/destination.dart';
 import '../../../data/models/ticket.dart';
 import '../../../data/services/api_service.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../data/services/booking_service.dart';
 import '../../../data/services/ticket_service.dart';
 import '../../../core/utils/date_formatters.dart';
-import '../booking/checkout_page.dart';
+import '../booking/payment_page.dart';
 import '../destination/explorer_page.dart';
 import 'manage_trip_page.dart';
 import 'qr_ticket_page.dart';
@@ -23,10 +24,16 @@ const _ticketSecondaryText = Color(0xFF8190A5);
 const _ticketBorder = Color(0xFFE3EAF2);
 
 class MyTicketPage extends StatefulWidget {
-  const MyTicketPage({super.key, this.onExploreTap, this.isSelected = true});
+  const MyTicketPage({
+    super.key,
+    this.onExploreTap,
+    this.isSelected = true,
+    this.bookingService,
+  });
 
   final VoidCallback? onExploreTap;
   final bool isSelected;
+  final BookingService? bookingService;
 
   @override
   State<MyTicketPage> createState() => _MyTicketPageState();
@@ -37,6 +44,10 @@ class _MyTicketPageState extends State<MyTicketPage> {
   bool _isLoading = false;
   String? _loadError;
   String? _loadedCustomerId;
+  final Set<String> _cancellingBookingIds = {};
+
+  BookingService get _bookingService =>
+      widget.bookingService ?? BookingService();
 
   @override
   void initState() {
@@ -111,68 +122,77 @@ class _MyTicketPageState extends State<MyTicketPage> {
                     1 => history,
                     _ => tickets,
                   };
-                  return CustomScrollView(
-                    slivers: [
-                      SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                        sliver: SliverList(
-                          delegate: SliverChildListDelegate([
-                            _TicketTabs(
-                              selectedIndex: _selectedTab,
-                              activeCount: active.length,
-                              historyCount: history.length,
-                              allCount: tickets.length,
-                              onSelected: (index) =>
-                                  setState(() => _selectedTab = index),
-                            ),
-                            if (_loadError != null) ...[
-                              const SizedBox(height: 12),
-                              Text(
-                                _loadError!,
-                                style: const TextStyle(
-                                  color: Colors.red,
-                                  fontSize: 12,
+                  return RefreshIndicator(
+                    onRefresh: _loadTickets,
+                    child: CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                          sliver: SliverList(
+                            delegate: SliverChildListDelegate([
+                              _TicketTabs(
+                                selectedIndex: _selectedTab,
+                                activeCount: active.length,
+                                historyCount: history.length,
+                                allCount: tickets.length,
+                                onSelected: (index) =>
+                                    setState(() => _selectedTab = index),
+                              ),
+                              if (_loadError != null) ...[
+                                const SizedBox(height: 12),
+                                Text(
+                                  _loadError!,
+                                  style: const TextStyle(
+                                    color: Colors.red,
+                                    fontSize: 12,
+                                  ),
                                 ),
-                              ),
-                              TextButton(
-                                onPressed: _isLoading ? null : _loadTickets,
-                                child: const Text('Muat ulang tiket'),
-                              ),
-                            ],
-                            if (_isLoading) ...[
-                              const SizedBox(height: 24),
-                              const Center(child: CircularProgressIndicator()),
-                            ],
-                            const SizedBox(height: 12),
-                            if (!_isLoading)
-                              for (final ticket in displayed) ...[
-                                if (ticket != displayed.first)
-                                  const SizedBox(height: 14),
-                                _CompactTicketCard(
-                                  ticket: ticket,
-                                  selectedTab: _selectedTab,
-                                  onPaymentReturned: _loadTickets,
+                                TextButton(
+                                  onPressed: _isLoading ? null : _loadTickets,
+                                  child: const Text('Muat ulang tiket'),
                                 ),
                               ],
-                          ]),
-                        ),
-                      ),
-                      if (!_isLoading && displayed.isEmpty)
-                        SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                          sliver: SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: _EmptyTickets(
-                              selectedTab: _selectedTab,
-                              requiresLogin: !isAuthenticated,
-                              onExplore: _openExplorer,
-                              onLogin: _openLogin,
-                            ),
+                              if (_isLoading) ...[
+                                const SizedBox(height: 24),
+                                const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              ],
+                              const SizedBox(height: 12),
+                              if (!_isLoading)
+                                for (final ticket in displayed) ...[
+                                  if (ticket != displayed.first)
+                                    const SizedBox(height: 14),
+                                  _CompactTicketCard(
+                                    ticket: ticket,
+                                    selectedTab: _selectedTab,
+                                    onPaymentReturned: _loadTickets,
+                                    onCancelBooking: _cancelBooking,
+                                    isCancelling: _cancellingBookingIds
+                                        .contains(ticket.bookingRecordId),
+                                  ),
+                                ],
+                            ]),
                           ),
-                        )
-                      else
-                        const SliverToBoxAdapter(child: SizedBox(height: 24)),
-                    ],
+                        ),
+                        if (!_isLoading && displayed.isEmpty)
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                            sliver: SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: _EmptyTickets(
+                                selectedTab: _selectedTab,
+                                requiresLogin: !isAuthenticated,
+                                onExplore: _openExplorer,
+                                onLogin: _openLogin,
+                              ),
+                            ),
+                          )
+                        else
+                          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                      ],
+                    ),
                   );
                 },
               ),
@@ -213,6 +233,78 @@ class _MyTicketPageState extends State<MyTicketPage> {
     _loadedCustomerId = AuthService.currentUser?.id;
     _clearTickets();
     await _loadTickets();
+  }
+
+  Future<void> _cancelBooking(Ticket ticket) async {
+    final bookingId = ticket.bookingRecordId;
+    if (!ticket.canCancelBooking || _cancellingBookingIds.contains(bookingId)) {
+      return;
+    }
+    if (bookingId.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('ID pesanan tidak valid.')));
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Batalkan pesanan?'),
+        content: const Text(
+          'Pesanan ini akan dibatalkan dan tidak dapat dilanjutkan kembali.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Tidak, kembali'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Ya, batalkan pesanan'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _cancellingBookingIds.add(bookingId));
+    try {
+      await _bookingService.cancelBooking(bookingId);
+      if (!mounted) return;
+
+      final ticketIndex = TicketService.tickets.indexWhere(
+        (item) => item.bookingRecordId == bookingId,
+      );
+      if (ticketIndex != -1) {
+        TicketService.tickets[ticketIndex] = TicketService.tickets[ticketIndex]
+            .copyWith(
+              status: 'cancelled',
+              bookingStatus: 'CANCELLED',
+              paymentStatus: 'CANCELLED',
+              canCancelBooking: false,
+            );
+        TicketService.revision.value++;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pesanan berhasil dibatalkan.')),
+      );
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } on FormatException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _cancellingBookingIds.remove(bookingId));
+      }
+    }
   }
 }
 
@@ -455,11 +547,15 @@ class _CompactTicketCard extends StatelessWidget {
     required this.ticket,
     required this.selectedTab,
     required this.onPaymentReturned,
+    required this.onCancelBooking,
+    required this.isCancelling,
   });
 
   final Ticket ticket;
   final int selectedTab;
   final Future<void> Function() onPaymentReturned;
+  final Future<void> Function(Ticket ticket) onCancelBooking;
+  final bool isCancelling;
 
   bool get _canManageTrip =>
       selectedTab == 0 &&
@@ -502,10 +598,10 @@ class _CompactTicketCard extends StatelessWidget {
       status: ticket.bookingStatus,
       paymentDeadline: ticket.paymentDeadline,
     );
-    await Navigator.push<bool>(
+    await Navigator.push<void>(
       context,
-      MaterialPageRoute<bool>(
-        builder: (_) => CheckoutPage(
+      MaterialPageRoute<void>(
+        builder: (_) => PaymentPage(
           booking: booking,
           destination: Destination(
             id: ticket.destinationId,
@@ -516,7 +612,6 @@ class _CompactTicketCard extends StatelessWidget {
             routeDistanceKm: 0,
             imageUrl: ticket.destinationImageUrl,
           ),
-          canCancelBooking: ticket.canCancelBooking,
         ),
       ),
     );
@@ -683,27 +778,60 @@ class _CompactTicketCard extends StatelessWidget {
                     ),
                   ),
                 )
-              else if (ticket.canPay)
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => _openPayment(context),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _ticketNavy,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(0, 42),
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+              else if (ticket.canPay || ticket.canCancelBooking) ...[
+                if (ticket.canPay)
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => _openPayment(context),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _ticketNavy,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(0, 42),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Bayar',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12),
                       ),
                     ),
-                    child: const Text(
-                      'Bayar',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12),
+                  ),
+                if (ticket.canPay && ticket.canCancelBooking)
+                  const SizedBox(width: 8),
+                if (ticket.canCancelBooking)
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: isCancelling
+                          ? null
+                          : () => onCancelBooking(ticket),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _ticketNavy,
+                        side: const BorderSide(color: _ticketBorder),
+                        minimumSize: const Size(0, 42),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: isCancelling
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text(
+                              'Batalkan pesanan',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12),
+                            ),
                     ),
                   ),
-                ),
+              ],
               if (ticket.canOpenEticket && _canManageTrip) ...[
                 const SizedBox(width: 8),
                 Expanded(
@@ -858,6 +986,8 @@ String _ticketStatusLabel(Ticket ticket, int selectedTab) {
       return 'Lunas';
     case 'PENDING':
       return 'Menunggu pembayaran';
+    case 'CANCELLED':
+      return 'Dibatalkan';
     case 'EXPIRED':
       return 'Kadaluarsa';
     case 'FAILED':
@@ -885,6 +1015,8 @@ Color _ticketStatusBackground(Ticket ticket) {
     case 'failed':
     case 'expired':
       return const Color(0xFFFFEDEE);
+    case 'cancelled':
+      return const Color(0xFFEAF2F8);
     case 'partial':
       return const Color(0xFFEAF2F8);
     default:
@@ -902,6 +1034,8 @@ Color _ticketStatusForeground(Ticket ticket) {
     case 'failed':
     case 'expired':
       return const Color(0xFF9B303A);
+    case 'cancelled':
+      return const Color(0xFF1D4E89);
     case 'partial':
       return const Color(0xFF1D4E89);
     default:

@@ -510,62 +510,76 @@ class _MapPageState extends State<MapPage> {
         bottom: false,
         child: Column(
           children: [
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.fromLTRB(
-                16,
-                MediaQuery.viewPaddingOf(context).top + 10,
-                16,
-                16,
-              ),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [_navy, _raisedNavy],
-                ),
-                borderRadius: BorderRadius.vertical(
-                  bottom: Radius.circular(22),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Peta Wisata',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            height: 1.15,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.2,
-                          ),
+            SizedBox(
+              height: MediaQuery.viewPaddingOf(context).top + 76,
+              child: RefreshIndicator(
+                onRefresh: _loadDestinations,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.zero,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        MediaQuery.viewPaddingOf(context).top + 10,
+                        16,
+                        16,
+                      ),
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [_navy, _raisedNavy],
                         ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Temukan dan pilih destinasi wisata Jember.',
-                          style: TextStyle(
-                            color: Color(0xFFCCD8E5),
-                            fontSize: 12,
-                            height: 1.25,
-                          ),
+                        borderRadius: BorderRadius.vertical(
+                          bottom: Radius.circular(22),
                         ),
-                      ],
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Peta Wisata',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    height: 1.15,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Temukan dan pilih destinasi wisata Jember.',
+                                  style: TextStyle(
+                                    color: Color(0xFFCCD8E5),
+                                    fontSize: 12,
+                                    height: 1.25,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: localized('Muat ulang destinasi'),
+                            onPressed: _isLoading ? null : _loadDestinations,
+                            style: IconButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: Colors.white.withValues(
+                                alpha: 0.12,
+                              ),
+                            ),
+                            icon: const Icon(Icons.refresh_rounded),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: localized('Muat ulang destinasi'),
-                    onPressed: _isLoading ? null : _loadDestinations,
-                    style: IconButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      backgroundColor: Colors.white.withValues(alpha: 0.12),
-                    ),
-                    icon: const Icon(Icons.refresh_rounded),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             Padding(

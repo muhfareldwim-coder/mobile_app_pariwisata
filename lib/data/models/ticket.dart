@@ -65,6 +65,8 @@ class Ticket {
 
   Ticket copyWith({
     String? status,
+    String? bookingStatus,
+    String? paymentStatus,
     bool? hasActiveTicket,
     bool? hasUsedTicket,
     bool? hasExpiredTicket,
@@ -88,8 +90,8 @@ class Ticket {
     paymentMethod: paymentMethod,
     status: status ?? this.status,
     qrCodePayload: qrCodePayload,
-    bookingStatus: bookingStatus,
-    paymentStatus: paymentStatus,
+    bookingStatus: bookingStatus ?? this.bookingStatus,
+    paymentStatus: paymentStatus ?? this.paymentStatus,
     paymentDeadline: paymentDeadline,
     destinationLocation: destinationLocation,
     hasIssuedTicket: hasIssuedTicket,

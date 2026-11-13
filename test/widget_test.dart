@@ -728,24 +728,52 @@ void main() {
     },
   );
 
+  testWidgets('Jelajah reloads destinations when pulled down', (tester) async {
+    tester.view.physicalSize = const Size(430, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    final service = _TestDestinationService(destinations.take(1).toList());
+    await tester.pumpWidget(
+      MaterialApp(home: ExplorerPage(destinationService: service)),
+    );
+    await tester.pumpAndSettle();
+    expect(service.requestCount, 1);
+
+    final exploreList = find.byKey(const ValueKey('exploreList'));
+    await tester.dragFrom(
+      tester.getTopLeft(exploreList) + const Offset(180, 20),
+      const Offset(0, 350),
+    );
+    await tester.pumpAndSettle();
+
+    expect(service.requestCount, 2);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('beranda and detail use articles loaded from the website API', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(430, 1200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
+    var articleRequestCount = 0;
     final articleService = ArticleService(
       api: ApiService(
         baseUrl: 'http://localhost/api/v1',
         client: MockClient((request) async {
           expect(request.url.path, '/api/v1/artikel');
+          articleRequestCount++;
           return http.Response(
             jsonEncode({
               'data': [
                 {
                   'id': 12,
-                  'judul': 'Artikel resmi dari website',
-                  'isi': 'Konten artikel dari website.',
+                  'judul': articleRequestCount == 1
+                      ? 'Artikel resmi dari website'
+                      : 'Artikel terbaru dari website',
+                  'isi': articleRequestCount == 1
+                      ? 'Konten artikel dari website.'
+                      : 'Konten artikel setelah refresh.',
                   'gambar': null,
                   'tanggal_publikasi': '2026-10-15T09:30:00+07:00',
                 },
@@ -797,6 +825,16 @@ void main() {
     expect(find.text('Detail Artikel'), findsOneWidget);
     expect(find.text('Konten artikel dari website.'), findsOneWidget);
     expect(find.text('Jelajahi wisata Jember'), findsNothing);
+    final articleScroll = find.descendant(
+      of: find.byType(RefreshIndicator),
+      matching: find.byType(CustomScrollView),
+    );
+    await tester.drag(articleScroll, const Offset(0, 350));
+    await tester.pumpAndSettle();
+
+    expect(articleRequestCount, 2);
+    expect(find.text('Konten artikel setelah refresh.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('booking tanpa tipe tiket dari API tidak memakai data simulasi', (
@@ -833,10 +871,13 @@ class _TestDestinationService extends DestinationService {
   _TestDestinationService(this.destinations);
 
   final List<Destination> destinations;
+  var requestCount = 0;
 
   @override
-  Future<List<Destination>> getDestinations({LatLng? origin}) async =>
-      destinations;
+  Future<List<Destination>> getDestinations({LatLng? origin}) async {
+    requestCount++;
+    return destinations;
+  }
 }
 
 class _PendingDestinationService extends DestinationService {

@@ -217,48 +217,54 @@ class _PaymentPageState extends State<PaymentPage> with WidgetsBindingObserver {
           children: [
             _PaymentHeader(onBack: () => Navigator.maybePop(context)),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(18, 10, 18, 24),
-                children: [
-                  const _PaymentProgress(),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'Ringkasan pesanan',
-                    style: TextStyle(
-                      color: _paymentNavy,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+              child: RefreshIndicator(
+                onRefresh: _refreshPaymentStatus,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(18, 10, 18, 24),
+                  children: [
+                    const _PaymentProgress(),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Ringkasan pesanan',
+                      style: TextStyle(
+                        color: _paymentNavy,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  _AmountCard(
-                    destination: widget.destination,
-                    booking: widget.booking,
-                    total: widget.paymentAmount ?? widget.booking.totalAmount,
-                    isAdditional: widget.additionalChangeId != null,
-                    formattedTime: _remainingText,
-                  ),
-                  const SizedBox(height: 16),
-                  _SecurePaymentCard(
-                    bookingCode: widget.booking.code,
-                    orderId: _payment?.orderId,
-                    status: _payment?.status ?? 'MENYIAPKAN',
-                  ),
-                  if (_payment?.qrCodeUrl != null) ...[
+                    const SizedBox(height: 10),
+                    _AmountCard(
+                      destination: widget.destination,
+                      booking: widget.booking,
+                      total: widget.paymentAmount ?? widget.booking.totalAmount,
+                      isAdditional: widget.additionalChangeId != null,
+                      formattedTime: _remainingText,
+                    ),
+                    const SizedBox(height: 16),
+                    _SecurePaymentCard(
+                      bookingCode: widget.booking.code,
+                      orderId: _payment?.orderId,
+                      status: _payment?.status ?? 'MENYIAPKAN',
+                    ),
+                    if (_payment?.qrCodeUrl != null) ...[
+                      const SizedBox(height: 13),
+                      _PaymentQrCodeCard(
+                        url: _payment!.qrCodeUrl!,
+                        headers: _paymentService.qrCodeImageHeaders,
+                        qrCodeSourceUrl: _payment!.qrCodeSourceUrl,
+                      ),
+                    ],
                     const SizedBox(height: 13),
-                    _PaymentQrCodeCard(
-                      url: _payment!.qrCodeUrl!,
-                      headers: _paymentService.qrCodeImageHeaders,
-                      qrCodeSourceUrl: _payment!.qrCodeSourceUrl,
+                    _PaymentInstructions(
+                      hasQrCode: _payment?.qrCodeUrl != null,
                     ),
+                    const SizedBox(height: 13),
+                    const _PaymentStatusNotice(),
+                    if (_error != null) const SizedBox(height: 12),
+                    if (_error != null) _PaymentError(message: _error!),
                   ],
-                  const SizedBox(height: 13),
-                  _PaymentInstructions(hasQrCode: _payment?.qrCodeUrl != null),
-                  const SizedBox(height: 13),
-                  const _PaymentStatusNotice(),
-                  if (_error != null) const SizedBox(height: 12),
-                  if (_error != null) _PaymentError(message: _error!),
-                ],
+                ),
               ),
             ),
           ],
@@ -342,13 +348,13 @@ class _PaymentProgress extends StatelessWidget {
             flex: 2,
             child: _PaymentStep(
               number: '1',
-              label: 'Data Rombongan',
+              label: 'Data Peserta',
               complete: true,
             ),
           ),
           Expanded(flex: 1, child: Divider(color: Color(0xFFD8E1EA))),
           Expanded(
-            flex: 2,
+            flex: 4,
             child: _PaymentStep(number: '2', label: 'Pembayaran', active: true),
           ),
           Expanded(flex: 1, child: Divider(color: Color(0xFFD8E1EA))),
@@ -634,10 +640,10 @@ class _PaymentQrCodeCard extends StatelessWidget {
           const SizedBox(height: 12),
           Image.asset(
             'assets/logo-qris-transparent.png',
-            height: 32,
+            height: 52,
             fit: BoxFit.contain,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           SizedBox(
             width: 240,
             height: 240,

@@ -19,11 +19,7 @@ import '../ticket/qr_ticket_page.dart';
 import 'destination_collection_page.dart';
 
 class DestinationDetailPage extends StatefulWidget {
-  const DestinationDetailPage({
-    super.key,
-    required this.destination,
-    this.api,
-  });
+  const DestinationDetailPage({super.key, required this.destination, this.api});
 
   final Destination destination;
   final ApiService? api;
@@ -174,63 +170,71 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
           ),
         ),
       ),
-      body: ListView(
-        key: const ValueKey('destination-detail-scroll'),
-        padding: const EdgeInsets.only(bottom: 28),
-        children: [
-          if (_detailError != null)
-            MaterialBanner(
-              content: Text('Detail terbaru tidak dapat dimuat: $_detailError'),
-              actions: [
-                TextButton(
-                  onPressed: _loadDestinationDetails,
-                  child: const Text('Coba lagi'),
+      body: RefreshIndicator(
+        onRefresh: _loadDestinationDetails,
+        child: ListView(
+          key: const ValueKey('destination-detail-scroll'),
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: 28),
+          children: [
+            if (_detailError != null)
+              MaterialBanner(
+                content: Text(
+                  'Detail terbaru tidak dapat dimuat: $_detailError',
                 ),
-              ],
+                actions: [
+                  TextButton(
+                    onPressed: _loadDestinationDetails,
+                    child: const Text('Coba lagi'),
+                  ),
+                ],
+              ),
+            _hero(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 19, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _DetailSectionHeading(title: 'Tentang Destinasi'),
+                  const SizedBox(height: 10),
+                  _descriptionCard(),
+                  const SizedBox(height: 22),
+                  const _SectionTitle(title: 'Lokasi & rute'),
+                  const SizedBox(height: 10),
+                  _locationCard(),
+                  const SizedBox(height: 22),
+                  const _SectionTitle(title: 'Fasilitas'),
+                  const SizedBox(height: 10),
+                  _facilityGrid(),
+                  const SizedBox(height: 22),
+                  const _SectionTitle(title: 'Jenis tiket'),
+                  const SizedBox(height: 10),
+                  if (destination.ticketTypes.isEmpty)
+                    const Text(
+                      'Jenis tiket belum tersedia.',
+                      style: TextStyle(color: Color(0xFF8190A5), fontSize: 13),
+                    )
+                  else
+                    for (final ticket in destination.ticketTypes)
+                      _TicketTypeRow(ticket: ticket),
+                  const SizedBox(height: 22),
+                  _DetailSectionHeading(
+                    title: 'Galeri ${destination.name}',
+                    actionKey: const ValueKey('gallery-see-all'),
+                    action: destination.gallery.isNotEmpty
+                        ? 'Lihat Semua'
+                        : null,
+                    onAction: _openAllGallery,
+                  ),
+                  const SizedBox(height: 9),
+                  _gallery(),
+                  const SizedBox(height: 22),
+                  _reviewSection(),
+                ],
+              ),
             ),
-          _hero(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 19, 16, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _DetailSectionHeading(title: 'Tentang Destinasi'),
-                const SizedBox(height: 10),
-                _descriptionCard(),
-                const SizedBox(height: 22),
-                const _SectionTitle(title: 'Lokasi & rute'),
-                const SizedBox(height: 10),
-                _locationCard(),
-                const SizedBox(height: 22),
-                const _SectionTitle(title: 'Fasilitas'),
-                const SizedBox(height: 10),
-                _facilityGrid(),
-                const SizedBox(height: 22),
-                const _SectionTitle(title: 'Jenis tiket'),
-                const SizedBox(height: 10),
-                if (destination.ticketTypes.isEmpty)
-                  const Text(
-                    'Jenis tiket belum tersedia.',
-                    style: TextStyle(color: Color(0xFF8190A5), fontSize: 13),
-                  )
-                else
-                  for (final ticket in destination.ticketTypes)
-                    _TicketTypeRow(ticket: ticket),
-                const SizedBox(height: 22),
-                _DetailSectionHeading(
-                  title: 'Galeri ${destination.name}',
-                  actionKey: const ValueKey('gallery-see-all'),
-                  action: destination.gallery.isNotEmpty ? 'Lihat Semua' : null,
-                  onAction: _openAllGallery,
-                ),
-                const SizedBox(height: 9),
-                _gallery(),
-                const SizedBox(height: 22),
-                _reviewSection(),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: _purchaseBar(),
     );
@@ -970,6 +974,7 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
         builder: (_) => DestinationCollectionPage(
           destination: destination,
           section: DestinationCollectionSection.gallery,
+          destinationService: _destinationService,
         ),
       ),
     );
@@ -982,6 +987,7 @@ class _DestinationDetailPageState extends State<DestinationDetailPage> {
         builder: (_) => DestinationCollectionPage(
           destination: destination,
           section: DestinationCollectionSection.reviews,
+          destinationService: _destinationService,
         ),
       ),
     );
