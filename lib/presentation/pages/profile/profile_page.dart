@@ -8,6 +8,7 @@ import '../../../data/services/auth_service.dart';
 import '../../../data/services/favorite_destination_service.dart';
 import '../../../data/services/language_preference_service.dart';
 import '../destination/destination_detail_page.dart';
+import 'profile_information_page.dart';
 import 'profile_detail_page.dart';
 
 const _profileNavy = Color(0xFF08213E);
@@ -159,8 +160,8 @@ class ProfilePageState extends State<ProfilePage> {
                           _SettingRow(
                             icon: Icons.policy_outlined,
                             iconBackground: const Color(0xFFF4F7FA),
-                            title: 'Syarat Ketentuan & Kebijakan Privasi',
-                            subtitle: 'Informasi syarat dan kebijakan',
+                            title: 'Syarat dan Ketentuan',
+                            subtitle: 'Ketentuan penggunaan aplikasi',
                             onTap: _showLegalInformation,
                           ),
                           _SettingRow(
@@ -212,6 +213,8 @@ class ProfilePageState extends State<ProfilePage> {
       builder: (dialogContext) => ValueListenableBuilder<Locale>(
         valueListenable: LanguagePreferenceService.locale,
         builder: (context, selectedLocale, _) => AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
           title: const Text('Pilihan Bahasa'),
           content: RadioGroup<Locale>(
             groupValue: selectedLocale,
@@ -251,62 +254,22 @@ class ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _showLegalInformation() async {
-    await _showInformationDialog(
-      title: 'Syarat Ketentuan & Kebijakan Privasi',
-      placeholder: 'Informasi syarat dan kebijakan akan ditambahkan di sini.',
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => const ProfileInformationPage(
+          type: ProfileInformationType.terms,
+        ),
+      ),
     );
   }
 
   Future<void> _showAboutJemberGo() async {
-    await _showInformationDialog(
-      title: 'Tentang JemberGo',
-      placeholder: 'Informasi tentang JemberGo akan ditambahkan di sini.',
-    );
-  }
-
-  Future<void> _showInformationDialog({
-    required String title,
-    required String placeholder,
-  }) async {
-    await showDialog<void>(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 22, 22, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: _profileNavy,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                placeholder,
-                style: const TextStyle(
-                  color: Color(0xFF73829A),
-                  fontSize: 14,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Tutup'),
-                ),
-              ),
-            ],
-          ),
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => const ProfileInformationPage(
+          type: ProfileInformationType.about,
         ),
       ),
     );

@@ -11,6 +11,7 @@ import '../destination/destination_detail_page.dart';
 
 const _navy = Color(0xFF12304A);
 const _raisedNavy = Color(0xFF244D70);
+const _orange = Color(0xFFF58B05);
 const _muted = Color(0xFF8190A5);
 const _pageBackground = Color(0xFFF8FAFC);
 const _mapCenter = LatLng(-8.17, 113.70);
@@ -646,12 +647,15 @@ class _MapPageState extends State<MapPage> {
                         minWidth: 36,
                         minHeight: 40,
                       ),
-                      onPressed: _showFilterDialog,
-                      icon: const Icon(
-                        Icons.tune_rounded,
-                        color: _raisedNavy,
-                        size: 22,
+                      style: IconButton.styleFrom(
+                        foregroundColor: _raisedNavy,
+                        backgroundColor: const Color(0xFFF1F5F9),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
+                      onPressed: _showFilterDialog,
+                      icon: const Icon(Icons.tune_rounded, size: 22),
                     ),
                   ],
                 ),
@@ -814,6 +818,9 @@ class _MapPageState extends State<MapPage> {
                               ),
                               TextButton(
                                 onPressed: _loadDestinations,
+                                style: TextButton.styleFrom(
+                                  foregroundColor: _orange,
+                                ),
                                 child: const Text('Coba lagi'),
                               ),
                             ],
@@ -838,19 +845,14 @@ class _MapPageState extends State<MapPage> {
     final durationMinutes = estimate == null
         ? 0
         : (estimate.durationSeconds / 60 / 5).ceil() * 5;
-    final canRestart =
-        _selectedDestinationId != null ||
-        estimate != null ||
-        _routeError != null ||
-        _isEstimatingRoute;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(color: const Color(0xFFE2E8F0)),
           boxShadow: const [
             BoxShadow(
@@ -866,19 +868,33 @@ class _MapPageState extends State<MapPage> {
           children: [
             Row(
               children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3E0),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.alt_route_rounded,
+                    color: _orange,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
                 const Text(
                   'Pilih destinasi',
                   style: TextStyle(
                     color: _navy,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 10),
             SizedBox(
-              height: 48,
+              height: 46,
               child: DropdownButtonFormField<String>(
                 key: const ValueKey('map-destination-selector'),
                 initialValue:
@@ -892,10 +908,19 @@ class _MapPageState extends State<MapPage> {
                   hintText: localized('Pilih destinasi wisata'),
                   isDense: true,
                   filled: true,
-                  fillColor: _pageBackground,
+                  fillColor: Colors.white,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 10,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.place_outlined,
+                    color: _muted,
+                    size: 20,
+                  ),
+                  prefixIconConstraints: const BoxConstraints(
+                    minWidth: 42,
+                    minHeight: 40,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -929,20 +954,23 @@ class _MapPageState extends State<MapPage> {
                 },
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
                   child: SizedBox(
-                    height: 48,
-                    child: OutlinedButton(
+                    height: 46,
+                    child: FilledButton(
                       key: const ValueKey('map-estimate-route'),
                       onPressed: destination == null || _isEstimatingRoute
                           ? null
                           : _calculateRouteEstimate,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: _navy,
-                        side: const BorderSide(color: _navy),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _orange,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: const Color(0xFFE8EDF2),
+                        disabledForegroundColor: _muted,
+                        elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -953,54 +981,34 @@ class _MapPageState extends State<MapPage> {
                       ),
                       child: _isEstimatingRoute
                           ? const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                SizedBox(
-                                  width: 16,
-                                  height: 16,
+                                SizedBox.square(
+                                  dimension: 16,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
+                                    color: Colors.white,
                                   ),
                                 ),
                                 SizedBox(width: 8),
                                 Text('Menghitung...'),
                               ],
                             )
-                          : Text(
-                              estimate == null
-                                  ? 'Lihat estimasi'
-                                  : 'Perbarui estimasi',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.alt_route_rounded, size: 17),
+                                const SizedBox(width: 7),
+                                Flexible(
+                                  child: Text(
+                                    'Lihat estimasi',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  height: 48,
-                  child: OutlinedButton.icon(
-                    key: const ValueKey('map-reset-route'),
-                    onPressed: canRestart
-                        ? () {
-                            setState(_clearRouteSelection);
-                            _fitMapToDestinations();
-                          }
-                        : null,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _raisedNavy,
-                      side: const BorderSide(color: Color(0xFFE2E8F0)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    icon: const Icon(Icons.restart_alt_rounded, size: 18),
-                    label: const Text('Mulai ulang'),
                   ),
                 ),
               ],
@@ -1018,20 +1026,37 @@ class _MapPageState extends State<MapPage> {
               Row(
                 children: [
                   Expanded(
-                    child: _RouteEstimateValue(
-                      label: 'Jarak rute',
-                      value:
-                          '${(estimate.distanceMeters / 1000).toStringAsFixed(1)} km',
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _pageBackground,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: _RouteEstimateValue(
+                        label: 'Jarak rute',
+                        value:
+                            '${(estimate.distanceMeters / 1000).toStringAsFixed(1)} km',
+                      ),
                     ),
                   ),
-                  const SizedBox(
-                    height: 30,
-                    child: VerticalDivider(width: 24, color: Color(0xFFE2E8F0)),
-                  ),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: _RouteEstimateValue(
-                      label: 'Estimasi berkendara',
-                      value: _formatDuration(durationMinutes),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _pageBackground,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: _RouteEstimateValue(
+                        label: 'Estimasi berkendara',
+                        value: _formatDuration(durationMinutes),
+                      ),
                     ),
                   ),
                 ],
@@ -1083,8 +1108,11 @@ class _CategoryLegend extends StatelessWidget {
         : categories;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFE8EDF2))),
+      ),
       child: Wrap(
         alignment: WrapAlignment.center,
         spacing: 18,
@@ -1144,10 +1172,10 @@ class _FilterChoiceChip extends StatelessWidget {
     onSelected: (_) => onSelected(),
     backgroundColor: Colors.white,
     selectedColor: _navy,
-    side: const BorderSide(color: _navy),
+    side: BorderSide(color: selected ? _navy : const Color(0xFFD8E1EA)),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     labelStyle: TextStyle(
-      color: selected ? Colors.white : _navy,
+      color: selected ? Colors.white : _raisedNavy,
       fontSize: 12,
       fontWeight: FontWeight.w500,
     ),

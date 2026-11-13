@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart' hide Text;
 import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../data/services/auth_service.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/auth_shell.dart';
-import '../../widgets/brand_logo.dart';
 
 enum OtpPurpose { registration, google }
 
@@ -93,12 +93,19 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Center(child: BrandLogo()),
-            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                tooltip: 'Kembali',
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_back),
+              ),
+            ),
+            const SizedBox(height: 4),
             const Icon(
               Icons.mark_email_read_outlined,
               size: 48,
-              color: Color(0xFF1265B8),
+              color: AppColors.orange,
             ),
             const SizedBox(height: 14),
             Text(
@@ -136,17 +143,28 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
               height: 48,
               child: ElevatedButton(
                 onPressed: _isVerifying ? null : _verify,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.orange,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
                 child: _isVerifying
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Text('Verifikasi OTP'),
               ),
             ),
             TextButton(
               onPressed: _isResending || _isVerifying ? null : _resend,
+              style: TextButton.styleFrom(foregroundColor: AppColors.orange),
               child: _isResending
                   ? const Text('Mengirim ulang kode...')
                   : const Text('Kirim ulang kode OTP'),

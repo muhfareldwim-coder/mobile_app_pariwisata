@@ -71,7 +71,8 @@ void main() {
     expect(find.text('Buatan'), findsWidgets);
     expect(find.text('Peta Wisata'), findsOneWidget);
     expect(find.text('Pilih destinasi'), findsOneWidget);
-    expect(find.text('Mulai ulang'), findsOneWidget);
+    expect(find.text('Mulai ulang'), findsNothing);
+    expect(find.byKey(const ValueKey('map-reset-route')), findsNothing);
     expect(find.text('Lokasi Anda'), findsNothing);
     expect(find.text('Jarak rute'), findsNothing);
     expect(
@@ -79,10 +80,6 @@ void main() {
           .getSize(find.byKey(const ValueKey('map-destination-selector')))
           .height,
       tester.getSize(find.byKey(const ValueKey('map-estimate-route'))).height,
-    );
-    expect(
-      tester.getTopLeft(find.byKey(const ValueKey('map-estimate-route'))).dy,
-      tester.getTopLeft(find.byKey(const ValueKey('map-reset-route'))).dy,
     );
     expect(tester.takeException(), isNull);
   });
@@ -172,12 +169,15 @@ void main() {
     expect(find.text('Estimasi berkendara'), findsOneWidget);
     expect(find.text('35 menit'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('map-reset-route')));
+    await tester.tap(find.byKey(const ValueKey('map-destination-selector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Taman Botani').last);
     await tester.pumpAndSettle();
 
     expect(find.text('12.3 km'), findsNothing);
     expect(find.text('35 menit'), findsNothing);
-    expect(find.text('Pilih destinasi wisata'), findsOneWidget);
+    expect(find.text('Mulai ulang'), findsNothing);
+    expect(find.text('Lihat estimasi'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

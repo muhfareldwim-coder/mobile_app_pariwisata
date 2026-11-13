@@ -49,6 +49,7 @@ dependencies:
   http: ^1.6.0
   flutter_secure_storage: ^11.2.0
   google_sign_in: ^7.2.0
+  flutter_svg: ^2.2.3
   curved_navigation_bar_pro: ^2.2.1
   shared_preferences: ^2.5.6
 
@@ -85,6 +86,7 @@ flutter:
   assets:
     - assets/fonts/OFL.txt
     - assets/fonts/Satisfy-LICENSE.txt
+    - assets/google_logo.svg
     - assets/logo-qris-transparent.png
     - assets/logo_jembergonobackgroud.png
     - assets/jembergo_home_hero.png

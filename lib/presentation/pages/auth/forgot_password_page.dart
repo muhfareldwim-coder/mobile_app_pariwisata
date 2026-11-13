@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart' hide Text;
 import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../data/services/api_service.dart';
 import '../../../data/services/auth_service.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/auth_shell.dart';
-import '../../widgets/brand_logo.dart';
 
 enum _ResetStage { email, otp, password }
 
@@ -121,13 +121,23 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Center(child: BrandLogo()),
-            const SizedBox(height: 12),
-            IconButton(
+            Align(
               alignment: Alignment.centerLeft,
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back),
+              child: IconButton(
+                tooltip: 'Kembali',
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_back),
+              ),
             ),
+            const SizedBox(height: 4),
+            Icon(
+              _stage == _ResetStage.email
+                  ? Icons.lock_reset_outlined
+                  : Icons.mark_email_read_outlined,
+              size: 48,
+              color: AppColors.orange,
+            ),
+            const SizedBox(height: 14),
             Text(
               _title,
               textAlign: TextAlign.center,
@@ -207,11 +217,21 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               height: 48,
               child: ElevatedButton(
                 onPressed: _isSubmitting ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.orange,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
                 child: _isSubmitting
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : Text(_buttonLabel),
               ),

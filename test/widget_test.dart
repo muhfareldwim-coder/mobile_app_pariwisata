@@ -207,29 +207,41 @@ void main() {
     await LanguagePreferenceService.setLocale(const Locale('id', 'ID'));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(
-      find.text('Syarat Ketentuan & Kebijakan Privasi'),
-    );
+    await tester.ensureVisible(find.text('Syarat dan Ketentuan'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Syarat Ketentuan & Kebijakan Privasi'));
+    await tester.tap(find.text('Syarat dan Ketentuan'));
     await tester.pumpAndSettle();
+    expect(find.text('Syarat dan Ketentuan JemberGo'), findsOneWidget);
     expect(
-      find.text('Informasi syarat dan kebijakan akan ditambahkan di sini.'),
+      find.text('Pengguna bertanggung jawab atas keamanan akun masing-masing.'),
       findsOneWidget,
     );
-    await tester.tap(find.text('Tutup'));
+    await LanguagePreferenceService.setLocale(const Locale('en', 'US'));
+    await tester.pumpAndSettle();
+    expect(find.text('JemberGo Terms and Conditions'), findsOneWidget);
+    expect(
+      find.text(
+        'Users are responsible for the security of their own accounts.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byTooltip('Kembali'));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Tentang JemberGo'));
+    await tester.ensureVisible(find.text('About JemberGo'));
     await tester.pumpAndSettle();
     expect(header, findsNothing);
     expect(identityCard, findsNothing);
-    await tester.tap(find.text('Tentang JemberGo'));
+    await tester.tap(find.text('About JemberGo'));
     await tester.pumpAndSettle();
+    expect(find.text('JemberGo – Discover Jember Up Close'), findsOneWidget);
+    expect(find.text('Vision'), findsOneWidget);
+    expect(find.text('Mission'), findsOneWidget);
     expect(
-      find.text('Informasi tentang JemberGo akan ditambahkan di sini.'),
+      find.text('JemberGo – One Platform, Many Stories from Jember.'),
       findsOneWidget,
     );
+    await LanguagePreferenceService.setLocale(const Locale('id', 'ID'));
   });
 
   testWidgets('profil mengirim edit ke API dan meminta sesi yang valid', (

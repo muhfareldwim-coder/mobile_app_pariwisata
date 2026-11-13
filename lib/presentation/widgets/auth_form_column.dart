@@ -1,6 +1,5 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart' hide Text;
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
 import 'brand_logo.dart';
@@ -66,19 +65,6 @@ class AuthFormColumn extends StatelessWidget {
             ),
             const SizedBox(height: 9),
           ],
-          if (!isRegister) ...[
-            const Text(
-              'Selamat Datang di JemberGo',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: navy,
-                fontSize: 23,
-                fontWeight: FontWeight.w700,
-                height: 1.15,
-              ),
-            ),
-            const SizedBox(height: 7),
-          ],
           Text(
             description,
             textAlign: TextAlign.center,
@@ -120,10 +106,6 @@ class AuthFormColumn extends StatelessWidget {
                           buttonLabel,
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
-                        if (!isRegister) ...[
-                          const SizedBox(width: 9),
-                          const Icon(Icons.arrow_forward, size: 18),
-                        ],
                       ],
                     ),
             ),
@@ -247,53 +229,11 @@ class _GoogleMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return SvgPicture.asset(
+      'assets/google_logo.svg',
       width: size,
       height: size,
-      child: const CustomPaint(painter: _GoogleMarkPainter()),
+      semanticsLabel: 'Google',
     );
   }
-}
-
-class _GoogleMarkPainter extends CustomPainter {
-  const _GoogleMarkPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.shortestSide * 0.39;
-    final rect = Rect.fromCircle(center: center, radius: radius);
-    const gap = 0.08;
-    final segments = [
-      (const Color(0xFF4285F4), -math.pi / 2 + gap, math.pi / 2 - gap * 2),
-      (const Color(0xFFEA4335), -math.pi + gap, math.pi / 2 - gap * 2),
-      (const Color(0xFFFBBC05), math.pi / 2 + gap, math.pi / 2 - gap * 2),
-      (const Color(0xFF34A853), gap, math.pi / 2 - gap * 2),
-    ];
-
-    for (final (color, startAngle, sweepAngle) in segments) {
-      canvas.drawArc(
-        rect,
-        startAngle,
-        sweepAngle,
-        false,
-        Paint()
-          ..color = color
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = size.shortestSide * 0.18
-          ..strokeCap = StrokeCap.butt,
-      );
-    }
-
-    canvas.drawLine(
-      Offset(center.dx, center.dy),
-      Offset(size.width * 0.94, center.dy),
-      Paint()
-        ..color = const Color(0xFF4285F4)
-        ..strokeWidth = size.shortestSide * 0.18,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _GoogleMarkPainter oldDelegate) => false;
 }
