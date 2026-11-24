@@ -5,7 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'core/routes/app_routes.dart';
 import 'core/theme/app_colors.dart';
 import 'data/services/language_preference_service.dart';
-import 'presentation/pages/main_navigation_page.dart';
+import 'presentation/pages/splash/splash_page.dart';
 
 class PariwisataApp extends StatelessWidget {
   const PariwisataApp({super.key, this.locationProvider});
@@ -80,7 +80,7 @@ class PariwisataApp extends StatelessWidget {
             ),
           ),
         ),
-        home: MainNavigationPage(locationProvider: locationProvider),
+        home: SplashPage(locationProvider: locationProvider),
       ),
     );
   }
