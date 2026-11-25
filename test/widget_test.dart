@@ -624,9 +624,19 @@ void main() {
     await tester.pumpAndSettle();
 
     final searchField = tester.widget<TextField>(find.byType(TextField));
+    expect(
+      tester.getSize(find.byType(TextField)).height,
+      tester.getSize(find.byKey(const ValueKey('explore-search-bar'))).height,
+    );
     expect(searchField.style?.color, const Color(0xFF172B4D));
     expect(searchField.decoration?.hintText, 'Cari wisata yang anda inginkan');
     expect(searchField.decoration?.hintStyle?.color, const Color(0xFF8190A5));
+    expect(searchField.decoration?.filled, isTrue);
+    expect(searchField.decoration?.fillColor, Colors.white);
+    final filterButton = tester.widget<IconButton>(
+      find.byKey(const ValueKey('explore-open-filter')),
+    );
+    expect(filterButton.style?.backgroundColor?.resolve({}), Colors.white);
     expect(find.text('Jelajahi Wisata'), findsOneWidget);
     expect(find.text('JEMBER, JAWA TIMUR'), findsNothing);
 

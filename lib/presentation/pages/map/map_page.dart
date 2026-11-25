@@ -14,6 +14,7 @@ const _raisedNavy = Color(0xFF244D70);
 const _orange = Color(0xFFF58B05);
 const _muted = Color(0xFF8190A5);
 const _pageBackground = Color(0xFFF8FAFC);
+const _searchBackground = Colors.white;
 const _mapCenter = LatLng(-8.17, 113.70);
 
 class MapPage extends StatefulWidget {
@@ -586,38 +587,59 @@ class _MapPageState extends State<MapPage> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Container(
-                height: 50,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                key: const ValueKey('map-search-bar'),
+                height: 52,
+                padding: const EdgeInsets.only(left: 14, right: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE3EAF2)),
+                  color: _searchBackground,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [
                     const Icon(
                       Icons.search_rounded,
-                      color: _raisedNavy,
-                      size: 21,
+                      color: _navy,
+                      size: 22,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (_) => _onFilterChanged(),
-                        textInputAction: TextInputAction.search,
-                        style: const TextStyle(
-                          color: Color(0xFF172B4D),
-                          fontSize: 14,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: localized(
-                            'Cari destinasi yang anda inginkan',
+                      child: SizedBox.expand(
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: (_) => _onFilterChanged(),
+                          textInputAction: TextInputAction.search,
+                          textAlignVertical: TextAlignVertical.center,
+                          expands: true,
+                          maxLines: null,
+                          cursorColor: _navy,
+                          style: const TextStyle(
+                            color: Color(0xFF172B4D),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
                           ),
-                          hintStyle: TextStyle(color: _muted, fontSize: 13),
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
+                          decoration: InputDecoration(
+                            hintText: localized(
+                              'Cari pantai, air terjun, bukit...',
+                            ),
+                            hintStyle: TextStyle(
+                              color: _muted,
+                              fontSize: 14,
+                            ),
+                            filled: true,
+                            fillColor: _searchBackground,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
                         ),
                       ),
                     ),
@@ -627,7 +649,12 @@ class _MapPageState extends State<MapPage> {
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(
                           minWidth: 36,
-                          minHeight: 40,
+                          minHeight: 36,
+                        ),
+                        style: IconButton.styleFrom(
+                          foregroundColor: _muted,
+                          backgroundColor: _searchBackground,
+                          shape: const CircleBorder(),
                         ),
                         onPressed: () {
                           _searchController.clear();
@@ -636,26 +663,31 @@ class _MapPageState extends State<MapPage> {
                         icon: const Icon(
                           Icons.close_rounded,
                           color: _muted,
-                          size: 19,
+                          size: 18,
                         ),
                       ),
                     IconButton(
                       key: const ValueKey('map-open-filter'),
                       tooltip: localized('Filter destinasi'),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 36,
-                        minHeight: 40,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 42,
+                        height: 42,
                       ),
                       style: IconButton.styleFrom(
-                        foregroundColor: _raisedNavy,
-                        backgroundColor: const Color(0xFFF1F5F9),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        foregroundColor: _navy,
+                        backgroundColor: _searchBackground,
+                        elevation: 0,
+                        shadowColor: Colors.transparent,
+                        side: BorderSide.none,
+                        shape: const CircleBorder(),
                       ),
                       onPressed: _showFilterDialog,
-                      icon: const Icon(Icons.tune_rounded, size: 22),
+                      icon: const Icon(
+                        Icons.filter_list_rounded,
+                        color: _navy,
+                        size: 22,
+                      ),
                     ),
                   ],
                 ),

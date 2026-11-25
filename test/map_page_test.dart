@@ -59,6 +59,17 @@ void main() {
     );
     await tester.pump();
 
+    expect(
+      tester.getSize(find.byType(TextField)).height,
+      tester.getSize(find.byKey(const ValueKey('map-search-bar'))).height,
+    );
+    final searchField = tester.widget<TextField>(find.byType(TextField));
+    expect(searchField.decoration?.filled, isTrue);
+    expect(searchField.decoration?.fillColor, Colors.white);
+    final filterButton = tester.widget<IconButton>(
+      find.byKey(const ValueKey('map-open-filter')),
+    );
+    expect(filterButton.style?.backgroundColor?.resolve({}), Colors.white);
     for (final destination in destinations) {
       expect(
         find.byKey(ValueKey('map-destination-${destination.id}')),

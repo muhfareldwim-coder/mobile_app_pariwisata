@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart' hide Text;
 import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 
-import '../../../core/theme/app_colors.dart';
 import '../../../data/models/destination.dart';
 import '../../../data/services/destination_service.dart';
 import '../../../data/services/favorite_destination_service.dart';
@@ -13,6 +12,7 @@ const _exploreRaisedNavy = Color(0xFF244D70);
 const _exploreBackground = Color(0xFFF6F8FB);
 const _exploreBodyText = Color(0xFF172B4D);
 const _exploreSecondaryText = Color(0xFF8190A5);
+const _exploreSearchBackground = Colors.white;
 
 class ExplorerPage extends StatefulWidget {
   const ExplorerPage({
@@ -264,44 +264,57 @@ class _ExplorerPageState extends State<ExplorerPage> {
           ),
           const SizedBox(height: 14),
           Container(
+            key: const ValueKey('explore-search-bar'),
             height: 52,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.only(left: 14, right: 6),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE3EAF2)),
+              color: _exploreSearchBackground,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Row(
               children: [
                 const Icon(
                   Icons.search_rounded,
-                  color: _exploreRaisedNavy,
-                  size: 21,
+                  color: _exploreNavy,
+                  size: 22,
                 ),
-                const SizedBox(width: 9),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: TextField(
-                    controller: searchController,
-                    onChanged: (_) => setState(() {}),
-                    expands: true,
-                    minLines: null,
-                    maxLines: null,
-                    textAlignVertical: TextAlignVertical.center,
-                    style: const TextStyle(
-                      color: _exploreBodyText,
-                      fontSize: 14,
-                    ),
-                    cursorColor: AppColors.orange,
-                    decoration: InputDecoration(
-                      hintText: localized('Cari wisata yang anda inginkan'),
-                      hintStyle: TextStyle(
-                        color: _exploreSecondaryText,
-                        fontSize: 13,
+                  child: SizedBox.expand(
+                    child: TextField(
+                      controller: searchController,
+                      onChanged: (_) => setState(() {}),
+                      expands: true,
+                      minLines: null,
+                      maxLines: null,
+                      textAlignVertical: TextAlignVertical.center,
+                      style: const TextStyle(
+                        color: _exploreBodyText,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
                       ),
-                      border: InputBorder.none,
-                      isDense: true,
-                      filled: false,
-                      contentPadding: EdgeInsets.zero,
+                      cursorColor: _exploreNavy,
+                      decoration: InputDecoration(
+                        hintText: localized('Cari wisata yang anda inginkan'),
+                        hintStyle: TextStyle(
+                          color: _exploreSecondaryText,
+                          fontSize: 14,
+                        ),
+                        filled: true,
+                        fillColor: _exploreSearchBackground,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
                     ),
                   ),
                 ),
@@ -311,29 +324,43 @@ class _ExplorerPageState extends State<ExplorerPage> {
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(
                       minWidth: 36,
-                      minHeight: 40,
+                      minHeight: 36,
+                    ),
+                    style: IconButton.styleFrom(
+                      foregroundColor: _exploreSecondaryText,
+                      backgroundColor: _exploreSearchBackground,
+                      shape: const CircleBorder(),
                     ),
                     onPressed: () {
                       searchController.clear();
                       setState(() {});
                     },
                     icon: const Icon(
-                      Icons.close,
+                      Icons.close_rounded,
                       color: _exploreSecondaryText,
-                      size: 19,
+                      size: 18,
                     ),
                   ),
                 IconButton(
+                  key: const ValueKey('explore-open-filter'),
                   tooltip: localized('Filter destinasi'),
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 36,
-                    minHeight: 40,
+                  constraints: const BoxConstraints.tightFor(
+                    width: 42,
+                    height: 42,
+                  ),
+                  style: IconButton.styleFrom(
+                    foregroundColor: _exploreNavy,
+                    backgroundColor: _exploreSearchBackground,
+                    elevation: 0,
+                    shadowColor: Colors.transparent,
+                    side: BorderSide.none,
+                    shape: const CircleBorder(),
                   ),
                   onPressed: _showFilterDialog,
                   icon: const Icon(
-                    Icons.tune_rounded,
-                    color: _exploreRaisedNavy,
+                    Icons.filter_list_rounded,
+                    color: _exploreNavy,
                     size: 22,
                   ),
                 ),
