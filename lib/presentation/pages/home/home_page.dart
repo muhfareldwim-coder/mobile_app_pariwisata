@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart' hide Text;
 import 'package:mobile_pariwisata/core/widgets/localized_text.dart';
 import 'package:latlong2/latlong.dart';
@@ -5,11 +7,16 @@ import 'package:latlong2/latlong.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/article.dart';
 import '../../../data/models/destination.dart';
+import '../../../data/models/ticket_reminder.dart';
+import '../../../data/services/api_service.dart';
 import '../../../data/services/article_service.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/device_location_service.dart';
 import '../../../data/services/destination_service.dart';
 import '../../../data/services/favorite_destination_service.dart';
+import '../../../data/services/language_preference_service.dart';
+import '../../../data/services/ticket_service.dart';
+import '../../../data/services/ticket_reminder_read_service.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../../widgets/article_card.dart';
 import '../article_list_page.dart';
@@ -18,6 +25,7 @@ import '../destination/destination_detail_page.dart';
 import '../destination/explorer_page.dart';
 import '../map/map_page.dart';
 import '../profile/profile_page.dart';
+import '../profile/ticket_notifications_page.dart';
 import '../ticket/my_ticket_page.dart';
 
 const _deepNavy = Color(0xFF12304A);
@@ -35,6 +43,7 @@ class HomePage extends StatefulWidget {
     this.onCategorySelected,
     this.articleService,
     this.destinationService,
+    this.ticketService,
     this.locationProvider,
   });
 
@@ -42,6 +51,7 @@ class HomePage extends StatefulWidget {
   final ValueChanged<String>? onCategorySelected;
   final ArticleService? articleService;
   final DestinationService? destinationService;
+  final TicketService? ticketService;
   final Future<LatLng?> Function()? locationProvider;
 
   @override
@@ -51,8 +61,10 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late final ArticleService _articleService;
   late final DestinationService _destinationService;
+  late final TicketService _ticketService;
   List<Article> _articles = const [];
   List<Destination> _destinations = const [];
+  String? _ticketCustomerId;
   String? _articleLoadError;
   String? _loadError;
   String? _locationWarning;
@@ -65,6 +77,18 @@ class _HomePageState extends State<HomePage> {
     FavoriteDestinationService.revision.addListener(_onFavoritesChanged);
     _articleService = widget.articleService ?? ArticleService();
     _destinationService = widget.destinationService ?? DestinationService();
+    _ticketService = widget.ticketService ?? TicketService();
+    _ticketCustomerId = AuthService.currentUser?.id;
+    AuthService.currentUserListenable.addListener(_onCurrentUserChanged);
+    TicketService.revision.addListener(_onTicketsChanged);
+    TicketReminderReadService.revision.addListener(
+      _onReminderReadStatusChanged,
+    );
+    final customerId = _ticketCustomerId;
+    if (customerId != null) {
+      unawaited(_loadTicketReminders(customerId));
+      unawaited(TicketReminderReadService.loadForCustomer(customerId));
+    }
     _loadDestinations();
     _loadArticles();
   }
@@ -72,11 +96,70 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     FavoriteDestinationService.revision.removeListener(_onFavoritesChanged);
+    AuthService.currentUserListenable.removeListener(_onCurrentUserChanged);
+    TicketService.revision.removeListener(_onTicketsChanged);
+    TicketReminderReadService.revision.removeListener(
+      _onReminderReadStatusChanged,
+    );
     super.dispose();
   }
 
   void _onFavoritesChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _onTicketsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _onReminderReadStatusChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _onCurrentUserChanged() {
+    final customerId = AuthService.currentUser?.id;
+    if (customerId == _ticketCustomerId) {
+      if (mounted) setState(() {});
+      return;
+    }
+
+    _ticketCustomerId = customerId;
+    if (TicketService.tickets.isNotEmpty) {
+      TicketService.tickets.clear();
+      TicketService.revision.value++;
+    }
+    if (customerId == null) {
+      TicketReminderReadService.clearCurrentCustomer();
+    } else {
+      unawaited(TicketReminderReadService.loadForCustomer(customerId));
+    }
+    if (mounted) setState(() {});
+    if (customerId != null) {
+      unawaited(_loadTicketReminders(customerId));
+    }
+  }
+
+  Future<void> _loadTicketReminders(String customerId) async {
+    try {
+      await _ticketService.refreshFromServer(expectedCustomerId: customerId);
+    } on ApiException catch (error) {
+      if (mounted) _showTicketLoadError(error.message);
+    } on FormatException catch (error) {
+      if (mounted) _showTicketLoadError(error.message);
+    }
+  }
+
+  void _showTicketLoadError(String message) {
+    final isEnglish =
+        LanguagePreferenceService.locale.value.languageCode == 'en';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${isEnglish ? 'Could not load ticket reminders' : 'Pengingat tiket gagal dimuat'}: $message',
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _loadArticles() async {
@@ -143,6 +226,8 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final notificationCustomerId = AuthService.currentUser?.id;
+    final ticketReminders = TicketReminder.fromTickets(TicketService.tickets);
     final nearestDestinations = [..._destinations]
       ..sort((first, second) => first.distanceKm.compareTo(second.distanceKm));
     final popularDestinations = [..._destinations]
@@ -164,12 +249,24 @@ class _HomePageState extends State<HomePage> {
             _HomeHeader(
               key: const ValueKey('home-header'),
               onProfileTap: () => _openTab(context, 4),
-              onNotificationsTap: () => _openTab(context, 3),
+              onNotificationsTap: () =>
+                  _openPage(context, const TicketNotificationsPage()),
+              showNotificationBadge:
+                  notificationCustomerId != null &&
+                  TicketReminderReadService.hasUnread(
+                    notificationCustomerId,
+                    ticketReminders,
+                  ),
             ),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
-                  await Future.wait([_loadDestinations(), _loadArticles()]);
+                  final customerId = AuthService.currentUser?.id;
+                  await Future.wait([
+                    _loadDestinations(),
+                    _loadArticles(),
+                    if (customerId != null) _loadTicketReminders(customerId),
+                  ]);
                 },
                 child: ListView(
                   key: const ValueKey('home-scroll'),
@@ -403,10 +500,12 @@ class _HomeHeader extends StatelessWidget {
     super.key,
     required this.onProfileTap,
     required this.onNotificationsTap,
+    required this.showNotificationBadge,
   });
 
   final VoidCallback onProfileTap;
   final VoidCallback onNotificationsTap;
+  final bool showNotificationBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -473,7 +572,7 @@ class _HomeHeader extends StatelessWidget {
               _HeaderAction(
                 icon: Icons.notifications_none_rounded,
                 tooltip: localized('Notifikasi'),
-                showBadge: true,
+                showBadge: showNotificationBadge,
                 onTap: onNotificationsTap,
               ),
               const SizedBox(width: 7),
@@ -536,6 +635,7 @@ class _HeaderAction extends StatelessWidget {
                     top: 5,
                     right: 5,
                     child: Container(
+                      key: const ValueKey('notification-badge'),
                       width: 7,
                       height: 7,
                       decoration: const BoxDecoration(

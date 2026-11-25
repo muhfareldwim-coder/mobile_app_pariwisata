@@ -13,10 +13,13 @@ void main() {
     final cases = [
       (const Size(360, 800), const LoginPage()),
       (const Size(320, 640), const RegisterPage()),
-      (const Size(320, 640), const OtpVerificationPage(
-        email: 'siti@example.com',
-        purpose: OtpPurpose.registration,
-      )),
+      (
+        const Size(320, 640),
+        const OtpVerificationPage(
+          email: 'siti@example.com',
+          purpose: OtpPurpose.registration,
+        ),
+      ),
       (const Size(320, 640), const ForgotPasswordPage()),
     ];
 
@@ -31,9 +34,22 @@ void main() {
         find.text('SISTEM INFORMASI DAN LAYANAN PARIWISATA KABUPATEN JEMBER'),
         findsNothing,
       );
-      final logoSize = tester.getSize(find.byType(BrandLogo));
-      expect(logoSize.width, greaterThan(150));
-      expect(logoSize.height, 105);
+      if (page is LoginPage || page is RegisterPage) {
+        final logoSize = tester.getSize(find.byType(BrandLogo));
+        expect(logoSize, const Size(112, 112));
+        final logoImage = tester.widget<Image>(
+          find.descendant(
+            of: find.byType(BrandLogo),
+            matching: find.byType(Image),
+          ),
+        );
+        expect(logoImage.image, isA<AssetImage>());
+        expect(
+          (logoImage.image as AssetImage).assetName,
+          equals('assets/logo_mobile_latest.png'),
+        );
+        expect(logoImage.fit, BoxFit.contain);
+      }
       expect(tester.takeException(), isNull);
     }
 

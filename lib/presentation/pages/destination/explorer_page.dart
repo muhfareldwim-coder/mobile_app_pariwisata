@@ -83,9 +83,16 @@ class _ExplorerPageState extends State<ExplorerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _exploreBackground,
-      body: RefreshIndicator(
-        onRefresh: _loadDestinations,
-        child: _exploreBody(),
+      body: Column(
+        children: [
+          _buildHeader(),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _loadDestinations,
+              child: _exploreBody(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -109,7 +116,6 @@ class _ExplorerPageState extends State<ExplorerPage> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.zero,
       children: [
-        _buildHeader(),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 22, 16, 12),
           child: Column(

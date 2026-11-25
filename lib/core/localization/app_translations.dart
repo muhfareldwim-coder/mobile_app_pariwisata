@@ -285,6 +285,17 @@ class AppTranslations {
     'Saya menyetujui syarat dan ketentuan':
         'I agree to the terms and conditions',
     'Notifikasi': 'Notifications',
+    'Notifikasi Tiket': 'Ticket Notifications',
+    'Pengingat jadwal kunjungan': 'Visit schedule reminders',
+    'Tiket kunjungan hari ini': 'Your visit is today',
+    'Pengingat H-1 tiket': 'Ticket reminder for tomorrow',
+    'Tiket sudah kedaluwarsa': 'Ticket expired',
+    'Tandai dibaca': 'Mark as read',
+    'Belum ada pengingat tiket': 'No ticket reminders yet',
+    'Pengingat akan muncul pada hari kunjungan dan H-1.':
+        'Reminders will appear on the visit date and the day before.',
+    'Masuk untuk melihat pengingat tiket':
+        'Sign in to view your ticket reminders',
     'Kategori Wisata': 'Categories',
     'Pilih ragam destinasi unggulan': 'Discover featured destinations',
     'Destinasi Populer': 'Popular Destinations',
@@ -313,41 +324,30 @@ class AppTranslations {
     'Tentang JemberGo': 'About JemberGo',
     'Informasi aplikasi': 'App information',
     'Syarat dan Ketentuan JemberGo': 'JemberGo Terms and Conditions',
-    'Selamat datang di JemberGo, aplikasi informasi dan layanan pariwisata Kabupaten Jember.':
-        'Welcome to JemberGo, the tourism information and services app for Jember Regency.',
-    'Dengan menggunakan aplikasi JemberGo, pengguna dianggap telah menyetujui ketentuan berikut:':
-        'By using the JemberGo app, users are deemed to have agreed to the following terms:',
+    'Selamat datang di JemberGo, aplikasi informasi dan layanan pariwisata Kabupaten Jember.': 'Welcome to JemberGo, the tourism information and services app for Jember Regency.',
+    'Dengan menggunakan aplikasi JemberGo, pengguna dianggap telah menyetujui ketentuan berikut:': 'By using the JemberGo app, users are deemed to have agreed to the following terms:',
     'Pengguna wajib memberikan informasi yang benar saat menggunakan aplikasi.':
         'Users must provide accurate information when using the app.',
     'Pengguna bertanggung jawab atas keamanan akun masing-masing.':
         'Users are responsible for the security of their own accounts.',
     'Pengguna dilarang menyalahgunakan fitur aplikasi untuk kegiatan yang melanggar hukum.':
         'Users must not misuse app features for unlawful activities.',
-    'Informasi wisata yang tersedia digunakan sebagai referensi bagi pengunjung.':
-        'Available tourism information is provided as a reference for visitors.',
-    'Informasi seperti harga tiket, jam operasional, dan fasilitas wisata dapat berubah sewaktu-waktu.':
-        'Information such as ticket prices, operating hours, and tourism facilities may change at any time.',
-    'Pengguna wajib menghormati aturan dan ketentuan di setiap destinasi wisata.':
-        'Users must respect the rules and regulations at each tourist destination.',
-    'Pengelola berhak memperbarui fitur dan ketentuan aplikasi sesuai kebutuhan.':
-        'The administrator reserves the right to update app features and terms as needed.',
+    'Informasi wisata yang tersedia digunakan sebagai referensi bagi pengunjung.': 'Available tourism information is provided as a reference for visitors.',
+    'Informasi seperti harga tiket, jam operasional, dan fasilitas wisata dapat berubah sewaktu-waktu.': 'Information such as ticket prices, operating hours, and tourism facilities may change at any time.',
+    'Pengguna wajib menghormati aturan dan ketentuan di setiap destinasi wisata.': 'Users must respect the rules and regulations at each tourist destination.',
+    'Pengelola berhak memperbarui fitur dan ketentuan aplikasi sesuai kebutuhan.': 'The administrator reserves the right to update app features and terms as needed.',
     'Pengelola berupaya menjaga keamanan data dan kenyamanan pengguna.':
         'The administrator strives to protect data security and user comfort.',
-    'Dengan menggunakan JemberGo, pengguna menyatakan telah membaca dan menyetujui seluruh syarat dan ketentuan yang berlaku.':
-        'By using JemberGo, users confirm that they have read and agree to all applicable terms and conditions.',
+    'Dengan menggunakan JemberGo, pengguna menyatakan telah membaca dan menyetujui seluruh syarat dan ketentuan yang berlaku.': 'By using JemberGo, users confirm that they have read and agree to all applicable terms and conditions.',
     'JemberGo – Jelajahi Keindahan Wisata Kabupaten Jember.':
         'JemberGo – Explore the Beauty of Jember Regency.',
     'JemberGo – Jelajahi Jember Lebih Dekat':
         'JemberGo – Discover Jember Up Close',
-    'JemberGo merupakan platform informasi dan layanan pariwisata Kabupaten Jember yang dikembangkan untuk memperkenalkan keindahan alam, kekayaan budaya, kuliner, serta berbagai potensi wisata lokal kepada masyarakat luas.':
-        'JemberGo is a tourism information and services platform for Jember Regency, developed to introduce its natural beauty, cultural richness, cuisine, and diverse local tourism potential to a wider audience.',
-    'Melalui JemberGo, pengguna dapat menemukan berbagai informasi destinasi wisata, mulai dari wisata alam, wisata budaya, wisata sejarah, hingga tempat kuliner menarik yang ada di Kabupaten Jember.':
-        'Through JemberGo, users can find information about a wide range of destinations, including nature, culture, history, and interesting culinary spots in Jember Regency.',
-    'JemberGo hadir sebagai solusi digital yang memudahkan wisatawan dalam mencari referensi perjalanan, mengenal tempat-tempat menarik, serta mendapatkan informasi pariwisata secara lebih mudah dan praktis.':
-        'JemberGo is a digital solution that helps travelers find trip ideas, discover interesting places, and access tourism information more easily and conveniently.',
+    'JemberGo merupakan platform informasi dan layanan pariwisata Kabupaten Jember yang dikembangkan untuk memperkenalkan keindahan alam, kekayaan budaya, kuliner, serta berbagai potensi wisata lokal kepada masyarakat luas.': 'JemberGo is a tourism information and services platform for Jember Regency, developed to introduce its natural beauty, cultural richness, cuisine, and diverse local tourism potential to a wider audience.',
+    'Melalui JemberGo, pengguna dapat menemukan berbagai informasi destinasi wisata, mulai dari wisata alam, wisata budaya, wisata sejarah, hingga tempat kuliner menarik yang ada di Kabupaten Jember.': 'Through JemberGo, users can find information about a wide range of destinations, including nature, culture, history, and interesting culinary spots in Jember Regency.',
+    'JemberGo hadir sebagai solusi digital yang memudahkan wisatawan dalam mencari referensi perjalanan, mengenal tempat-tempat menarik, serta mendapatkan informasi pariwisata secara lebih mudah dan praktis.': 'JemberGo is a digital solution that helps travelers find trip ideas, discover interesting places, and access tourism information more easily and conveniently.',
     'Visi': 'Vision',
-    'Menjadi platform informasi dan layanan pariwisata digital yang membantu memperkenalkan potensi wisata Kabupaten Jember kepada masyarakat luas.':
-        'To become a digital tourism information and services platform that helps introduce Jember Regency’s tourism potential to a wider audience.',
+    'Menjadi platform informasi dan layanan pariwisata digital yang membantu memperkenalkan potensi wisata Kabupaten Jember kepada masyarakat luas.': 'To become a digital tourism information and services platform that helps introduce Jember Regency’s tourism potential to a wider audience.',
     'Misi': 'Mission',
     'Menyediakan informasi destinasi wisata yang mudah diakses.':
         'Provide easily accessible information about tourist destinations.',
@@ -360,8 +360,7 @@ class AppTranslations {
     'Mendorong perkembangan pariwisata lokal melalui teknologi digital.':
         'Encourage local tourism development through digital technology.',
     'Tujuan JemberGo': 'JemberGo’s Goal',
-    'JemberGo bertujuan menjadi pusat informasi pariwisata digital yang menghubungkan wisatawan dengan berbagai potensi wisata di Kabupaten Jember, sehingga semakin banyak orang mengenal dan tertarik untuk berkunjung ke Jember.':
-        'JemberGo aims to be a digital tourism information hub connecting travelers with the many tourism opportunities in Jember Regency, helping more people discover Jember and inspiring them to visit.',
+    'JemberGo bertujuan menjadi pusat informasi pariwisata digital yang menghubungkan wisatawan dengan berbagai potensi wisata di Kabupaten Jember, sehingga semakin banyak orang mengenal dan tertarik untuk berkunjung ke Jember.': 'JemberGo aims to be a digital tourism information hub connecting travelers with the many tourism opportunities in Jember Regency, helping more people discover Jember and inspiring them to visit.',
     'JemberGo – Satu Platform, Banyak Cerita dari Jember.':
         'JemberGo – One Platform, Many Stories from Jember.',
     'Edit profil': 'Edit profile',

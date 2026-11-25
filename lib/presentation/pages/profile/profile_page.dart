@@ -10,6 +10,7 @@ import '../../../data/services/language_preference_service.dart';
 import '../destination/destination_detail_page.dart';
 import 'profile_information_page.dart';
 import 'profile_detail_page.dart';
+import 'ticket_notifications_page.dart';
 
 const _profileNavy = Color(0xFF08213E);
 const _profileInk = Color(0xFF173657);
@@ -145,6 +146,18 @@ class ProfilePageState extends State<ProfilePage> {
                       const SizedBox(height: 9),
                       _SettingsGroup(
                         children: [
+                          _SettingRow(
+                            icon: Icons.notifications_none_rounded,
+                            iconBackground: const Color(0xFFF4F7FA),
+                            title: 'Notifikasi Tiket',
+                            subtitle: 'Pengingat jadwal kunjungan',
+                            onTap: () => Navigator.push<void>(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => const TicketNotificationsPage(),
+                              ),
+                            ),
+                          ),
                           ValueListenableBuilder<Locale>(
                             valueListenable: LanguagePreferenceService.locale,
                             builder: (context, locale, _) => _SettingRow(

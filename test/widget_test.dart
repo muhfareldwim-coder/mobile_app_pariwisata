@@ -609,7 +609,7 @@ void main() {
     expect(find.text('Pantai Tanjung Papuma'), findsOneWidget);
   });
 
-  testWidgets('header eksplor ikut bergulir bersama daftar', (tester) async {
+  testWidgets('header eksplor tetap saat daftar digulir', (tester) async {
     tester.view.physicalSize = const Size(430, 640);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -638,7 +638,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(tester.getTopLeft(header).dy, lessThan(initialTop));
+    expect(tester.getTopLeft(header).dy, initialTop);
   });
 
   testWidgets('filter pencarian membuka pop-up tengah tanpa badge jumlah', (
