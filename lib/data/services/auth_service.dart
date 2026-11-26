@@ -6,21 +6,24 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/constants/app_constants.dart';
 import '../models/user.dart';
 import 'api_service.dart';
+import 'auth_user_cache.dart';
 
 class AuthService {
   AuthService({
     ApiService? api,
     FlutterSecureStorage? storage,
     AuthSessionStorage? sessionStorage,
+    AuthUserCache? userCache,
   }) : _api = api ?? ApiService(),
        _storage =
            sessionStorage ??
            _FlutterSecureStorageSessionStorage(
              storage ?? const FlutterSecureStorage(),
-           );
+           ),
+       _userCache = userCache ?? const SqliteAuthUserCache();
 
   static const _tokenKey = 'jembergo_access_token';
-  static const _userKey = 'jembergo_user';
+  static const _legacyUserKey = 'jembergo_user';
   static final ValueNotifier<User?> _currentUser = ValueNotifier(null);
   static User? get currentUser => _currentUser.value;
   static set currentUser(User? user) => _currentUser.value = user;
@@ -31,25 +34,46 @@ class AuthService {
 
   final ApiService _api;
   final AuthSessionStorage _storage;
+  final AuthUserCache _userCache;
 
-  static Future<void> restoreSession() async {
-    const storage = FlutterSecureStorage();
-    final values = await Future.wait([
-      storage.read(key: _tokenKey),
-      storage.read(key: _userKey),
-    ]);
-    final token = values[0];
-    final encodedUser = values[1];
-    if (token == null || encodedUser == null) {
-      await _clearStoredSession(_FlutterSecureStorageSessionStorage(storage));
+  static Future<void> restoreSession({
+    AuthSessionStorage? sessionStorage,
+    AuthUserCache? userCache,
+  }) async {
+    final storage =
+        sessionStorage ??
+        _FlutterSecureStorageSessionStorage(const FlutterSecureStorage());
+    final profileCache = userCache ?? const SqliteAuthUserCache();
+    final token = await storage.read(_tokenKey);
+    if (token == null) {
+      await _clearStoredSession(storage, profileCache);
+      _accessToken = null;
+      _rememberSession = false;
+      currentUser = null;
       return;
     }
 
-    final decodedUser = jsonDecode(encodedUser);
-    if (decodedUser is! Map<String, dynamic>) {
-      throw const FormatException('Data akun tersimpan tidak valid.');
+    var user = await profileCache.read();
+    final legacyEncodedUser = await storage.read(_legacyUserKey);
+    if (user == null && legacyEncodedUser != null) {
+      final decodedUser = jsonDecode(legacyEncodedUser);
+      if (decodedUser is! Map<String, dynamic>) {
+        throw const FormatException('Data akun tersimpan tidak valid.');
+      }
+      user = User.fromJson(decodedUser);
+      await profileCache.write(user);
     }
-    currentUser = User.fromJson(decodedUser);
+
+    if (user == null) {
+      await _clearStoredSession(storage, profileCache);
+      _accessToken = null;
+      _rememberSession = false;
+      currentUser = null;
+      return;
+    }
+
+    await storage.delete(_legacyUserKey);
+    currentUser = user;
     _accessToken = token;
     _rememberSession = true;
   }
@@ -202,7 +226,7 @@ class AuthService {
         if (error.statusCode != 401) rethrow;
       }
     }
-    await _clearStoredSession(_storage);
+    await _clearStoredSession(_storage, _userCache);
     _accessToken = null;
     _rememberSession = false;
     currentUser = null;
@@ -279,9 +303,15 @@ class AuthService {
 
     if (rememberMe) {
       await _storage.write(_tokenKey, token);
-      await _storage.write(_userKey, jsonEncode(user.toJson()));
+      try {
+        await _userCache.write(user);
+        await _storage.delete(_legacyUserKey);
+      } on Exception {
+        await _storage.delete(_tokenKey);
+        rethrow;
+      }
     } else {
-      await _clearStoredSession(_storage);
+      await _clearStoredSession(_storage, _userCache);
     }
     _rememberSession = rememberMe;
     _accessToken = token;
@@ -315,17 +345,21 @@ class AuthService {
     currentUser = user;
     if (!_rememberSession) return;
     try {
-      await _storage.write(_userKey, jsonEncode(user.toJson()));
+      await _userCache.write(user);
     } on Exception catch (error) {
       throw ApiException(
-        'Profil berhasil disimpan di server, tetapi sesi lokal gagal diperbarui: $error',
+        'Profil berhasil disimpan di server, tetapi cache lokal gagal diperbarui: $error',
       );
     }
   }
 
-  static Future<void> _clearStoredSession(AuthSessionStorage storage) async {
+  static Future<void> _clearStoredSession(
+    AuthSessionStorage storage,
+    AuthUserCache userCache,
+  ) async {
     await storage.delete(_tokenKey);
-    await storage.delete(_userKey);
+    await storage.delete(_legacyUserKey);
+    await userCache.clear();
   }
 }
 

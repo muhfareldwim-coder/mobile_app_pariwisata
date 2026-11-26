@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mobile_pariwisata/data/services/api_service.dart';
 import 'package:mobile_pariwisata/data/services/auth_service.dart';
+import 'package:mobile_pariwisata/data/services/auth_user_cache.dart';
+import 'package:mobile_pariwisata/data/models/user.dart';
 
 void main() {
   setUp(AuthService.logout);
@@ -13,8 +15,10 @@ void main() {
     'writes a remembered session to the configured session storage',
     () async {
       final storage = _MemoryAuthSessionStorage();
+      final userCache = _MemoryAuthUserCache();
       final service = AuthService(
         sessionStorage: storage,
+        userCache: userCache,
         api: ApiService(
           baseUrl: 'https://jembergo.test/api/v1',
           client: MockClient(
@@ -39,14 +43,44 @@ void main() {
 
       await service.login('siti@gmail.com', 'password');
       expect(storage.values['jembergo_access_token'], 'stored-token');
-      expect(storage.values['jembergo_user'], isNotNull);
+      expect(storage.values, {'jembergo_access_token': 'stored-token'});
+      expect((await userCache.read())?.name, 'Siti Aminah');
       expect(AuthService.accessToken, 'stored-token');
       expect(AuthService.currentUser?.id, '42');
       expect(AuthService.currentUser?.name, 'Siti Aminah');
       expect(AuthService.currentUser?.email, 'siti@gmail.com');
       expect(AuthService.currentUser?.phone, '081234567890');
+
+      AuthService.logout();
+      await AuthService.restoreSession(
+        sessionStorage: storage,
+        userCache: userCache,
+      );
+      expect(AuthService.accessToken, 'stored-token');
+      expect(AuthService.currentUser?.name, 'Siti Aminah');
     },
   );
+
+  test('migrates a legacy secure-stored profile into the user cache', () async {
+    final storage = _MemoryAuthSessionStorage()
+      ..values['jembergo_access_token'] = 'stored-token'
+      ..values['jembergo_user'] = jsonEncode({
+        'id': 42,
+        'nama': 'Siti Aminah',
+        'email': 'siti@gmail.com',
+        'no_hp': '081234567890',
+        'role': 'CUSTOMER',
+      });
+    final userCache = _MemoryAuthUserCache();
+
+    await AuthService.restoreSession(
+      sessionStorage: storage,
+      userCache: userCache,
+    );
+
+    expect((await userCache.read())?.name, 'Siti Aminah');
+    expect(storage.values, {'jembergo_access_token': 'stored-token'});
+  });
 
   test('reads the public Google server client ID from the API', () async {
     final client = MockClient((request) async {
@@ -134,6 +168,7 @@ void main() {
 
   test('Google login can finish after the server requires email OTP', () async {
     final storage = _MemoryAuthSessionStorage();
+    final userCache = _MemoryAuthUserCache();
     final service = AuthService(
       api: ApiService(
         baseUrl: 'https://jembergo.test/api/v1',
@@ -167,6 +202,7 @@ void main() {
         }),
       ),
       sessionStorage: storage,
+      userCache: userCache,
     );
 
     final result = await service.loginWithGoogleIdToken('google-id-token');
@@ -232,6 +268,7 @@ void main() {
     'profile edits update the server and the signed-in account cache',
     () async {
       final storage = _MemoryAuthSessionStorage();
+      final userCache = _MemoryAuthUserCache();
       final requests = <http.Request>[];
       final client = MockClient((request) async {
         requests.add(request);
@@ -296,6 +333,7 @@ void main() {
           client: client,
         ),
         sessionStorage: storage,
+        userCache: userCache,
       );
 
       await service.login('siti@gmail.com', 'oldPassword123');
@@ -309,16 +347,14 @@ void main() {
 
       expect(updatedUser.name, 'Siti Rahma');
       expect(AuthService.currentUser, updatedUser);
-      final savedUser = jsonDecode(storage.values['jembergo_user']!);
-      expect(savedUser['nama'], 'Siti Rahma');
-      expect(savedUser['email'], 'siti.rahma@gmail.com');
+      expect((await userCache.read())?.name, 'Siti Rahma');
+      expect((await userCache.read())?.email, 'siti.rahma@gmail.com');
       expect(requests.last.method, 'PUT');
 
       final refreshedUser = await service.refreshProfile();
       expect(refreshedUser.name, 'Siti Website');
       expect(AuthService.currentUser?.email, 'siti.website@gmail.com');
-      final refreshedCache = jsonDecode(storage.values['jembergo_user']!);
-      expect(refreshedCache['nama'], 'Siti Website');
+      expect((await userCache.read())?.name, 'Siti Website');
     },
   );
 }
@@ -337,5 +373,22 @@ class _MemoryAuthSessionStorage implements AuthSessionStorage {
   @override
   Future<void> write(String key, String value) async {
     values[key] = value;
+  }
+}
+
+class _MemoryAuthUserCache implements AuthUserCache {
+  User? user;
+
+  @override
+  Future<void> clear() async {
+    user = null;
+  }
+
+  @override
+  Future<User?> read() async => user;
+
+  @override
+  Future<void> write(User value) async {
+    user = value;
   }
 }
