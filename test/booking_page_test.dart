@@ -6,6 +6,7 @@ import 'package:mobile_pariwisata/data/models/payment.dart';
 import 'package:mobile_pariwisata/data/services/booking_service.dart';
 import 'package:mobile_pariwisata/data/services/payment_service.dart';
 import 'package:mobile_pariwisata/presentation/pages/booking/booking_page.dart';
+import 'package:mobile_pariwisata/presentation/pages/booking/order_confirmation_page.dart';
 import 'package:mobile_pariwisata/presentation/pages/booking/payment_page.dart';
 
 void main() {
@@ -45,19 +46,21 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('new booking opens payment without a confirmation page', (
+  testWidgets('new booking requires confirmation before opening payment', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
+    final bookingService = _FakeBookingService();
+    final paymentService = _FakePaymentService();
 
     await tester.pumpWidget(
       MaterialApp(
         home: BookingPage(
           destination: testDestination(),
-          bookingService: _FakeBookingService(),
-          paymentService: _FakePaymentService(),
+          bookingService: bookingService,
+          paymentService: paymentService,
         ),
       ),
     );
@@ -89,14 +92,23 @@ void main() {
     await tester.tap(find.text('Reguler - Rp 25.000'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Lanjut Bayar'));
-    await tester.pump();
-    await tester.pump();
+    await tester.tap(find.text('Konfirmasi Pesanan'));
+    await tester.pumpAndSettle();
 
+    expect(find.byType(OrderConfirmationPage), findsOneWidget);
+    expect(find.byType(PaymentPage), findsNothing);
+    expect(find.text('Pantai Papuma'), findsOneWidget);
+    expect(find.text('Citra Wijaya'), findsOneWidget);
+    expect(find.text('Reguler'), findsOneWidget);
+    expect(bookingService.createBookingCalls, 0);
+
+    await tester.tap(find.text('Bayar Sekarang'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(OrderConfirmationPage), findsNothing);
     expect(find.byType(PaymentPage), findsOneWidget);
-    expect(find.text('Konfirmasi dan pembayaran'), findsNothing);
-    expect(find.text('Batalkan pesanan'), findsNothing);
-    expect(find.text('Ringkasan pesanan'), findsOneWidget);
+    expect(bookingService.createBookingCalls, 1);
+    expect(paymentService.createPaymentCalls, 1);
     expect(tester.takeException(), isNull);
   });
 
@@ -119,7 +131,7 @@ void main() {
     expect(find.text('Nomor WhatsApp / HP *'), findsOneWidget);
     expect(find.byTooltip('Profil'), findsNothing);
 
-    await tester.tap(find.text('Lanjut Bayar'));
+    await tester.tap(find.text('Konfirmasi Pesanan'));
     await tester.pump();
     expect(
       find.text('Pilih tanggal kunjungan terlebih dahulu.'),
@@ -182,6 +194,8 @@ void main() {
 class _FakeBookingService extends BookingService {
   _FakeBookingService() : super();
 
+  int createBookingCalls = 0;
+
   @override
   Future<BookingQuotaAvailability> getQuotaAvailability({
     required String destinationId,
@@ -196,22 +210,27 @@ class _FakeBookingService extends BookingService {
     required String leaderEmail,
     required String leaderPhone,
     required List<BookingParticipant> participants,
-  }) async => Booking(
-    id: '15',
-    code: 'JGO-BOOKING-15',
-    destinationId: destinationId,
-    visitDate: visitDate,
-    totalAmount: 25000,
-    leaderName: leaderName,
-    leaderEmail: leaderEmail,
-    leaderPhone: leaderPhone,
-    participants: participants,
-    status: 'PENDING',
-  );
+  }) async {
+    createBookingCalls++;
+    return Booking(
+      id: '15',
+      code: 'JGO-BOOKING-15',
+      destinationId: destinationId,
+      visitDate: visitDate,
+      totalAmount: 25000,
+      leaderName: leaderName,
+      leaderEmail: leaderEmail,
+      leaderPhone: leaderPhone,
+      participants: participants,
+      status: 'PENDING',
+    );
+  }
 }
 
 class _FakePaymentService extends PaymentService {
   _FakePaymentService() : super();
+
+  int createPaymentCalls = 0;
 
   Payment _pendingPayment(String bookingId) => Payment(
     orderId: 'JGO-BOOKING-15',
@@ -224,8 +243,10 @@ class _FakePaymentService extends PaymentService {
   );
 
   @override
-  Future<Payment> createPayment(String bookingId) async =>
-      _pendingPayment(bookingId);
+  Future<Payment> createPayment(String bookingId) async {
+    createPaymentCalls++;
+    return _pendingPayment(bookingId);
+  }
 
   @override
   Future<Payment> getPaymentStatus(String bookingId) async =>

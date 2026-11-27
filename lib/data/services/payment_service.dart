@@ -75,7 +75,7 @@ class PaymentService {
 
     final qrCodeUrlValue = data['qris_image_url'];
     final qrCodeUrl = qrCodeUrlValue is String
-        ? Uri.tryParse(qrCodeUrlValue)
+        ? Uri.tryParse(_api.resolveUrl(qrCodeUrlValue))
         : null;
     if (qrCodeUrlValue is String &&
         (qrCodeUrl == null ||

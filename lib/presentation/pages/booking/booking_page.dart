@@ -10,7 +10,7 @@ import '../../../data/services/auth_service.dart';
 import '../../../data/services/booking_service.dart';
 import '../../../data/services/payment_service.dart';
 import '../../../core/utils/date_formatters.dart';
-import 'payment_page.dart';
+import 'order_confirmation_page.dart';
 
 const _navy = AppColors.navy;
 const _blue = AppColors.navy;
@@ -182,7 +182,7 @@ class _BookingPageState extends State<BookingPage> {
     setState(() {});
   }
 
-  Future<void> _continueToPayment() async {
+  Future<void> _continueToConfirmation() async {
     if (_isSubmitting) return;
     if (_ticketTypes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -222,57 +222,54 @@ class _BookingPageState extends State<BookingPage> {
       return;
     }
 
+    final leaderTicket = _ticketType(_leaderTicketTypeId);
+    if (leaderTicket == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Jenis tiket ketua tidak valid.')),
+      );
+      return;
+    }
+    final participants = List<BookingParticipant>.unmodifiable([
+      BookingParticipant(
+        name: _leaderNameController.text.trim(),
+        ticketTypeId: leaderTicket.id,
+        ticketTypeName: leaderTicket.name,
+        ticketPrice: leaderTicket.price,
+      ),
+      for (final passenger in _passengers)
+        if (_ticketType(passenger.ticketTypeId) case final ticket?)
+          BookingParticipant(
+            name: passenger.nameController.text.trim(),
+            ticketTypeId: ticket.id,
+            ticketTypeName: ticket.name,
+            ticketPrice: ticket.price,
+          ),
+    ]);
+
     setState(() => _isSubmitting = true);
     try {
-      final leaderTicket = _ticketType(_leaderTicketTypeId);
-      if (leaderTicket == null) {
-        throw const FormatException('Jenis tiket ketua tidak valid.');
-      }
-      final participants = <BookingParticipant>[
-        BookingParticipant(
-          name: _leaderNameController.text.trim(),
-          ticketTypeId: leaderTicket.id,
-          ticketTypeName: leaderTicket.name,
-          ticketPrice: leaderTicket.price,
-        ),
-        for (final passenger in _passengers)
-          if (_ticketType(passenger.ticketTypeId) case final ticket?)
-            BookingParticipant(
-              name: passenger.nameController.text.trim(),
-              ticketTypeId: ticket.id,
-              ticketTypeName: ticket.name,
-              ticketPrice: ticket.price,
-            ),
-      ];
-      final booking = await _bookingService.createBooking(
-        destinationId: widget.destination.id,
-        visitDate: _visitDate!,
-        leaderName: _leaderNameController.text.trim(),
-        leaderEmail: _leaderEmailController.text.trim(),
-        leaderPhone: _leaderPhoneController.text.trim(),
-        participants: participants,
-      );
-      if (!mounted) return;
       await Navigator.push<void>(
         context,
         MaterialPageRoute<void>(
-          builder: (_) => PaymentPage(
-            booking: booking,
+          builder: (_) => OrderConfirmationPage(
             destination: widget.destination,
+            visitDate: _visitDate!,
+            leaderName: _leaderNameController.text.trim(),
+            leaderEmail: _leaderEmailController.text.trim(),
+            leaderPhone: _leaderPhoneController.text.trim(),
+            participants: participants,
+            onConfirmBooking: () => _bookingService.createBooking(
+              destinationId: widget.destination.id,
+              visitDate: _visitDate!,
+              leaderName: _leaderNameController.text.trim(),
+              leaderEmail: _leaderEmailController.text.trim(),
+              leaderPhone: _leaderPhoneController.text.trim(),
+              participants: participants,
+            ),
             paymentService: widget.paymentService,
           ),
         ),
       );
-    } on ApiException catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.message)));
-      }
-    } on FormatException catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.message)));
-      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -455,7 +452,7 @@ class _BookingPageState extends State<BookingPage> {
         builder: (context, child) => _PaymentBar(
           total: _totalPrice,
           isLoading: _isSubmitting,
-          onContinue: _continueToPayment,
+          onContinue: _continueToConfirmation,
         ),
       ),
     );
@@ -711,7 +708,7 @@ class _BookingProgress extends StatelessWidget {
       child: const Row(
         children: [
           Expanded(
-            flex: 2,
+            flex: 3,
             child: _StepIndicator(
               number: '1',
               label: 'Data Peserta',
@@ -720,13 +717,18 @@ class _BookingProgress extends StatelessWidget {
           ),
           Expanded(flex: 1, child: Divider(color: Color(0xFFD8E1EA))),
           Expanded(
-            flex: 4,
-            child: _StepIndicator(number: '2', label: 'Pembayaran'),
+            flex: 2,
+            child: _StepIndicator(number: '2', label: 'Konfirmasi'),
+          ),
+          Expanded(flex: 1, child: Divider(color: Color(0xFFD8E1EA))),
+          Expanded(
+            flex: 7,
+            child: _StepIndicator(number: '3', label: 'Pembayaran'),
           ),
           Expanded(flex: 1, child: Divider(color: Color(0xFFD8E1EA))),
           Expanded(
             flex: 2,
-            child: _StepIndicator(number: '3', label: 'E-Tiket'),
+            child: _StepIndicator(number: '4', label: 'E-Tiket'),
           ),
         ],
       ),
@@ -762,7 +764,7 @@ class _StepIndicator extends StatelessWidget {
             number,
             style: TextStyle(
               color: active ? Colors.white : const Color(0xFF68778A),
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1243,7 +1245,7 @@ class _PaymentBar extends StatelessWidget {
                       const SizedBox(width: 8),
                     ],
                     const Text(
-                      'Lanjut Bayar',
+                      'Konfirmasi Pesanan',
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 14,

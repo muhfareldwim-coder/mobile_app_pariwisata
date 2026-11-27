@@ -47,7 +47,7 @@ void main() {
                 'status': 'PENDING',
                 'order_id': 'JGO-JGO-20261011-ABCDE',
                 'qris_url': 'https://api.sandbox.midtrans.com/v2/qris/qr-code',
-                'qris_image_url': 'http://localhost/api/v1/customer/pesanan/15/pembayaran/qr-image',
+                'qris_image_url': 'http://jembergo.my.id/api/v1/customer/pesanan/15/pembayaran/qr-image',
                 'nominal': 39000,
               },
             }),
@@ -61,7 +61,7 @@ void main() {
               'status': 'PAID',
               'order_id': 'JGO-JGO-20261011-ABCDE',
               'qris_url': 'https://api.sandbox.midtrans.com/v2/qris/qr-code',
-              'qris_image_url': 'http://localhost/api/v1/customer/pesanan/15/pembayaran/qr-image',
+              'qris_image_url': 'http://jembergo.my.id/api/v1/customer/pesanan/15/pembayaran/qr-image',
               'nominal': 39000,
             },
           }),
@@ -69,7 +69,7 @@ void main() {
         );
       });
       final api = ApiService(
-        baseUrl: 'http://localhost/api/v1',
+        baseUrl: 'https://jembergo.my.id/api/v1',
         client: client,
       );
 
@@ -114,7 +114,8 @@ void main() {
       expect(payment.bookingId, booking.id);
       expect(payment.orderId, 'JGO-JGO-20261011-ABCDE');
       expect(payment.amount, 39000);
-      expect(payment.qrCodeUrl?.host, 'localhost');
+      expect(payment.qrCodeUrl?.host, 'jembergo.my.id');
+      expect(payment.qrCodeUrl?.scheme, 'https');
       expect(
         payment.qrCodeSourceUrl?.toString(),
         'https://api.sandbox.midtrans.com/v2/qris/qr-code',

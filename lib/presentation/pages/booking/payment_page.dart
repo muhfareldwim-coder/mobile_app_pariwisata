@@ -345,7 +345,7 @@ class _PaymentProgress extends StatelessWidget {
       child: const Row(
         children: [
           Expanded(
-            flex: 2,
+            flex: 3,
             child: _PaymentStep(
               number: '1',
               label: 'Data Peserta',
@@ -354,13 +354,22 @@ class _PaymentProgress extends StatelessWidget {
           ),
           Expanded(flex: 1, child: Divider(color: Color(0xFFD8E1EA))),
           Expanded(
-            flex: 4,
-            child: _PaymentStep(number: '2', label: 'Pembayaran', active: true),
+            flex: 2,
+            child: _PaymentStep(
+              number: '2',
+              label: 'Konfirmasi',
+              complete: true,
+            ),
+          ),
+          Expanded(flex: 1, child: Divider(color: Color(0xFFD8E1EA))),
+          Expanded(
+            flex: 7,
+            child: _PaymentStep(number: '3', label: 'Pembayaran', active: true),
           ),
           Expanded(flex: 1, child: Divider(color: Color(0xFFD8E1EA))),
           Expanded(
             flex: 2,
-            child: _PaymentStep(number: '3', label: 'E-Tiket'),
+            child: _PaymentStep(number: '4', label: 'E-Tiket'),
           ),
         ],
       ),
@@ -412,7 +421,7 @@ class _PaymentStep extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: active ? _paymentNavy : const Color(0xFF8190A5),
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             ),
           ),

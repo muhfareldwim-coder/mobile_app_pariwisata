@@ -19,9 +19,18 @@ class ApiService {
 
   String resolveUrl(String url) {
     final uri = Uri.tryParse(url);
-    if (uri == null || uri.hasScheme) return url;
+    if (uri == null) return url;
 
     final apiUri = Uri.parse(baseUrl);
+    if (uri.hasScheme) {
+      if (uri.scheme == 'http' &&
+          apiUri.scheme == 'https' &&
+          uri.host == apiUri.host) {
+        return uri.replace(scheme: 'https').toString();
+      }
+      return url;
+    }
+
     final serverRoot = apiUri.replace(path: '/', query: null, fragment: null);
     return serverRoot.resolveUri(uri).toString();
   }

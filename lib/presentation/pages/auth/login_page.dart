@@ -108,20 +108,17 @@ class _LoginPageState extends State<LoginPage> {
       }
     } on GoogleSignInException catch (error) {
       if (mounted) {
+        final description = error.description?.trim();
+        final diagnostic = description == null || description.isEmpty
+            ? error.code.name
+            : '${error.code.name}: $description';
         if (error.code == GoogleSignInExceptionCode.canceled) {
-          final platformConfiguration = switch (defaultTargetPlatform) {
-            TargetPlatform.android =>
-              'nama paket aplikasi, SHA-1 signing key, dan Server Client ID',
-            TargetPlatform.iOS =>
-              'iOS Client ID, URL scheme, dan Server Client ID',
-            _ => 'konfigurasi OAuth platform',
-          };
           _showMessage(
-            'Login Google dibatalkan. Jika Anda sudah memilih akun, periksa '
-            '$platformConfiguration.',
+            'Google Sign-In dibatalkan ($diagnostic). Jika Anda sudah memilih '
+            'akun, kirim kode dan detail ini untuk pemeriksaan.',
           );
         } else {
-          _showMessage(error.toString());
+          _showMessage('Login Google gagal ($diagnostic).');
         }
       }
     } on Exception catch (error) {

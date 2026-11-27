@@ -104,6 +104,13 @@ class AppTranslations {
     'Total Tagihan': 'Total Due',
     'Total Pembayaran': 'Total Payment',
     'Lanjut Bayar': 'Continue to Payment',
+    'Konfirmasi Pesanan': 'Confirm Order',
+    'Periksa kembali pesananmu sebelum melakukan pembayaran.':
+        'Review your order before making the payment.',
+    'Email ketua': 'Leader Email',
+    'Ketua': 'Leader',
+    'E-ticket diterbitkan setelah pembayaran berhasil dikonfirmasi.':
+        'The e-ticket will be issued once your payment has been confirmed.',
     'Data Peserta': 'Participant Details',
     'Checkout': 'Checkout',
     ' tiket\nTanggal: ': ' tickets\nDate: ',
