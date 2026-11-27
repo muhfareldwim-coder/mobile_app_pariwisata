@@ -1,4 +1,4 @@
-package com.example.mobile_pariwisata
+package id.my.jembergo.mobile
 
 import io.flutter.embedding.android.FlutterActivity
 
